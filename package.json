@@ -1,0 +1,9 @@
+{
+  "name": "weapon-kkang",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node --no-warnings dev/server.mjs 8788 dev.sqlite"
+  }
+}
