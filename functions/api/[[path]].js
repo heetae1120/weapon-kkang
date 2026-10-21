@@ -32,11 +32,32 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS duels_b ON duels(b, at)`
 ];
 
+// 나중에 추가한 열: 보유 중인 최고 무기(랭킹 기준)
+const ADD_COLS = [
+  `ALTER TABLE players ADD COLUMN top INTEGER NOT NULL DEFAULT -1`,
+  `ALTER TABLE players ADD COLUMN toph INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE players ADD COLUMN topw TEXT NOT NULL DEFAULT '{}'`
+];
 let schemaReady = false;
 async function ensureSchema(db) {
   if (schemaReady) return;
   await db.batch(SCHEMA.map(s => db.prepare(s)));
+  for (const q of ADD_COLS) { try { await db.prepare(q).run(); } catch (e) { /* 이미 있음 */ } }
+  try { await db.prepare(`CREATE INDEX IF NOT EXISTS players_top ON players(top, toph, earn)`).run(); } catch (e) {}
+  // 예전 계정: 저장된 보관함에서 최고 무기를 계산해 채움 (한 번만)
+  const { results } = await db.prepare(`SELECT id, state FROM players WHERE top<0 LIMIT 500`).all();
+  if (results && results.length) {
+    await db.batch(results.map(r => { const t = topOf((safeParse(r.state).inv) || []); return db.prepare(`UPDATE players SET top=?, toph=?, topw=? WHERE id=?`).bind(t.lv, t.h, JSON.stringify(t.w), r.id); }));
+  }
   schemaReady = true;
+}
+const isHid = t => t === 'saber' || t === 'shinai' || t === 'scythe';
+// 보유 무기 중 최고: 강화 단계 → 히든 우선
+function topOf(inv) {
+  let best = null;
+  for (const w0 of inv || []) { const w = cleanWeapon(w0); if (!best || w.lv > best.lv || (w.lv === best.lv && isHid(w.type) && !isHid(best.type))) best = w; }
+  best = best || { type: null, el: null, lv: 0 };
+  return { lv: best.lv, h: isHid(best.type) ? 1 : 0, w: best };
 }
 
 const TYPES = ['sword', 'dagger', 'spear', 'axe', 'saber', 'shinai', 'scythe', null];
@@ -81,6 +102,13 @@ function cleanWeapon(w) {
 }
 
 const CHAR_IDS = ['paladin', 'smith', 'guard', 'orc', 'erika', 'ninja', 'kachujin'];
+const AURA_RE = /^(flame|frost|storm|shadow|holy|sakura|galaxy|rainbow):[1-4]$/;
+const cleanAura = k => (typeof k === 'string' && AURA_RE.test(k) ? k : null);
+function cleanAuras(a) {
+  const o = {};
+  if (a && typeof a === 'object') for (const [k, v] of Object.entries(a).slice(0, 40)) { if (AURA_RE.test(k)) { const n = Math.max(0, Math.min(99999, Math.floor(Number(v) || 0))); if (n) o[k] = n; } }
+  return o;
+}
 function cleanState(st) {
   if (!st || typeof st !== 'object') return null;
   const inv = Array.isArray(st.inv) ? st.inv.slice(0, 100).map(w => ({
@@ -99,7 +127,10 @@ function cleanState(st) {
     char: CHAR_IDS.includes(st.char) ? st.char : 'paladin',
     muted: !!st.muted,
     boxes: Math.max(0, Math.floor(Number(st.boxes) || 0)),
-    hidCount: Math.max(0, Math.floor(Number(st.hidCount) || 0))
+    hidCount: Math.max(0, Math.floor(Number(st.hidCount) || 0)),
+    auras: cleanAuras(st.auras),
+    aura: cleanAura(st.aura),
+    auraBoxes: Math.max(0, Math.floor(Number(st.auraBoxes) || 0))
   };
 }
 
@@ -152,10 +183,10 @@ export async function onRequest(ctx) {
       const t = now();
       const state = cleanState(body && body.state) || cleanState({});
       const cur = state.inv.find(w => w.id === state.cur) || state.inv[0];
-      const best = Math.max(0, ...state.inv.map(w => w.lv));
+      const best = Math.max(0, ...state.inv.map(w => w.lv)), top = topOf(state.inv);
       await db.prepare(
-        `INSERT INTO players(id,token_hash,name,state,weapon,lv,best,hid,seen,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?)`
-      ).bind(id, await sha256(token), name, JSON.stringify(state), JSON.stringify({ ...cleanWeapon(cur), ch: state.char }), cur.lv, best, state.hidCount, t, t, t).run();
+        `INSERT INTO players(id,token_hash,name,state,weapon,lv,best,hid,seen,created,updated,top,toph,topw) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+      ).bind(id, await sha256(token), name, JSON.stringify(state), JSON.stringify({ ...cleanWeapon(cur), ch: state.char, au: state.aura }), cur.lv, best, state.hidCount, t, t, t, top.lv, top.h, JSON.stringify(top.w)).run();
       const p = await db.prepare('SELECT * FROM players WHERE id=?').bind(id).first();
       return meResponse(db, p, { token });
     }
@@ -171,16 +202,16 @@ export async function onRequest(ctx) {
     if (path === '/rank' && m === 'GET') {
       const me = await auth(request, db);
       const { results } = await db.prepare(
-        `SELECT id,name,earn,wins,losses,best,lv,weapon FROM players ORDER BY earn DESC, wins DESC LIMIT 50`
+        `SELECT id,name,earn,wins,losses,best,lv,weapon,top,toph,topw FROM players ORDER BY top DESC, toph DESC, earn DESC, wins DESC LIMIT 50`
       ).all();
       let myRank = null;
       if (me) {
-        const r = await db.prepare('SELECT COUNT(*) AS c FROM players WHERE earn>?').bind(me.earn).first();
+        const r = await db.prepare('SELECT COUNT(*) AS c FROM players WHERE top>? OR (top=? AND (toph>? OR (toph=? AND earn>?)))').bind(me.top, me.top, me.toph, me.toph, me.earn).first();
         myRank = (r ? r.c : 0) + 1;
       }
       const total = await db.prepare('SELECT COUNT(*) AS c FROM players').first();
       return json({
-        players: (results || []).map(r => ({ ...publicProfile(r), lv: r.lv, weapon: safeParse(r.weapon), me: !!me && r.id === me.id })),
+        players: (results || []).map(r => ({ ...publicProfile(r), lv: r.lv, weapon: safeParse(r.weapon), top: Math.max(0, r.top), topw: safeParse(r.topw), me: !!me && r.id === me.id })),
         myRank, total: total ? total.c : 0
       });
     }
@@ -199,8 +230,9 @@ export async function onRequest(ctx) {
       const best = Math.max(me.best, ...state.inv.map(w => w.lv));
       const raw = JSON.stringify(state);
       if (raw.length > 60000) return fail(413, 'too_big', '저장 데이터가 너무 큽니다.');
-      await db.prepare(`UPDATE players SET state=?, weapon=?, lv=?, best=?, hid=?, updated=? WHERE id=?`)
-        .bind(raw, JSON.stringify({ ...cleanWeapon(cur), ch: state.char }), cur.lv, best, Math.max(me.hid, state.hidCount), now(), me.id).run();
+      const top = topOf(state.inv);
+      await db.prepare(`UPDATE players SET state=?, weapon=?, lv=?, best=?, hid=?, updated=?, top=?, toph=?, topw=? WHERE id=?`)
+        .bind(raw, JSON.stringify({ ...cleanWeapon(cur), ch: state.char, au: state.aura }), cur.lv, best, Math.max(me.hid, state.hidCount), now(), top.lv, top.h, JSON.stringify(top.w), me.id).run();
       return json({ ok: true, best });
     }
 
@@ -215,7 +247,7 @@ export async function onRequest(ctx) {
         rivals: (results || []).map(r => {
           const w = safeParse(r.weapon);
           const hidden = w.type === 'saber' || w.type === 'shinai' || w.type === 'scythe';
-          return { id: r.id, name: r.name, type: w.type || null, el: w.el || null, lv: r.lv, purse: purse(r.lv, hidden), earn: r.earn, wins: r.wins, losses: r.losses, ch: CHAR_IDS.includes(w.ch) ? w.ch : 'guard', real: true };
+          return { id: r.id, name: r.name, type: w.type || null, el: w.el || null, lv: r.lv, purse: purse(r.lv, hidden), earn: r.earn, wins: r.wins, losses: r.losses, ch: CHAR_IDS.includes(w.ch) ? w.ch : 'guard', au: cleanAura(w.au), real: true };
         })
       });
     }

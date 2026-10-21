@@ -32,12 +32,12 @@ function endScene(w,h,o){
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,RT.scene.t);gl.uniform1i(cu.uS,0);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,RT.mips[0].t);gl.uniform1i(cu.uB,1);
   gl.uniform1f(cu.uBloom,.16);gl.uniform1f(cu.uInv,(o&&o.inv)?1:0);gl.uniform1f(cu.uExp,1.05);gl.uniform1f(cu.uCA,Math.min(.012,(o.shake||0)*.0006));gl.uniform1f(cu.uFz,o.fz?.6+.4*Math.sin(o.t*14):0);gl.uniform1f(cu.uTime,o.t%10);gl.uniform1f(cu.uVig,.75);
   gl.drawArrays(gl.TRIANGLES,0,3);gl.activeTexture(gl.TEXTURE0)}
-function weaponFX(R,Mw,E,t,eye,pv){if(!R||R.type==='blank')return;const lv=R.lv,cent=M4.pt(Mw,[0,R.ringY,0]),sc=V.len(M4.dir(Mw,[1,0,0]));
-  if(lv>=8||R.hidden&&lv>=10){const r=(.17+lv*.007)*sc;drawDecal(M4.chain(M4.tr(cent[0],cent[1],cent[2]),M4.rx(PI/2-.42),M4.rz(t*.7),M4.sc(r)),TEX.ring,V.sc(E.c,1.8),pv,0)}
+function weaponFX(R,Mw,E,t,eye,pv,AU){if(!R||R.type==='blank')return;const lv=R.lv,cent=M4.pt(Mw,[0,R.ringY,0]),sc=V.len(M4.dir(Mw,[1,0,0]));
+  if(AU&&AU.g>=2){const r=(.2+AU.g*.03)*sc;drawDecal(M4.chain(M4.tr(cent[0],cent[1],cent[2]),M4.rx(PI/2-.42),M4.rz(t*.7),M4.sc(r)),TEX.ring,V.sc(auraE(AU,t).c,1.8),pv,0)}
   if(R.saber&&R.saber.BL>0){const s=R.saber,b0=M4.pt(Mw,[0,.01,0]),b1=M4.pt(Mw,[0,.01+s.BL,0]),dd=V.sub(b1,b0),bc=lin(R.lv===18?hsv(t*120%360):s.col);
     pushSpr(V.mix(b0,b1,.5),dd,.085*sc,0,V.sc(bc,2.2),1);pushSpr(V.mix(b0,b1,.5),dd,.032*sc,1,V.sc(V.mix(bc,[1,1,1],.7),4),1);
     if(s.dbl){const c0=M4.pt(Mw,[0,-s.HL,0]),c1=M4.pt(Mw,[0,-s.HL-s.BL,0]),d2=V.sub(c1,c0);pushSpr(V.mix(c0,c1,.5),d2,.085*sc,0,V.sc(bc,2.2),1);pushSpr(V.mix(c0,c1,.5),d2,.032*sc,1,V.sc(V.mix(bc,[1,1,1],.7),4),1)}}}
-function spawnAuraFor(R,Mw,dt,p){const keep=WPN;WPN=R;try{spawnAura(dt,Mw,p)}finally{WPN=keep}}
+function spawnAuraFor(R,Mw,dt,p,AU){if(!AU)return;const keep=WPN;WPN=R;try{spawnAura(dt,Mw,p,AU)}finally{WPN=keep}}
 let MODE='forge';
 function frame(now,dt,st){
   const fr=prepFrame(now);if(!fr)return;const{w,h,cw,ch}=fr;
@@ -52,7 +52,7 @@ function frame(now,dt,st){
   const wVis=now>=FX.hidden;
   // 카메라
   const asp=cw/ch,fov=30*PI/180*(1-(FX.zoom||0)*.6),tn=Math.tan(fov/2);
-  const pe=pose.p*pose.p*(3-2*pose.p),wcY=L3.wcY||1.6,hl=(L3.wHalf||.7)+.32,tgtC=V.mix([-.14,1.22,0],[FLX*.75,Math.max(1.22,wcY),0],pe*.75),dist=lerp(Math.max(1.2/tn,1.36/(tn*asp)),Math.max(hl/tn,(hl*.9)/(tn*asp),1.0/(tn*asp)),pe*.8);
+  const pe=pose.p*pose.p*(3-2*pose.p),wcY=L3.wcY||1.6,hl=(L3.wHalf||.7)+.5,tgtC=V.mix([-.14,1.22,0],[FLX*.75,Math.max(1.22,wcY),0],pe*.75),dist=lerp(Math.max(1.2/tn,1.36/(tn*asp)),Math.max(hl/tn,(hl*.9)/(tn*asp),1.0/(tn*asp)),pe*.8);
   const sh=(FX.shake||0)*.0016;const jit=[rnd(-1,1)*sh,rnd(-1,1)*sh,0];
   const eye=V.add(V.add(tgtC,V.sc(V.norm([.13+Math.sin(t*.17)*.02,.2,1]),dist)),jit);
   cam.V=M4.look(eye,V.add(tgtC,jit),[0,1,0]);cam.P=M4.persp(fov,asp,.05,40);cam.VP=M4.mul(cam.P,cam.V);cam.eye=eye;
@@ -94,13 +94,15 @@ function frame(now,dt,st){
   drawDecal(M4.chain(M4.tr(SC.fx,.004,SC.fz+.7),M4.rx(-PI/2),M4.sc(1.1,.7,1)),null,V.sc([1.6,.5,.12],fl),.5,2);
   if(heat>0)drawDecal(M4.chain(M4.tr(L3.Tw[0],AT+.001,.02),M4.rx(-PI/2),M4.sc(.22,.12,1)),null,[4,1.4,.3],heat,2);
   sprN=0;
+  const AU=H.curAura&&H.curAura();
   if(wVis&&Mw&&WPN&&!blank){const lv=WPN.lv,pv=.25+.75*pose.p,cent=M4.pt(Mw,[0,WPN.ringY,0]),sc=V.len(M4.dir(Mw,[1,0,0]));
-    if(lv>=8||WPN.hidden&&lv>=10){const r=(.17+lv*.007)*sc;drawDecal(M4.chain(M4.tr(cent[0],cent[1],cent[2]),M4.rx(PI/2-.42),M4.rz(t*.7),M4.sc(r)),TEX.ring,V.sc(E.c,1.8),pv,0);
-      if(lv>=13){const c2=M4.pt(Mw,[0,WPN.ringY*1.7+.05,0]);drawDecal(M4.chain(M4.tr(c2[0],c2[1],c2[2]),M4.rx(PI/2-.5),M4.rz(-t*1.1),M4.sc(r*.72)),TEX.ring,V.sc(E.l,1.6),pv,0)}}
-    if(lv>=14&&pose.p>.05){const c=M4.pt(Mw,[0,WPN.mid,0]),fw=V.norm(V.sub(eye,c)),rt=V.norm(V.cross([0,1,0],fw)),upv=V.cross(fw,rt),s=(.26+lv*.012)*(.9+.1*Math.sin(t*2));
+    if(AU){const E=auraE(AU,t);
+    if(AU.g>=2){const r=(.2+AU.g*.03)*sc;drawDecal(M4.chain(M4.tr(cent[0],cent[1],cent[2]),M4.rx(PI/2-.42),M4.rz(t*.7),M4.sc(r)),TEX.ring,V.sc(E.c,1.8),pv,0);
+      if(AU.g>=3){const c2=M4.pt(Mw,[0,WPN.ringY*1.7+.05,0]);drawDecal(M4.chain(M4.tr(c2[0],c2[1],c2[2]),M4.rx(PI/2-.5),M4.rz(-t*1.1),M4.sc(r*.72)),TEX.ring,V.sc(E.l,1.6),pv,0)}}
+    if(AU.g>=3&&pose.p>.05){const c=M4.pt(Mw,[0,WPN.mid,0]),fw=V.norm(V.sub(eye,c)),rt=V.norm(V.cross([0,1,0],fw)),upv=V.cross(fw,rt),s=(.26+lv*.012)*(.9+.1*Math.sin(t*2));
       drawDecal(M4.basis(V.sc(rt,s),V.sc(upv,s),fw,V.madd(c,fw,-.12)),TEX.halo,V.sc(E.c,.32),pose.p,0)}
-    if(lv>=15){const r=.95+(lv-15)*.08;drawDecal(M4.chain(M4.tr(FLX,.006,.08),M4.rx(-PI/2),M4.rz(t*.25),M4.sc(r)),TEX.circle,V.sc(E.c,1.6),.35+.65*pose.p,0)}
-    if(lv>=18&&pose.p>.05)pushSpr([FLX,1.6,.06],[0,3.4,0],.32+Math.sin(t*3)*.03,0,V.sc(E.c,.5),pose.p);
+    if(AU.g>=3){const r=.95+(AU.g-3)*.3;drawDecal(M4.chain(M4.tr(FLX,.006,.08),M4.rx(-PI/2),M4.rz(t*.25),M4.sc(r)),TEX.circle,V.sc(E.c,1.6),.35+.65*pose.p,0)}
+    if(AU.g>=4&&pose.p>.05)pushSpr([FLX,1.6,.06],[0,3.4,0],.32+Math.sin(t*3)*.03,0,V.sc(E.c,.5),pose.p);}
     if(WPN.saber&&WPN.saber.BL>0){const s=WPN.saber,b0=M4.pt(Mw,[0,.01,0]),b1=M4.pt(Mw,[0,.01+s.BL,0]),dd=V.sub(b1,b0),bc=lin(WPN.lv===18?hsv(t*120%360):s.col);
       pushSpr(V.mix(b0,b1,.5),dd,.085*sc,0,V.sc(bc,2.2),1);pushSpr(V.mix(b0,b1,.5),dd,.032*sc,1,V.sc(V.mix(bc,[1,1,1],.7),4),1);
       if(s.dbl){const c0=M4.pt(Mw,[0,-s.HL,0]),c1=M4.pt(Mw,[0,-s.HL-s.BL,0]),d2=V.sub(c1,c0);pushSpr(V.mix(c0,c1,.5),d2,.085*sc,0,V.sc(bc,2.2),1);pushSpr(V.mix(c0,c1,.5),d2,.032*sc,1,V.sc(V.mix(bc,[1,1,1],.7),4),1)}}

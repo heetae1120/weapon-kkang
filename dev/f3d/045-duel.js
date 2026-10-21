@@ -155,29 +155,24 @@ function cutFX(lose,RW,RL){const E=EW(lose===DS.p?DS.pwd:DS.owd),Ew=EW(lose===DS
 /* 오오라: 뽑기 화면처럼 몸 전체를 감싸는 기운 */
 const AURA_B=['Hips','Spine1','Spine2','Head','LeftArm','RightArm','LeftForeArm','RightForeArm','LeftUpLeg','RightUpLeg','LeftLeg','RightLeg'];
 function auraCol(E,wd,t){if(wd&&H.isHidden&&H.isHidden(wd)){const h=lin(hsv((t*90+Math.random()*120)%360));return{c:h,l:V.mix(h,[1,1,1],.5),d:V.sc(h,.3)}}return E}
-function bodyAura(a,K,W,Root,wd,dt,t){const lv=wd&&wd.type?wd.lv:0,hid=wd&&H.isHidden&&H.isHidden(wd),E0=EW(wd),inten=a.aura*(.45+lv/20*.75+(hid?.4:0));if(inten<=.05||a.hidden)return;
-  const el=hid?'hid':(wd&&wd.el)||'fire',pos=n=>{const i=K.idx[n];return i==null?[a.x,1,0]:M4.pt(Root,M4.pos(W[i]))};
-  a.auraAcc+=dt*(30+lv*11)*inten;
-  while(a.auraAcc>1){a.auraAcc--;const E=auraCol(E0,wd,t),b=AURA_B[Math.floor(Math.random()*AURA_B.length)],p=V.add(pos(b),[rnd(-.16,.16),rnd(-.1,.1),rnd(-.16,.16)]);
-    if(el==='ice'){emit({p,v:[rnd(-.1,.1),rnd(.05,.35),rnd(-.1,.1)],life:rnd(.6,1.1),s0:.02,s1:.005,c0:V.sc(E.l,5),sh:1,a0:1,a1:0});if(Math.random()<.4)emit({p,v:[0,rnd(.2,.5),0],life:rnd(.6,1),s0:.07,s1:.16,c0:V.sc(E.c,.5),sh:0,a0:.5,a1:0,fadeIn:.2})}
-    else if(el==='thunder'){emit({p,v:[rnd(-1.2,1.2),rnd(-.4,1.4),rnd(-1.2,1.2)],life:rnd(.08,.2),s0:.014,s1:.006,c0:V.sc(E.l,7),sh:1,st:.04,a0:1,a1:0});if(Math.random()<.5)emit({p,v:[0,rnd(.5,1),0],st:.1,life:rnd(.3,.5),s0:.05,s1:.09,c0:V.sc(E.c,1),sh:3,a0:.7,a1:0})}
-    else if(el==='dark')emit({p,v:[rnd(-.08,.08),rnd(.4,.9),rnd(-.08,.08)],st:.12,life:rnd(.5,.9),s0:.06,s1:.12,c0:V.sc(E.c,1.6),c1:V.sc(E.d||E.c,.5),sh:3,a0:.75,a1:0,fadeIn:.15});
-    else if(el==='holy'){emit({p,v:[rnd(-.06,.06),rnd(.3,.7),rnd(-.06,.06)],life:rnd(.6,1.1),s0:.018,s1:.006,c0:V.sc(E.l,5),sh:1,a0:1,a1:0,fadeIn:.15});if(Math.random()<.5)emit({p,v:[0,rnd(.4,.8),0],st:.12,life:rnd(.4,.7),s0:.05,s1:.1,c0:V.sc(E.c,.9),sh:3,a0:.6,a1:0})}
-    else{emit({p,v:[rnd(-.1,.1),rnd(.7,1.5),rnd(-.1,.1)],st:.09,life:rnd(.3,.55),s0:.045,s1:.085,c0:V.sc(E.l,2.2),c1:V.sc(E.d||E.c,.9),sh:3,a0:.8,a1:0});if(Math.random()<.3)emit({p,v:[rnd(-.2,.2),rnd(.8,1.6),rnd(-.2,.2)],life:rnd(.4,.8),s0:.012,s1:.004,c0:V.sc(E.l,6),sh:1,a0:1,a1:0})}}
-  // 몸을 감싸는 은은한 빛 + 발밑 고리 + 등 뒤 광선 (뽑기 화면 느낌)
-  const E=auraCol(E0,wd,t),ch=pos('Spine1'),pul=.85+.15*Math.sin(t*6+a.sg);
-  pushSpr(ch,null,1.1*Math.min(1.6,inten),0,V.sc(E.c,.35*Math.min(1.5,inten)*pul),1);pushSpr(pos('Hips'),[0,.9,0],.55*Math.min(1.6,inten),3,V.sc(E.c,.3*Math.min(1.5,inten)),1);
-  a._auraDec={E,inten,ch,lv,hid}}
-function drawAuraDecals(a,t,eye){const A=a._auraDec;if(!A||a.hidden)return;const{E,inten,ch,lv,hid}=A,k=Math.min(1.6,inten);
-  drawDecal(M4.chain(M4.tr(a.x,.01,0),M4.rx(-PI/2),M4.rz(t*a.sg*.9),M4.sc(.55+lv*.02)),TEX.ring,V.sc(E.c,1.4*k),Math.min(1,.3+lv/14),0);
-  if(lv>=6||hid){const fw=V.norm(V.sub(eye,ch)),rt=V.norm(V.cross([0,1,0],fw)),up=V.cross(fw,rt),s=(.75+lv*.035)*(.92+.08*Math.sin(t*2.4));
-    drawDecal(M4.basis(V.sc(rt,s),V.sc(up,s),fw,V.madd(ch,fw,-.35)),TEX.halo,V.sc(E.c,.5*k),Math.min(1,.25+lv/20),0)}}
+// 장착한 오오라가 있을 때만 몸 전체를 감싸는 기운 (등급이 높을수록 진하고, 발밑 고리·등 뒤 광선이 붙음)
+function bodyAura(a,K,W,Root,AU,dt,t){a._auraDec=null;if(!AU||a.hidden)return;const g=AU.g,inten=a.aura*(.35+g*.3);if(inten<=.05)return;
+  const pos=n=>{const i=K.idx[n];return i==null?[a.x,1,0]:M4.pt(Root,M4.pos(W[i]))};
+  a.auraAcc+=dt*(18+g*22)*inten;
+  while(a.auraAcc>1){a.auraAcc--;const b=AURA_B[Math.floor(Math.random()*AURA_B.length)],p=V.add(pos(b),[rnd(-.16,.16),rnd(-.1,.1),rnd(-.16,.16)]);auraEmit(AU,p,1.7,t)}
+  const E=auraE(AU,t),ch=pos('Spine1'),pul=.85+.15*Math.sin(t*6+a.sg),k=Math.min(1.5,inten);
+  if(g>=2)pushSpr(ch,null,1.1*k,0,V.sc(E.c,.3*k*pul),1);if(g>=3)pushSpr(pos('Hips'),[0,.9,0],.55*k,3,V.sc(E.c,.28*k),1);
+  a._auraDec={E,inten,ch,g}}
+function drawAuraDecals(a,t,eye){const A=a._auraDec;if(!A||a.hidden)return;const{E,inten,ch,g}=A,k=Math.min(1.6,inten);
+  if(g>=2)drawDecal(M4.chain(M4.tr(a.x,.01,0),M4.rx(-PI/2),M4.rz(t*a.sg*.9),M4.sc(.5+g*.08)),TEX.ring,V.sc(E.c,1.4*k),Math.min(1,.2+g*.2),0);
+  if(g>=3){const fw=V.norm(V.sub(eye,ch)),rt=V.norm(V.cross([0,1,0],fw)),up=V.cross(fw,rt),s=(.75+g*.12)*(.92+.08*Math.sin(t*2.4));
+    drawDecal(M4.basis(V.sc(rt,s),V.sc(up,s),fw,V.madd(ch,fw,-.35)),TEX.halo,V.sc(E.c,.5*k),Math.min(1,g*.25),0)}}
 /* 잔상 */
 function ghostSnap(a,strong){const g=a._last;if(!g)return;DS.ghosts.push({...g,t0:DS.clock,life:strong?260:340,k:strong?1:.7});if(DS.ghosts.length>14)DS.ghosts.shift()}
 function drawGhosts(){if(!DS.ghosts.length)return;const u=P_SKIN.u;gl.useProgram(P_SKIN.p);gl.enable(gl.BLEND);gl.depthMask(false);gl.blendFunc(gl.CONSTANT_ALPHA,gl.ONE);
   for(let i=DS.ghosts.length-1;i>=0;i--){const g=DS.ghosts[i],age=(DS.clock-g.t0)/g.life;if(age>=1){DS.ghosts.splice(i,1);continue}
-    gl.blendColor(0,0,0,(1-age)*.24*g.k);gl.uniformMatrix4fv(u.uB,false,g.mats);gl.bindVertexArray(g.K.vao);
-    for(const m of g.K.meshes){const c0=m.mat.col,e0=m.mat.emi;m.mat.col=[0,0,0];m.mat.emi=V.sc(g.E.c,.9);setMat(u,m.mat,M4.id());m.mat.col=c0;m.mat.emi=e0;if(g.K.ib)gl.drawElements(gl.TRIANGLES,m.count,gl.UNSIGNED_INT,m.start*4);else gl.drawArrays(gl.TRIANGLES,m.start,m.count)}
+    gl.blendColor(0,0,0,(1-age)*.15*g.k);gl.uniformMatrix4fv(u.uB,false,g.mats);gl.bindVertexArray(g.K.vao);
+    for(const m of g.K.meshes){const c0=m.mat.col,e0=m.mat.emi;m.mat.col=[0,0,0];m.mat.emi=V.sc(g.E.c,.6);setMat(u,m.mat,M4.id());m.mat.col=c0;m.mat.emi=e0;if(g.K.ib)gl.drawElements(gl.TRIANGLES,m.count,gl.UNSIGNED_INT,m.start*4);else gl.drawArrays(gl.TRIANGLES,m.start,m.count)}
     gl.useProgram(P_PBR.p);gl.blendColor(0,0,0,(1-age)*.3*g.k);for(const b of g.R.batches){const e0=b.mat.emi;b.mat.emi=V.sc(g.E.c,.8);drawPBR(b.m,b.mat,g.Mw);b.mat.emi=e0}gl.useProgram(P_SKIN.p)}
   gl.depthMask(true);gl.disable(gl.BLEND);gl.useProgram(P_PBR.p)}
 /* 칼 궤적 */
@@ -217,8 +212,8 @@ function duelFrame(now,dt){
   drawPBR(MS.floor,SC.floorM,M4.sc(1.3,1,1.3));drawPBR(MS.wall,SC.wallM,M4.chain(M4.tr(0,0,-4),M4.sc(1.4,1.1,1)));
   for(const sx of[-3.6,3.6]){drawPBR(MS.box,SC.forgeM,M4.chain(M4.tr(sx,1.6,-2.6),M4.sc(.55,3.2,.55)));drawPBR(MS.box,SC.ironM,M4.chain(M4.tr(sx,1.85,-2.25),M4.sc(.1,.35,.1)))}
   // 캐릭터 + 무기
-  const actors=[[DS.p,'p',PW,DQ.pw,EP],[DS.o,'o',OW,DQ.ow,EO]];const wmats=[];
-  for(const[a,side,R,wd,E]of actors){const cfg=CFG[side],K=CH[cfg.ch],clips=ANIM[cfg.an];
+  const actors=[[DS.p,'p',PW,DQ.pw,EP,DQ.pa||null],[DS.o,'o',OW,DQ.ow,EO,DQ.oa||null]];const wmats=[];
+  for(const[a,side,R,wd,E,AU]of actors){const cfg=CFG[side],K=CH[cfg.ch],clips=ANIM[cfg.an];
     const Root=M4.chain(M4.tr(a.x,0,0),M4.ry(side==='p'?PI/2:-PI/2)),Ri=M4.inv(Root);const{W,L}=actorWorld(a,K,clips);const ix=K.idx;
     let Mw=null;
     const toL=p=>M4.pt(Ri,p);
@@ -234,12 +229,12 @@ function duelFrame(now,dt){
       if(off&&ix.LeftArm!=null){const d=V.norm(M4.dir(Mw,[0,1,0])),g=M4.pt(Mw,[0,R.gripY-off,0]);hold('LeftArm','LeftForeArm','LeftHand','L',g,d)}}
     drawSkin(K,Root,W,cfg.tint);
     const broken=DQ.phase==='result'&&DQ.res&&!DQ.res.win&&side==='p'&&DQ.res.broken;
-    if(Mw&&!broken){wmats.push([R,Mw,E,a,wd]);for(const b of R.batches)drawPBR(b.m,b.mat,Mw)}
+    if(Mw&&!broken){wmats.push([R,Mw,E,a,wd,AU]);for(const b of R.batches)drawPBR(b.m,b.mat,Mw)}
     // 잔상용 스냅샷
     const B=K.bones,mats=new Float32Array(24*16);for(let i=0;i<B.length&&i<24;i++)mats.set(M4.chain(Root,W[i],B[i].inv),i*16);
     a._last={K,mats,Mw,R,E:auraCol(E,wd,t)};
     if(a.ghostOn){a.ghostT-=dt;if(a.ghostT<=0){a.ghostT=.045;ghostSnap(a,false)}}
-    bodyAura(a,K,W,Root,wd,frozen?0:dt,t);recTrail(a,R,Mw)}
+    bodyAura(a,K,W,Root,AU,frozen?0:dt,t);recTrail(a,R,Mw)}
   if(P_SKIN)drawGhosts();
   // 데칼·스프라이트
   gl.enable(gl.BLEND);gl.depthMask(false);gl.useProgram(P_DEC.p);gl.uniformMatrix4fv(P_DEC.u.uVP,false,cam.VP);gl.uniform1i(P_DEC.u.uT,0);
@@ -248,9 +243,9 @@ function duelFrame(now,dt){
   drawDecal(M4.chain(M4.tr(-1.3,.006,.1),M4.rx(-PI/2),M4.sc(1.4,1,1)),null,V.sc(EP.c,.45),.6,2);drawDecal(M4.chain(M4.tr(1.3,.006,.1),M4.rx(-PI/2),M4.sc(1.4,1,1)),null,V.sc(EO.c,.45),.6,2);
   drawDecal(M4.chain(M4.tr(0,.008,0),M4.rx(-PI/2),M4.rz(t*.2),M4.sc(1.6)),TEX.circle,[.5,.42,.35],.5,0);
   for(const a of[DS.p,DS.o])drawAuraDecals(a,t,eye);
-  for(const[R,Mw,E,a,wd]of wmats){const lv=wd&&wd.type?wd.lv:0,k=Math.min(1.6,a.aura);
-    spawnAuraFor(R,Mw,frozen?0:dt,1);weaponFX(R,Mw,E,t,eye,.8);
-    if(R.type!=='blank'){const b0=M4.pt(Mw,[0,Math.max(R.bot*.2,0),0]),b1=M4.pt(Mw,[0,R.top,0]),Ea=auraCol(E,wd,t);pushSpr(V.mix(b0,b1,.5),V.sub(b1,b0),.06+lv*.003,0,V.sc(Ea.c,(.15+lv*.03)*k),1)}
+  for(const[R,Mw,E,a,wd,AU]of wmats){const lv=wd&&wd.type?wd.lv:0,k=Math.min(1.6,a.aura);
+    spawnAuraFor(R,Mw,frozen?0:dt,1,AU);weaponFX(R,Mw,E,t,eye,.8,AU);
+    if(AU&&R.type!=='blank'){const b0=M4.pt(Mw,[0,Math.max(R.bot*.2,0),0]),b1=M4.pt(Mw,[0,R.top,0]),Ea=auraE(AU,t);pushSpr(V.mix(b0,b1,.5),V.sub(b1,b0),.05+AU.g*.012,0,V.sc(Ea.c,(.1+AU.g*.1)*k),1)}
     drawTrail(a,auraCol(E,wd,t))}
   drawCutLine();
   stepParts(frozen?0:dt);partsToSpr();

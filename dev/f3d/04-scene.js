@@ -62,7 +62,7 @@ function ik(S,Hd,a,b,pole){let d=V.sub(Hd,S);let L=V.len(d);const dir=V.sc(d,1/(
 /* 무기 포즈 */
 function lieRot(blank){const sb=blank?0:.62,cb=Math.sqrt(1-sb*sb);return M4.basis([0,cb,-sb],[-1,0,0],[0,sb,cb],[0,0,0])}
 function weaponMatrix(now,t){
-  const R=WPN,blank=R.type==='blank',sL=Math.min(1,1.3/R.len),sF=Math.min(1.12,1.28/R.len)*(1+(H.FX.raise>0?.08:0));
+  const R=WPN,blank=R.type==='blank',WK=blank?1:1.5,sL=Math.min(1,1.3/R.len)*WK,sF=Math.min(1.12,1.28/R.len)*WK*(1+(H.FX.raise>0?.08:0));
   const Rl=R.flipLie?M4.mul(M4.ry(PI),lieRot(blank)):lieRot(blank),bw=(R.bladeW||.04)*sL;// 자루가 긴 무기는 자루가 대장장이 반대쪽(모루 뿔 쪽)으로
   const lieY=AT+(blank?.031:bw*.8+.006);const Tl=[-.04,lieY,.02];
   const posL=V.sub(Tl,V.sc(M4.dir(Rl,[0,R.hitY,0]),sL));
@@ -199,15 +199,25 @@ function E3(){if(!WPN||WPN.type==='blank')return{c:[3,1.2,.3],l:[4,2.6,1.2]};
   const E=H.ELS[WPN.el];return{c:lin(E.c),l:lin(E.l),d:lin(E.d)}}
 function hsv(h){const f=n=>{const k=(n+h/60)%6;return 1-Math.max(0,Math.min(k,4-k,1))};const r=f(5),g=f(3),b=f(1);return'#'+[r,g,b].map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join('')}
 const rnd=(a,b)=>a+Math.random()*(b-a);
-function spawnAura(dt,Mw,p){if(!WPN||!WPN.aura)return;const lv=WPN.lv,hid=WPN.hidden;const rate=hid?(lv>=5?lv*2:0):lv>=5?(lv-4)*7*(1+p*.8):0;if(!rate)return;
-  auraAcc+=rate*dt;const E=E3(),A=WPN.aura,el=hid?(WPN.type==='scythe'?'dark':'holy'):WPN.el;
-  while(auraAcc>1){auraAcc--;const y=rnd(A.y0,A.y1),x=A.axe?rnd(.03,A.w*1.1):rnd(-A.w,A.w)*1.2,pw=M4.pt(Mw,[x,A.axe?rnd(-A.w,A.w):y,rnd(-.01,.01)]);
-    if(el==='fire')emit({p:pw,v:[rnd(-.05,.05),rnd(.25,.6),rnd(-.05,.05)],life:rnd(.5,.9),s0:.035,s1:.08,c0:V.sc(E.l,3),c1:V.sc(E.c,1.2),sh:3,a0:.9,a1:0});
-    else if(el==='ice'){emit({p:pw,v:[rnd(-.08,.08),rnd(-.1,.05),rnd(-.08,.08)],life:rnd(.6,1.2),s0:.022,s1:.004,c0:V.sc(E.l,4),sh:1,a0:1,a1:0});if(Math.random()<.3)emit({p:V.add(pw,[rnd(-.2,.2),.3,rnd(-.1,.1)]),v:[rnd(-.05,.05),-.18,0],life:2,s0:.012,s1:.008,c0:[2.5,3,3.5],sh:1,a0:.8,a1:0})}
-    else if(el==='thunder')emit({p:pw,v:[rnd(-.6,.6),rnd(-.3,.6),rnd(-.6,.6)],life:rnd(.1,.25),s0:.01,s1:.004,c0:V.sc(E.l,5),sh:1,st:.03,a0:1,a1:0});
-    else if(el==='dark')emit({p:pw,v:[rnd(-.04,.04),rnd(.1,.3),rnd(-.04,.04)],life:rnd(.9,1.5),s0:.05,s1:.14,c0:V.sc(E.c,1.4),c1:V.sc(E.d||E.c,.8),sh:0,a0:.55,a1:0,fadeIn:.2});
-    else emit({p:pw,v:[rnd(-.04,.04),rnd(.12,.3),rnd(-.04,.04)],life:rnd(1,1.8),s0:.016,s1:.006,c0:V.sc(E.l,3.5),sh:1,a0:1,a1:0,fadeIn:.2})}
-  if(!hid&&WPN.el==='thunder'&&lv>=8){arcT-=dt;if(arcT<=0){arcT=rnd(.05,.14);const n=6,y0=rnd(A.y0,A.y1*.7),y1=Math.min(A.y1,y0+rnd(.15,.4));let prev=null;
+/* ---- 오오라 (상점에서 뽑아 장착; 무기 강화 단계와 무관) ---- */
+// AU={fx,c,l,g}: fx 효과 종류, c/l 색(#hex), g 등급 1~4
+function auraE(AU,t){if(AU.fx==='rainbow'){const c=lin(hsv((t*90+Math.random()*140)%360));return{c,l:V.mix(c,[1,1,1],.55),d:V.sc(c,.25)}}
+  if(AU.fx==='star'&&Math.random()<.35){const c=lin(['#ffffff','#9fd0ff','#d6b8ff'][Math.floor(Math.random()*3)]);return{c,l:c,d:V.sc(lin(AU.c),.3)}}
+  if(!AU._E)AU._E={c:lin(AU.c),l:lin(AU.l),d:V.sc(lin(AU.c),.28)};return AU._E}
+// 한 점에서 오오라 입자 하나 (k: 크기 배율)
+function auraEmit(AU,pw,k,t){const E=auraE(AU,t),fx=AU.fx;
+  if(fx==='fire')emit({p:pw,v:[rnd(-.06,.06),rnd(.35,.9)*k,rnd(-.06,.06)],st:.07,life:rnd(.35,.7),s0:.03*k,s1:.07*k,c0:V.sc(E.l,2.6),c1:V.sc(E.c,1.1),sh:3,a0:.85,a1:0});
+  else if(fx==='ice'){emit({p:pw,v:[rnd(-.08,.08),rnd(.02,.2),rnd(-.08,.08)],life:rnd(.6,1.1),s0:.02*k,s1:.004,c0:V.sc(E.l,4.5),sh:1,a0:1,a1:0});if(Math.random()<.35)emit({p:pw,v:[0,rnd(.1,.3),0],life:rnd(.6,1),s0:.06*k,s1:.13*k,c0:V.sc(E.c,.5),sh:0,a0:.5,a1:0,fadeIn:.2})}
+  else if(fx==='thunder'){emit({p:pw,v:[rnd(-1,1),rnd(-.3,1.2),rnd(-1,1)],life:rnd(.08,.2),s0:.012*k,s1:.005,c0:V.sc(E.l,7),sh:1,st:.04,a0:1,a1:0});if(Math.random()<.4)emit({p:pw,v:[0,rnd(.4,.9),0],st:.1,life:rnd(.25,.45),s0:.05*k,s1:.09*k,c0:V.sc(E.c,1),sh:3,a0:.7,a1:0})}
+  else if(fx==='dark')emit({p:pw,v:[rnd(-.08,.08),rnd(.3,.8),rnd(-.08,.08)],st:.12,life:rnd(.5,.9),s0:.05*k,s1:.11*k,c0:V.sc(E.c,1.6),c1:V.sc(E.d,.5),sh:3,a0:.75,a1:0,fadeIn:.15});
+  else if(fx==='petal'){const q={p:pw,v:[rnd(-.25,.25),rnd(-.05,.25),rnd(-.25,.25)],g:.25,drag:.6,life:rnd(1.1,1.9),s0:.022*k,s1:.016*k,c0:V.sc(E.l,2.2),c1:V.sc(E.c,1.4),sh:0,a0:.95,a1:0,fadeIn:.15};q.swirl=rnd(-2.5,2.5);q.cx=pw[0];q.cz=pw[2];emit(q)}
+  else if(fx==='star'){emit({p:pw,v:[rnd(-.05,.05),rnd(.02,.16),rnd(-.05,.05)],life:rnd(.8,1.6),s0:.006*k,s1:.022*k,c0:V.sc(E.l,6),sh:1,a0:1,a1:0,fadeIn:.4});if(Math.random()<.25)emit({p:pw,v:[0,rnd(.05,.15),0],life:rnd(.8,1.3),s0:.08*k,s1:.16*k,c0:V.sc(E.c,.45),sh:0,a0:.6,a1:0,fadeIn:.3})}
+  else emit({p:pw,v:[rnd(-.06,.06),rnd(.3,.7),rnd(-.06,.06)],life:rnd(.6,1.1),s0:.018*k,s1:.006,c0:V.sc(E.l,5),sh:1,a0:1,a1:0,fadeIn:.15})}
+const AURA_RATE=[0,12,24,42,70];
+function spawnAura(dt,Mw,p,AU){AU=AU||(H.curAura&&H.curAura());if(!WPN||!AU||WPN.type==='blank')return;
+  const A=WPN.aura||{y0:WPN.bot*.3,y1:WPN.top*.9,w:.03},t=performance.now()/1000;auraAcc+=AURA_RATE[AU.g]*(1+p*.8)*dt;
+  while(auraAcc>1){auraAcc--;const y=rnd(A.y0,A.y1),x=A.axe?rnd(.03,A.w*1.1):rnd(-A.w,A.w)*1.4,pw=M4.pt(Mw,[x,A.axe?rnd(-A.w,A.w):y,rnd(-.015,.015)]);auraEmit(AU,pw,1,t)}
+  if(AU.fx==='thunder'&&AU.g>=3){arcT-=dt;if(arcT<=0){arcT=rnd(.05,.14);const E=auraE(AU,t),n=6,y0=rnd(A.y0,A.y1*.7),y1=Math.min(A.y1,y0+rnd(.15,.4));let prev=null;
     for(let i=0;i<=n;i++){const u=i/n,pp=M4.pt(Mw,[(i&&i<n)?rnd(-A.w*3,A.w*3):(i?A.w:-A.w),lerp(y0,y1,u),rnd(-.03,.03)]);if(prev){const mid=V.mix(prev,pp,.5);emit({p:mid,dir:V.sub(pp,prev),life:.09,s0:.012,s1:.008,c0:V.sc(E.l,6),sh:1,a0:1,a1:.3});emit({p:mid,dir:V.sub(pp,prev),life:.09,s0:.05,s1:.03,c0:V.sc(E.c,1.5),sh:0,a0:.7,a1:0})}prev=pp}}}}
 function spawnForge(dt,now){const fx=SC.fx,fz=SC.fz;fireAcc+=70*dt;emberAcc+=6*dt;
   while(fireAcc>1){fireAcc--;emit({p:[fx+rnd(-.2,.2),.36,fz+rnd(-.15,.3)],v:[rnd(-.05,.05),rnd(.35,.75),rnd(.0,.12)],life:rnd(.45,.85),s0:rnd(.07,.11),s1:rnd(.14,.22),c0:[4.5,2.2,.55],c1:[1.4,.25,.04],sh:3,a0:.85,a1:0})}

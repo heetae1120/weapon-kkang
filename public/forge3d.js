@@ -648,7 +648,7 @@ function ik(S,Hd,a,b,pole){let d=V.sub(Hd,S);let L=V.len(d);const dir=V.sc(d,1/(
 /* 무기 포즈 */
 function lieRot(blank){const sb=blank?0:.62,cb=Math.sqrt(1-sb*sb);return M4.basis([0,cb,-sb],[-1,0,0],[0,sb,cb],[0,0,0])}
 function weaponMatrix(now,t){
-  const R=WPN,blank=R.type==='blank',sL=Math.min(1,1.3/R.len),sF=Math.min(1.12,1.28/R.len)*(1+(H.FX.raise>0?.08:0));
+  const R=WPN,blank=R.type==='blank',WK=blank?1:1.5,sL=Math.min(1,1.3/R.len)*WK,sF=Math.min(1.12,1.28/R.len)*WK*(1+(H.FX.raise>0?.08:0));
   const Rl=R.flipLie?M4.mul(M4.ry(PI),lieRot(blank)):lieRot(blank),bw=(R.bladeW||.04)*sL;// 자루가 긴 무기는 자루가 대장장이 반대쪽(모루 뿔 쪽)으로
   const lieY=AT+(blank?.031:bw*.8+.006);const Tl=[-.04,lieY,.02];
   const posL=V.sub(Tl,V.sc(M4.dir(Rl,[0,R.hitY,0]),sL));
@@ -785,15 +785,25 @@ function E3(){if(!WPN||WPN.type==='blank')return{c:[3,1.2,.3],l:[4,2.6,1.2]};
   const E=H.ELS[WPN.el];return{c:lin(E.c),l:lin(E.l),d:lin(E.d)}}
 function hsv(h){const f=n=>{const k=(n+h/60)%6;return 1-Math.max(0,Math.min(k,4-k,1))};const r=f(5),g=f(3),b=f(1);return'#'+[r,g,b].map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join('')}
 const rnd=(a,b)=>a+Math.random()*(b-a);
-function spawnAura(dt,Mw,p){if(!WPN||!WPN.aura)return;const lv=WPN.lv,hid=WPN.hidden;const rate=hid?(lv>=5?lv*2:0):lv>=5?(lv-4)*7*(1+p*.8):0;if(!rate)return;
-  auraAcc+=rate*dt;const E=E3(),A=WPN.aura,el=hid?(WPN.type==='scythe'?'dark':'holy'):WPN.el;
-  while(auraAcc>1){auraAcc--;const y=rnd(A.y0,A.y1),x=A.axe?rnd(.03,A.w*1.1):rnd(-A.w,A.w)*1.2,pw=M4.pt(Mw,[x,A.axe?rnd(-A.w,A.w):y,rnd(-.01,.01)]);
-    if(el==='fire')emit({p:pw,v:[rnd(-.05,.05),rnd(.25,.6),rnd(-.05,.05)],life:rnd(.5,.9),s0:.035,s1:.08,c0:V.sc(E.l,3),c1:V.sc(E.c,1.2),sh:3,a0:.9,a1:0});
-    else if(el==='ice'){emit({p:pw,v:[rnd(-.08,.08),rnd(-.1,.05),rnd(-.08,.08)],life:rnd(.6,1.2),s0:.022,s1:.004,c0:V.sc(E.l,4),sh:1,a0:1,a1:0});if(Math.random()<.3)emit({p:V.add(pw,[rnd(-.2,.2),.3,rnd(-.1,.1)]),v:[rnd(-.05,.05),-.18,0],life:2,s0:.012,s1:.008,c0:[2.5,3,3.5],sh:1,a0:.8,a1:0})}
-    else if(el==='thunder')emit({p:pw,v:[rnd(-.6,.6),rnd(-.3,.6),rnd(-.6,.6)],life:rnd(.1,.25),s0:.01,s1:.004,c0:V.sc(E.l,5),sh:1,st:.03,a0:1,a1:0});
-    else if(el==='dark')emit({p:pw,v:[rnd(-.04,.04),rnd(.1,.3),rnd(-.04,.04)],life:rnd(.9,1.5),s0:.05,s1:.14,c0:V.sc(E.c,1.4),c1:V.sc(E.d||E.c,.8),sh:0,a0:.55,a1:0,fadeIn:.2});
-    else emit({p:pw,v:[rnd(-.04,.04),rnd(.12,.3),rnd(-.04,.04)],life:rnd(1,1.8),s0:.016,s1:.006,c0:V.sc(E.l,3.5),sh:1,a0:1,a1:0,fadeIn:.2})}
-  if(!hid&&WPN.el==='thunder'&&lv>=8){arcT-=dt;if(arcT<=0){arcT=rnd(.05,.14);const n=6,y0=rnd(A.y0,A.y1*.7),y1=Math.min(A.y1,y0+rnd(.15,.4));let prev=null;
+/* ---- 오오라 (상점에서 뽑아 장착; 무기 강화 단계와 무관) ---- */
+// AU={fx,c,l,g}: fx 효과 종류, c/l 색(#hex), g 등급 1~4
+function auraE(AU,t){if(AU.fx==='rainbow'){const c=lin(hsv((t*90+Math.random()*140)%360));return{c,l:V.mix(c,[1,1,1],.55),d:V.sc(c,.25)}}
+  if(AU.fx==='star'&&Math.random()<.35){const c=lin(['#ffffff','#9fd0ff','#d6b8ff'][Math.floor(Math.random()*3)]);return{c,l:c,d:V.sc(lin(AU.c),.3)}}
+  if(!AU._E)AU._E={c:lin(AU.c),l:lin(AU.l),d:V.sc(lin(AU.c),.28)};return AU._E}
+// 한 점에서 오오라 입자 하나 (k: 크기 배율)
+function auraEmit(AU,pw,k,t){const E=auraE(AU,t),fx=AU.fx;
+  if(fx==='fire')emit({p:pw,v:[rnd(-.06,.06),rnd(.35,.9)*k,rnd(-.06,.06)],st:.07,life:rnd(.35,.7),s0:.03*k,s1:.07*k,c0:V.sc(E.l,2.6),c1:V.sc(E.c,1.1),sh:3,a0:.85,a1:0});
+  else if(fx==='ice'){emit({p:pw,v:[rnd(-.08,.08),rnd(.02,.2),rnd(-.08,.08)],life:rnd(.6,1.1),s0:.02*k,s1:.004,c0:V.sc(E.l,4.5),sh:1,a0:1,a1:0});if(Math.random()<.35)emit({p:pw,v:[0,rnd(.1,.3),0],life:rnd(.6,1),s0:.06*k,s1:.13*k,c0:V.sc(E.c,.5),sh:0,a0:.5,a1:0,fadeIn:.2})}
+  else if(fx==='thunder'){emit({p:pw,v:[rnd(-1,1),rnd(-.3,1.2),rnd(-1,1)],life:rnd(.08,.2),s0:.012*k,s1:.005,c0:V.sc(E.l,7),sh:1,st:.04,a0:1,a1:0});if(Math.random()<.4)emit({p:pw,v:[0,rnd(.4,.9),0],st:.1,life:rnd(.25,.45),s0:.05*k,s1:.09*k,c0:V.sc(E.c,1),sh:3,a0:.7,a1:0})}
+  else if(fx==='dark')emit({p:pw,v:[rnd(-.08,.08),rnd(.3,.8),rnd(-.08,.08)],st:.12,life:rnd(.5,.9),s0:.05*k,s1:.11*k,c0:V.sc(E.c,1.6),c1:V.sc(E.d,.5),sh:3,a0:.75,a1:0,fadeIn:.15});
+  else if(fx==='petal'){const q={p:pw,v:[rnd(-.25,.25),rnd(-.05,.25),rnd(-.25,.25)],g:.25,drag:.6,life:rnd(1.1,1.9),s0:.022*k,s1:.016*k,c0:V.sc(E.l,2.2),c1:V.sc(E.c,1.4),sh:0,a0:.95,a1:0,fadeIn:.15};q.swirl=rnd(-2.5,2.5);q.cx=pw[0];q.cz=pw[2];emit(q)}
+  else if(fx==='star'){emit({p:pw,v:[rnd(-.05,.05),rnd(.02,.16),rnd(-.05,.05)],life:rnd(.8,1.6),s0:.006*k,s1:.022*k,c0:V.sc(E.l,6),sh:1,a0:1,a1:0,fadeIn:.4});if(Math.random()<.25)emit({p:pw,v:[0,rnd(.05,.15),0],life:rnd(.8,1.3),s0:.08*k,s1:.16*k,c0:V.sc(E.c,.45),sh:0,a0:.6,a1:0,fadeIn:.3})}
+  else emit({p:pw,v:[rnd(-.06,.06),rnd(.3,.7),rnd(-.06,.06)],life:rnd(.6,1.1),s0:.018*k,s1:.006,c0:V.sc(E.l,5),sh:1,a0:1,a1:0,fadeIn:.15})}
+const AURA_RATE=[0,12,24,42,70];
+function spawnAura(dt,Mw,p,AU){AU=AU||(H.curAura&&H.curAura());if(!WPN||!AU||WPN.type==='blank')return;
+  const A=WPN.aura||{y0:WPN.bot*.3,y1:WPN.top*.9,w:.03},t=performance.now()/1000;auraAcc+=AURA_RATE[AU.g]*(1+p*.8)*dt;
+  while(auraAcc>1){auraAcc--;const y=rnd(A.y0,A.y1),x=A.axe?rnd(.03,A.w*1.1):rnd(-A.w,A.w)*1.4,pw=M4.pt(Mw,[x,A.axe?rnd(-A.w,A.w):y,rnd(-.015,.015)]);auraEmit(AU,pw,1,t)}
+  if(AU.fx==='thunder'&&AU.g>=3){arcT-=dt;if(arcT<=0){arcT=rnd(.05,.14);const E=auraE(AU,t),n=6,y0=rnd(A.y0,A.y1*.7),y1=Math.min(A.y1,y0+rnd(.15,.4));let prev=null;
     for(let i=0;i<=n;i++){const u=i/n,pp=M4.pt(Mw,[(i&&i<n)?rnd(-A.w*3,A.w*3):(i?A.w:-A.w),lerp(y0,y1,u),rnd(-.03,.03)]);if(prev){const mid=V.mix(prev,pp,.5);emit({p:mid,dir:V.sub(pp,prev),life:.09,s0:.012,s1:.008,c0:V.sc(E.l,6),sh:1,a0:1,a1:.3});emit({p:mid,dir:V.sub(pp,prev),life:.09,s0:.05,s1:.03,c0:V.sc(E.c,1.5),sh:0,a0:.7,a1:0})}prev=pp}}}}
 function spawnForge(dt,now){const fx=SC.fx,fz=SC.fz;fireAcc+=70*dt;emberAcc+=6*dt;
   while(fireAcc>1){fireAcc--;emit({p:[fx+rnd(-.2,.2),.36,fz+rnd(-.15,.3)],v:[rnd(-.05,.05),rnd(.35,.75),rnd(.0,.12)],life:rnd(.45,.85),s0:rnd(.07,.11),s1:rnd(.14,.22),c0:[4.5,2.2,.55],c1:[1.4,.25,.04],sh:3,a0:.85,a1:0})}
@@ -965,29 +975,24 @@ function cutFX(lose,RW,RL){const E=EW(lose===DS.p?DS.pwd:DS.owd),Ew=EW(lose===DS
 /* 오오라: 뽑기 화면처럼 몸 전체를 감싸는 기운 */
 const AURA_B=['Hips','Spine1','Spine2','Head','LeftArm','RightArm','LeftForeArm','RightForeArm','LeftUpLeg','RightUpLeg','LeftLeg','RightLeg'];
 function auraCol(E,wd,t){if(wd&&H.isHidden&&H.isHidden(wd)){const h=lin(hsv((t*90+Math.random()*120)%360));return{c:h,l:V.mix(h,[1,1,1],.5),d:V.sc(h,.3)}}return E}
-function bodyAura(a,K,W,Root,wd,dt,t){const lv=wd&&wd.type?wd.lv:0,hid=wd&&H.isHidden&&H.isHidden(wd),E0=EW(wd),inten=a.aura*(.45+lv/20*.75+(hid?.4:0));if(inten<=.05||a.hidden)return;
-  const el=hid?'hid':(wd&&wd.el)||'fire',pos=n=>{const i=K.idx[n];return i==null?[a.x,1,0]:M4.pt(Root,M4.pos(W[i]))};
-  a.auraAcc+=dt*(30+lv*11)*inten;
-  while(a.auraAcc>1){a.auraAcc--;const E=auraCol(E0,wd,t),b=AURA_B[Math.floor(Math.random()*AURA_B.length)],p=V.add(pos(b),[rnd(-.16,.16),rnd(-.1,.1),rnd(-.16,.16)]);
-    if(el==='ice'){emit({p,v:[rnd(-.1,.1),rnd(.05,.35),rnd(-.1,.1)],life:rnd(.6,1.1),s0:.02,s1:.005,c0:V.sc(E.l,5),sh:1,a0:1,a1:0});if(Math.random()<.4)emit({p,v:[0,rnd(.2,.5),0],life:rnd(.6,1),s0:.07,s1:.16,c0:V.sc(E.c,.5),sh:0,a0:.5,a1:0,fadeIn:.2})}
-    else if(el==='thunder'){emit({p,v:[rnd(-1.2,1.2),rnd(-.4,1.4),rnd(-1.2,1.2)],life:rnd(.08,.2),s0:.014,s1:.006,c0:V.sc(E.l,7),sh:1,st:.04,a0:1,a1:0});if(Math.random()<.5)emit({p,v:[0,rnd(.5,1),0],st:.1,life:rnd(.3,.5),s0:.05,s1:.09,c0:V.sc(E.c,1),sh:3,a0:.7,a1:0})}
-    else if(el==='dark')emit({p,v:[rnd(-.08,.08),rnd(.4,.9),rnd(-.08,.08)],st:.12,life:rnd(.5,.9),s0:.06,s1:.12,c0:V.sc(E.c,1.6),c1:V.sc(E.d||E.c,.5),sh:3,a0:.75,a1:0,fadeIn:.15});
-    else if(el==='holy'){emit({p,v:[rnd(-.06,.06),rnd(.3,.7),rnd(-.06,.06)],life:rnd(.6,1.1),s0:.018,s1:.006,c0:V.sc(E.l,5),sh:1,a0:1,a1:0,fadeIn:.15});if(Math.random()<.5)emit({p,v:[0,rnd(.4,.8),0],st:.12,life:rnd(.4,.7),s0:.05,s1:.1,c0:V.sc(E.c,.9),sh:3,a0:.6,a1:0})}
-    else{emit({p,v:[rnd(-.1,.1),rnd(.7,1.5),rnd(-.1,.1)],st:.09,life:rnd(.3,.55),s0:.045,s1:.085,c0:V.sc(E.l,2.2),c1:V.sc(E.d||E.c,.9),sh:3,a0:.8,a1:0});if(Math.random()<.3)emit({p,v:[rnd(-.2,.2),rnd(.8,1.6),rnd(-.2,.2)],life:rnd(.4,.8),s0:.012,s1:.004,c0:V.sc(E.l,6),sh:1,a0:1,a1:0})}}
-  // 몸을 감싸는 은은한 빛 + 발밑 고리 + 등 뒤 광선 (뽑기 화면 느낌)
-  const E=auraCol(E0,wd,t),ch=pos('Spine1'),pul=.85+.15*Math.sin(t*6+a.sg);
-  pushSpr(ch,null,1.1*Math.min(1.6,inten),0,V.sc(E.c,.35*Math.min(1.5,inten)*pul),1);pushSpr(pos('Hips'),[0,.9,0],.55*Math.min(1.6,inten),3,V.sc(E.c,.3*Math.min(1.5,inten)),1);
-  a._auraDec={E,inten,ch,lv,hid}}
-function drawAuraDecals(a,t,eye){const A=a._auraDec;if(!A||a.hidden)return;const{E,inten,ch,lv,hid}=A,k=Math.min(1.6,inten);
-  drawDecal(M4.chain(M4.tr(a.x,.01,0),M4.rx(-PI/2),M4.rz(t*a.sg*.9),M4.sc(.55+lv*.02)),TEX.ring,V.sc(E.c,1.4*k),Math.min(1,.3+lv/14),0);
-  if(lv>=6||hid){const fw=V.norm(V.sub(eye,ch)),rt=V.norm(V.cross([0,1,0],fw)),up=V.cross(fw,rt),s=(.75+lv*.035)*(.92+.08*Math.sin(t*2.4));
-    drawDecal(M4.basis(V.sc(rt,s),V.sc(up,s),fw,V.madd(ch,fw,-.35)),TEX.halo,V.sc(E.c,.5*k),Math.min(1,.25+lv/20),0)}}
+// 장착한 오오라가 있을 때만 몸 전체를 감싸는 기운 (등급이 높을수록 진하고, 발밑 고리·등 뒤 광선이 붙음)
+function bodyAura(a,K,W,Root,AU,dt,t){a._auraDec=null;if(!AU||a.hidden)return;const g=AU.g,inten=a.aura*(.35+g*.3);if(inten<=.05)return;
+  const pos=n=>{const i=K.idx[n];return i==null?[a.x,1,0]:M4.pt(Root,M4.pos(W[i]))};
+  a.auraAcc+=dt*(18+g*22)*inten;
+  while(a.auraAcc>1){a.auraAcc--;const b=AURA_B[Math.floor(Math.random()*AURA_B.length)],p=V.add(pos(b),[rnd(-.16,.16),rnd(-.1,.1),rnd(-.16,.16)]);auraEmit(AU,p,1.7,t)}
+  const E=auraE(AU,t),ch=pos('Spine1'),pul=.85+.15*Math.sin(t*6+a.sg),k=Math.min(1.5,inten);
+  if(g>=2)pushSpr(ch,null,1.1*k,0,V.sc(E.c,.3*k*pul),1);if(g>=3)pushSpr(pos('Hips'),[0,.9,0],.55*k,3,V.sc(E.c,.28*k),1);
+  a._auraDec={E,inten,ch,g}}
+function drawAuraDecals(a,t,eye){const A=a._auraDec;if(!A||a.hidden)return;const{E,inten,ch,g}=A,k=Math.min(1.6,inten);
+  if(g>=2)drawDecal(M4.chain(M4.tr(a.x,.01,0),M4.rx(-PI/2),M4.rz(t*a.sg*.9),M4.sc(.5+g*.08)),TEX.ring,V.sc(E.c,1.4*k),Math.min(1,.2+g*.2),0);
+  if(g>=3){const fw=V.norm(V.sub(eye,ch)),rt=V.norm(V.cross([0,1,0],fw)),up=V.cross(fw,rt),s=(.75+g*.12)*(.92+.08*Math.sin(t*2.4));
+    drawDecal(M4.basis(V.sc(rt,s),V.sc(up,s),fw,V.madd(ch,fw,-.35)),TEX.halo,V.sc(E.c,.5*k),Math.min(1,g*.25),0)}}
 /* 잔상 */
 function ghostSnap(a,strong){const g=a._last;if(!g)return;DS.ghosts.push({...g,t0:DS.clock,life:strong?260:340,k:strong?1:.7});if(DS.ghosts.length>14)DS.ghosts.shift()}
 function drawGhosts(){if(!DS.ghosts.length)return;const u=P_SKIN.u;gl.useProgram(P_SKIN.p);gl.enable(gl.BLEND);gl.depthMask(false);gl.blendFunc(gl.CONSTANT_ALPHA,gl.ONE);
   for(let i=DS.ghosts.length-1;i>=0;i--){const g=DS.ghosts[i],age=(DS.clock-g.t0)/g.life;if(age>=1){DS.ghosts.splice(i,1);continue}
-    gl.blendColor(0,0,0,(1-age)*.24*g.k);gl.uniformMatrix4fv(u.uB,false,g.mats);gl.bindVertexArray(g.K.vao);
-    for(const m of g.K.meshes){const c0=m.mat.col,e0=m.mat.emi;m.mat.col=[0,0,0];m.mat.emi=V.sc(g.E.c,.9);setMat(u,m.mat,M4.id());m.mat.col=c0;m.mat.emi=e0;if(g.K.ib)gl.drawElements(gl.TRIANGLES,m.count,gl.UNSIGNED_INT,m.start*4);else gl.drawArrays(gl.TRIANGLES,m.start,m.count)}
+    gl.blendColor(0,0,0,(1-age)*.15*g.k);gl.uniformMatrix4fv(u.uB,false,g.mats);gl.bindVertexArray(g.K.vao);
+    for(const m of g.K.meshes){const c0=m.mat.col,e0=m.mat.emi;m.mat.col=[0,0,0];m.mat.emi=V.sc(g.E.c,.6);setMat(u,m.mat,M4.id());m.mat.col=c0;m.mat.emi=e0;if(g.K.ib)gl.drawElements(gl.TRIANGLES,m.count,gl.UNSIGNED_INT,m.start*4);else gl.drawArrays(gl.TRIANGLES,m.start,m.count)}
     gl.useProgram(P_PBR.p);gl.blendColor(0,0,0,(1-age)*.3*g.k);for(const b of g.R.batches){const e0=b.mat.emi;b.mat.emi=V.sc(g.E.c,.8);drawPBR(b.m,b.mat,g.Mw);b.mat.emi=e0}gl.useProgram(P_SKIN.p)}
   gl.depthMask(true);gl.disable(gl.BLEND);gl.useProgram(P_PBR.p)}
 /* 칼 궤적 */
@@ -1027,8 +1032,8 @@ function duelFrame(now,dt){
   drawPBR(MS.floor,SC.floorM,M4.sc(1.3,1,1.3));drawPBR(MS.wall,SC.wallM,M4.chain(M4.tr(0,0,-4),M4.sc(1.4,1.1,1)));
   for(const sx of[-3.6,3.6]){drawPBR(MS.box,SC.forgeM,M4.chain(M4.tr(sx,1.6,-2.6),M4.sc(.55,3.2,.55)));drawPBR(MS.box,SC.ironM,M4.chain(M4.tr(sx,1.85,-2.25),M4.sc(.1,.35,.1)))}
   // 캐릭터 + 무기
-  const actors=[[DS.p,'p',PW,DQ.pw,EP],[DS.o,'o',OW,DQ.ow,EO]];const wmats=[];
-  for(const[a,side,R,wd,E]of actors){const cfg=CFG[side],K=CH[cfg.ch],clips=ANIM[cfg.an];
+  const actors=[[DS.p,'p',PW,DQ.pw,EP,DQ.pa||null],[DS.o,'o',OW,DQ.ow,EO,DQ.oa||null]];const wmats=[];
+  for(const[a,side,R,wd,E,AU]of actors){const cfg=CFG[side],K=CH[cfg.ch],clips=ANIM[cfg.an];
     const Root=M4.chain(M4.tr(a.x,0,0),M4.ry(side==='p'?PI/2:-PI/2)),Ri=M4.inv(Root);const{W,L}=actorWorld(a,K,clips);const ix=K.idx;
     let Mw=null;
     const toL=p=>M4.pt(Ri,p);
@@ -1044,12 +1049,12 @@ function duelFrame(now,dt){
       if(off&&ix.LeftArm!=null){const d=V.norm(M4.dir(Mw,[0,1,0])),g=M4.pt(Mw,[0,R.gripY-off,0]);hold('LeftArm','LeftForeArm','LeftHand','L',g,d)}}
     drawSkin(K,Root,W,cfg.tint);
     const broken=DQ.phase==='result'&&DQ.res&&!DQ.res.win&&side==='p'&&DQ.res.broken;
-    if(Mw&&!broken){wmats.push([R,Mw,E,a,wd]);for(const b of R.batches)drawPBR(b.m,b.mat,Mw)}
+    if(Mw&&!broken){wmats.push([R,Mw,E,a,wd,AU]);for(const b of R.batches)drawPBR(b.m,b.mat,Mw)}
     // 잔상용 스냅샷
     const B=K.bones,mats=new Float32Array(24*16);for(let i=0;i<B.length&&i<24;i++)mats.set(M4.chain(Root,W[i],B[i].inv),i*16);
     a._last={K,mats,Mw,R,E:auraCol(E,wd,t)};
     if(a.ghostOn){a.ghostT-=dt;if(a.ghostT<=0){a.ghostT=.045;ghostSnap(a,false)}}
-    bodyAura(a,K,W,Root,wd,frozen?0:dt,t);recTrail(a,R,Mw)}
+    bodyAura(a,K,W,Root,AU,frozen?0:dt,t);recTrail(a,R,Mw)}
   if(P_SKIN)drawGhosts();
   // 데칼·스프라이트
   gl.enable(gl.BLEND);gl.depthMask(false);gl.useProgram(P_DEC.p);gl.uniformMatrix4fv(P_DEC.u.uVP,false,cam.VP);gl.uniform1i(P_DEC.u.uT,0);
@@ -1058,9 +1063,9 @@ function duelFrame(now,dt){
   drawDecal(M4.chain(M4.tr(-1.3,.006,.1),M4.rx(-PI/2),M4.sc(1.4,1,1)),null,V.sc(EP.c,.45),.6,2);drawDecal(M4.chain(M4.tr(1.3,.006,.1),M4.rx(-PI/2),M4.sc(1.4,1,1)),null,V.sc(EO.c,.45),.6,2);
   drawDecal(M4.chain(M4.tr(0,.008,0),M4.rx(-PI/2),M4.rz(t*.2),M4.sc(1.6)),TEX.circle,[.5,.42,.35],.5,0);
   for(const a of[DS.p,DS.o])drawAuraDecals(a,t,eye);
-  for(const[R,Mw,E,a,wd]of wmats){const lv=wd&&wd.type?wd.lv:0,k=Math.min(1.6,a.aura);
-    spawnAuraFor(R,Mw,frozen?0:dt,1);weaponFX(R,Mw,E,t,eye,.8);
-    if(R.type!=='blank'){const b0=M4.pt(Mw,[0,Math.max(R.bot*.2,0),0]),b1=M4.pt(Mw,[0,R.top,0]),Ea=auraCol(E,wd,t);pushSpr(V.mix(b0,b1,.5),V.sub(b1,b0),.06+lv*.003,0,V.sc(Ea.c,(.15+lv*.03)*k),1)}
+  for(const[R,Mw,E,a,wd,AU]of wmats){const lv=wd&&wd.type?wd.lv:0,k=Math.min(1.6,a.aura);
+    spawnAuraFor(R,Mw,frozen?0:dt,1,AU);weaponFX(R,Mw,E,t,eye,.8,AU);
+    if(AU&&R.type!=='blank'){const b0=M4.pt(Mw,[0,Math.max(R.bot*.2,0),0]),b1=M4.pt(Mw,[0,R.top,0]),Ea=auraE(AU,t);pushSpr(V.mix(b0,b1,.5),V.sub(b1,b0),.05+AU.g*.012,0,V.sc(Ea.c,(.1+AU.g*.1)*k),1)}
     drawTrail(a,auraCol(E,wd,t))}
   drawCutLine();
   stepParts(frozen?0:dt);partsToSpr();
@@ -1108,12 +1113,12 @@ function endScene(w,h,o){
   gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,RT.scene.t);gl.uniform1i(cu.uS,0);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,RT.mips[0].t);gl.uniform1i(cu.uB,1);
   gl.uniform1f(cu.uBloom,.16);gl.uniform1f(cu.uInv,(o&&o.inv)?1:0);gl.uniform1f(cu.uExp,1.05);gl.uniform1f(cu.uCA,Math.min(.012,(o.shake||0)*.0006));gl.uniform1f(cu.uFz,o.fz?.6+.4*Math.sin(o.t*14):0);gl.uniform1f(cu.uTime,o.t%10);gl.uniform1f(cu.uVig,.75);
   gl.drawArrays(gl.TRIANGLES,0,3);gl.activeTexture(gl.TEXTURE0)}
-function weaponFX(R,Mw,E,t,eye,pv){if(!R||R.type==='blank')return;const lv=R.lv,cent=M4.pt(Mw,[0,R.ringY,0]),sc=V.len(M4.dir(Mw,[1,0,0]));
-  if(lv>=8||R.hidden&&lv>=10){const r=(.17+lv*.007)*sc;drawDecal(M4.chain(M4.tr(cent[0],cent[1],cent[2]),M4.rx(PI/2-.42),M4.rz(t*.7),M4.sc(r)),TEX.ring,V.sc(E.c,1.8),pv,0)}
+function weaponFX(R,Mw,E,t,eye,pv,AU){if(!R||R.type==='blank')return;const lv=R.lv,cent=M4.pt(Mw,[0,R.ringY,0]),sc=V.len(M4.dir(Mw,[1,0,0]));
+  if(AU&&AU.g>=2){const r=(.2+AU.g*.03)*sc;drawDecal(M4.chain(M4.tr(cent[0],cent[1],cent[2]),M4.rx(PI/2-.42),M4.rz(t*.7),M4.sc(r)),TEX.ring,V.sc(auraE(AU,t).c,1.8),pv,0)}
   if(R.saber&&R.saber.BL>0){const s=R.saber,b0=M4.pt(Mw,[0,.01,0]),b1=M4.pt(Mw,[0,.01+s.BL,0]),dd=V.sub(b1,b0),bc=lin(R.lv===18?hsv(t*120%360):s.col);
     pushSpr(V.mix(b0,b1,.5),dd,.085*sc,0,V.sc(bc,2.2),1);pushSpr(V.mix(b0,b1,.5),dd,.032*sc,1,V.sc(V.mix(bc,[1,1,1],.7),4),1);
     if(s.dbl){const c0=M4.pt(Mw,[0,-s.HL,0]),c1=M4.pt(Mw,[0,-s.HL-s.BL,0]),d2=V.sub(c1,c0);pushSpr(V.mix(c0,c1,.5),d2,.085*sc,0,V.sc(bc,2.2),1);pushSpr(V.mix(c0,c1,.5),d2,.032*sc,1,V.sc(V.mix(bc,[1,1,1],.7),4),1)}}}
-function spawnAuraFor(R,Mw,dt,p){const keep=WPN;WPN=R;try{spawnAura(dt,Mw,p)}finally{WPN=keep}}
+function spawnAuraFor(R,Mw,dt,p,AU){if(!AU)return;const keep=WPN;WPN=R;try{spawnAura(dt,Mw,p,AU)}finally{WPN=keep}}
 let MODE='forge';
 function frame(now,dt,st){
   const fr=prepFrame(now);if(!fr)return;const{w,h,cw,ch}=fr;
@@ -1128,7 +1133,7 @@ function frame(now,dt,st){
   const wVis=now>=FX.hidden;
   // 카메라
   const asp=cw/ch,fov=30*PI/180*(1-(FX.zoom||0)*.6),tn=Math.tan(fov/2);
-  const pe=pose.p*pose.p*(3-2*pose.p),wcY=L3.wcY||1.6,hl=(L3.wHalf||.7)+.32,tgtC=V.mix([-.14,1.22,0],[FLX*.75,Math.max(1.22,wcY),0],pe*.75),dist=lerp(Math.max(1.2/tn,1.36/(tn*asp)),Math.max(hl/tn,(hl*.9)/(tn*asp),1.0/(tn*asp)),pe*.8);
+  const pe=pose.p*pose.p*(3-2*pose.p),wcY=L3.wcY||1.6,hl=(L3.wHalf||.7)+.5,tgtC=V.mix([-.14,1.22,0],[FLX*.75,Math.max(1.22,wcY),0],pe*.75),dist=lerp(Math.max(1.2/tn,1.36/(tn*asp)),Math.max(hl/tn,(hl*.9)/(tn*asp),1.0/(tn*asp)),pe*.8);
   const sh=(FX.shake||0)*.0016;const jit=[rnd(-1,1)*sh,rnd(-1,1)*sh,0];
   const eye=V.add(V.add(tgtC,V.sc(V.norm([.13+Math.sin(t*.17)*.02,.2,1]),dist)),jit);
   cam.V=M4.look(eye,V.add(tgtC,jit),[0,1,0]);cam.P=M4.persp(fov,asp,.05,40);cam.VP=M4.mul(cam.P,cam.V);cam.eye=eye;
@@ -1170,13 +1175,15 @@ function frame(now,dt,st){
   drawDecal(M4.chain(M4.tr(SC.fx,.004,SC.fz+.7),M4.rx(-PI/2),M4.sc(1.1,.7,1)),null,V.sc([1.6,.5,.12],fl),.5,2);
   if(heat>0)drawDecal(M4.chain(M4.tr(L3.Tw[0],AT+.001,.02),M4.rx(-PI/2),M4.sc(.22,.12,1)),null,[4,1.4,.3],heat,2);
   sprN=0;
+  const AU=H.curAura&&H.curAura();
   if(wVis&&Mw&&WPN&&!blank){const lv=WPN.lv,pv=.25+.75*pose.p,cent=M4.pt(Mw,[0,WPN.ringY,0]),sc=V.len(M4.dir(Mw,[1,0,0]));
-    if(lv>=8||WPN.hidden&&lv>=10){const r=(.17+lv*.007)*sc;drawDecal(M4.chain(M4.tr(cent[0],cent[1],cent[2]),M4.rx(PI/2-.42),M4.rz(t*.7),M4.sc(r)),TEX.ring,V.sc(E.c,1.8),pv,0);
-      if(lv>=13){const c2=M4.pt(Mw,[0,WPN.ringY*1.7+.05,0]);drawDecal(M4.chain(M4.tr(c2[0],c2[1],c2[2]),M4.rx(PI/2-.5),M4.rz(-t*1.1),M4.sc(r*.72)),TEX.ring,V.sc(E.l,1.6),pv,0)}}
-    if(lv>=14&&pose.p>.05){const c=M4.pt(Mw,[0,WPN.mid,0]),fw=V.norm(V.sub(eye,c)),rt=V.norm(V.cross([0,1,0],fw)),upv=V.cross(fw,rt),s=(.26+lv*.012)*(.9+.1*Math.sin(t*2));
+    if(AU){const E=auraE(AU,t);
+    if(AU.g>=2){const r=(.2+AU.g*.03)*sc;drawDecal(M4.chain(M4.tr(cent[0],cent[1],cent[2]),M4.rx(PI/2-.42),M4.rz(t*.7),M4.sc(r)),TEX.ring,V.sc(E.c,1.8),pv,0);
+      if(AU.g>=3){const c2=M4.pt(Mw,[0,WPN.ringY*1.7+.05,0]);drawDecal(M4.chain(M4.tr(c2[0],c2[1],c2[2]),M4.rx(PI/2-.5),M4.rz(-t*1.1),M4.sc(r*.72)),TEX.ring,V.sc(E.l,1.6),pv,0)}}
+    if(AU.g>=3&&pose.p>.05){const c=M4.pt(Mw,[0,WPN.mid,0]),fw=V.norm(V.sub(eye,c)),rt=V.norm(V.cross([0,1,0],fw)),upv=V.cross(fw,rt),s=(.26+lv*.012)*(.9+.1*Math.sin(t*2));
       drawDecal(M4.basis(V.sc(rt,s),V.sc(upv,s),fw,V.madd(c,fw,-.12)),TEX.halo,V.sc(E.c,.32),pose.p,0)}
-    if(lv>=15){const r=.95+(lv-15)*.08;drawDecal(M4.chain(M4.tr(FLX,.006,.08),M4.rx(-PI/2),M4.rz(t*.25),M4.sc(r)),TEX.circle,V.sc(E.c,1.6),.35+.65*pose.p,0)}
-    if(lv>=18&&pose.p>.05)pushSpr([FLX,1.6,.06],[0,3.4,0],.32+Math.sin(t*3)*.03,0,V.sc(E.c,.5),pose.p);
+    if(AU.g>=3){const r=.95+(AU.g-3)*.3;drawDecal(M4.chain(M4.tr(FLX,.006,.08),M4.rx(-PI/2),M4.rz(t*.25),M4.sc(r)),TEX.circle,V.sc(E.c,1.6),.35+.65*pose.p,0)}
+    if(AU.g>=4&&pose.p>.05)pushSpr([FLX,1.6,.06],[0,3.4,0],.32+Math.sin(t*3)*.03,0,V.sc(E.c,.5),pose.p);}
     if(WPN.saber&&WPN.saber.BL>0){const s=WPN.saber,b0=M4.pt(Mw,[0,.01,0]),b1=M4.pt(Mw,[0,.01+s.BL,0]),dd=V.sub(b1,b0),bc=lin(WPN.lv===18?hsv(t*120%360):s.col);
       pushSpr(V.mix(b0,b1,.5),dd,.085*sc,0,V.sc(bc,2.2),1);pushSpr(V.mix(b0,b1,.5),dd,.032*sc,1,V.sc(V.mix(bc,[1,1,1],.7),4),1);
       if(s.dbl){const c0=M4.pt(Mw,[0,-s.HL,0]),c1=M4.pt(Mw,[0,-s.HL-s.BL,0]),d2=V.sub(c1,c0);pushSpr(V.mix(c0,c1,.5),d2,.085*sc,0,V.sc(bc,2.2),1);pushSpr(V.mix(c0,c1,.5),d2,.032*sc,1,V.sc(V.mix(bc,[1,1,1],.7),4),1)}}
