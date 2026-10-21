@@ -39,7 +39,7 @@ async function ensureSchema(db) {
   schemaReady = true;
 }
 
-const TYPES = ['sword', 'dagger', 'spear', 'axe', 'saber', 'shinai', null];
+const TYPES = ['sword', 'dagger', 'spear', 'axe', 'saber', 'shinai', 'scythe', null];
 const ELS = ['fire', 'ice', 'thunder', 'dark', 'holy', null];
 const purse = (lv, hidden) => Math.round(300 * Math.pow(1.33, lv) / 10) * 10 * (hidden ? 1.5 : 1);
 const now = () => Date.now();
@@ -74,7 +74,7 @@ function cleanName(n) {
 function cleanWeapon(w) {
   if (!w || typeof w !== 'object') return { type: null, el: null, lv: 0 };
   const type = TYPES.includes(w.type) ? w.type : null;
-  const hidden = type === 'saber' || type === 'shinai';
+  const hidden = type === 'saber' || type === 'shinai' || type === 'scythe';
   const el = !type || hidden ? null : (ELS.includes(w.el) && w.el ? w.el : 'fire');
   const lv = Math.max(0, Math.min(20, Math.floor(Number(w.lv) || 0)));
   return { type: type, el, lv: type || lv === 0 ? lv : 0 };
@@ -212,7 +212,7 @@ export async function onRequest(ctx) {
       return json({
         rivals: (results || []).map(r => {
           const w = safeParse(r.weapon);
-          const hidden = w.type === 'saber' || w.type === 'shinai';
+          const hidden = w.type === 'saber' || w.type === 'shinai' || w.type === 'scythe';
           return { id: r.id, name: r.name, type: w.type || null, el: w.el || null, lv: r.lv, purse: purse(r.lv, hidden), earn: r.earn, wins: r.wins, losses: r.losses, real: true };
         })
       });
@@ -232,7 +232,7 @@ export async function onRequest(ctx) {
         opp = await db.prepare('SELECT id,name,lv,weapon FROM players WHERE id=?').bind(oppId).first();
         if (!opp || opp.id === me.id) return fail(404, 'no_opp', '상대를 찾을 수 없어요.');
         const w = safeParse(opp.weapon);
-        gold = purse(opp.lv, w.type === 'saber' || w.type === 'shinai');
+        gold = purse(opp.lv, w.type === 'saber' || w.type === 'shinai' || w.type === 'scythe');
       }
       const delta = won ? gold : -gold;
       const stmts = [
