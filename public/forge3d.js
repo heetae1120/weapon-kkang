@@ -1227,6 +1227,7 @@ function duelFrame(now,dt){
   dist*=DS.cam.dk;
   const sh=(DQ.shake||0)*.002,jit=[rnd(-1,1)*sh,rnd(-1,1)*sh,0],rl=DS.cam.roll;
   const eye=V.add(V.add(tgt,V.sc(V.norm([Math.sin(t*.13)*.08,.16,1]),dist)),jit);
+  if(DS.dbg&&DS.dbg.portrait&&DS.headW&&DS.headW.p){const hp=V.add(DS.headW.p,[0,DS.dbg.py??.06,0]);const e2=V.add(hp,DS.dbg.pe||[.1,.03,.55]);cam.V=M4.look(e2,hp,[0,1,0]);eye[0]=e2[0];eye[1]=e2[1];eye[2]=e2[2]}else
   cam.V=M4.look(eye,V.add(tgt,jit),[Math.sin(rl),Math.cos(rl),0]);cam.P=M4.persp(fov,asp,.05,60);cam.VP=M4.mul(cam.P,cam.V);cam.eye=eye;
   const EP=EW(DQ.pw),EO=EW(DQ.ow);
   const lights=[[[-3,2.6,1.4],V.sc(EP.c,2.2),.05],[[3,2.6,1.4],V.sc(EO.c,2.2),.05],[[0,4,3],[1.1,1.05,1],.02],[[-4.5,1.8,-2.5],V.sc([3,1.3,.4],.85+.15*Math.sin(t*9)),.25],[[4.5,1.8,-2.5],V.sc([3,1.3,.4],.85+.15*Math.sin(t*8+1)),.25],[[0,1.3,.6],[0,0,0],1]];
@@ -1238,7 +1239,8 @@ function duelFrame(now,dt){
   // 캐릭터 + 무기
   const actors=[[DS.p,'p',PW,DQ.pw,EP,DQ.pa||null],[DS.o,'o',OW,DQ.ow,EO,DQ.oa||null]];const wmats=[];
   for(const[a,side,R,wd,E,AU]of actors){const cfg=CFG[side],K=CH[cfg.ch],clips=ANIM[cfg.an];
-    const Root=M4.chain(M4.tr(a.x,0,0),M4.ry(side==='p'?PI/2:-PI/2)),Ri=M4.inv(Root);const{W,L}=actorWorld(a,K,clips);const ix=K.idx;
+    const yaw=DS.dbg&&DS.dbg.yaw!=null?DS.dbg.yaw:(side==='p'?PI/2:-PI/2),Root=M4.chain(M4.tr(a.x,0,0),M4.ry(yaw)),Ri=M4.inv(Root);const{W,L}=actorWorld(a,K,clips);const ix=K.idx;
+    if(ix.Head!=null){DS.headW=DS.headW||{};DS.headW[side]=M4.pt(Root,M4.pos(W[ix.Head]))}
     let Mw=null;
     const toL=p=>M4.pt(Ri,p);
     const pole=(arm)=>{const s=M4.pt(Root,M4.pos(W[ix[arm]])),c=M4.pt(Root,M4.pos(W[ix.Spine2]));return toL(V.add(s,V.add(V.sc(V.norm(V.sub(s,c)),1),[0,-1.1,0])))};
@@ -1254,7 +1256,7 @@ function duelFrame(now,dt){
     let Mw2=null;if(R.dual&&ix.LeftHand!=null)Mw2=M4.chain(Root,W[ix.LeftHand],gripMatrix(R,K,'L'));
     drawSkin(K,Root,W,cfg.tint);
     const broken=DQ.phase==='result'&&DQ.res&&!DQ.res.win&&side==='p'&&DQ.res.broken;
-    if(Mw&&!broken){wmats.push([R,Mw,E,a,wd,AU]);for(const b of R.batches)drawPBR(b.m,b.mat,Mw);if(Mw2)for(const b of R.batches)drawPBR(b.m,b.mat,Mw2)}
+    if(Mw&&!broken&&!(DS.dbg&&DS.dbg.noW)){wmats.push([R,Mw,E,a,wd,AU]);for(const b of R.batches)drawPBR(b.m,b.mat,Mw);if(Mw2)for(const b of R.batches)drawPBR(b.m,b.mat,Mw2)}
     // 잔상용 스냅샷
     const B=K.bones,mats=new Float32Array(24*16);for(let i=0;i<B.length&&i<24;i++)mats.set(M4.chain(Root,W[i],B[i].inv),i*16);
     a._last={K,mats,Mw,R,E:auraCol(E,wd,t)};
@@ -1444,6 +1446,43 @@ function thumb(wd,W,Hh,rot){W=Math.max(8,Math.min(512,W|0));Hh=Math.max(8,Math.m
   if(any){gx.putImageData(gi,0,0);ox.filter='blur('+Math.max(2,W/40)+'px)';ox.globalCompositeOperation='lighter';ox.drawImage(gl2,0,0,W,Hh);ox.filter='none';ox.globalCompositeOperation='source-over'}
   ox.drawImage(big,0,0,W,Hh);if(any){ox.globalCompositeOperation='lighter';ox.globalAlpha=.6;ox.filter='blur(1px)';ox.drawImage(gl2,0,0,W,Hh);ox.filter='none';ox.globalAlpha=1;ox.globalCompositeOperation='source-over'}
   if(TCACHE.size>400)TCACHE.delete(TCACHE.keys().next().value);TCACHE.set(key,out);return out}
+/* ---------------- 상점 보물상자 (사진 질감 나무·쇠) : 이미지로 구워서 사용 ---------------- */
+function chestGeo(open){const W=.9,Hb=.46,D=.56,R=D/2,o={wood:G(),iron:G(),gold:G(),dark:G(),glow:G()};
+  const add=(k,g,m)=>merge(o[k],g,m||null);
+  // 몸통: 판자 5장 + 안쪽 어둠
+  for(let i=0;i<5;i++)add('wood',box(W-.02,Hb/5-.006,D-.02),M4.tr(0,Hb/10+i*Hb/5,0));
+  add('dark',box(W-.06,.01,D-.06),M4.tr(0,Hb-.004,0));
+  // 쇠 띠·모서리 쇠
+  for(const x of[-W*.32,W*.32])add('iron',box(.07,Hb+.012,D+.014),M4.tr(x,Hb/2,0));
+  for(const sx of[-1,1])for(const sz of[-1,1]){add('iron',box(.09,Hb+.016,.03),M4.tr(sx*(W/2-.035),Hb/2,sz*(D/2-.004)));add('iron',box(.03,Hb+.016,.09),M4.tr(sx*(W/2-.004),Hb/2,sz*(D/2-.035)))}
+  add('iron',box(W+.012,.04,D+.012),M4.tr(0,.02,0));add('gold',box(W+.016,.022,D+.016),M4.tr(0,Hb-.01,0));
+  // 리벳
+  for(const x of[-W*.32,W*.32])for(let j=0;j<4;j++)for(const sz of[-1,1])add('gold',sphere(.009,8,6),M4.tr(x+(j%2?.02:-.02),.06+j*.11,sz*(D/2+.008)));
+  // 뚜껑 (반원통) — 열리면 뒤로 젖힘
+  const lid=G();const prof=[];for(let i=0;i<=16;i++){const a=PI*i/16;prof.push([Math.cos(a)*R,Math.sin(a)*R*.85])}
+  for(let i=0;i<16;i++){const a=prof[i],b=prof[i+1];const seg=box(W-.02,.03,Math.hypot(b[0]-a[0],b[1]-a[1])+.004);const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2],ang=Math.atan2(b[1]-a[1],b[0]-a[0]);merge(lid,seg,M4.chain(M4.tr(0,mid[1],mid[0]),M4.rx(-ang)))}
+  const lidI=G(),lidG=G();for(const x of[-W*.32,W*.32])for(let i=0;i<16;i++){const a=prof[i],b=prof[i+1];const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2],ang=Math.atan2(b[1]-a[1],b[0]-a[0]);merge(lidI,box(.075,.04,Math.hypot(b[0]-a[0],b[1]-a[1])+.006),M4.chain(M4.tr(x,mid[1],mid[0]),M4.rx(-ang)))}
+  for(const sx of[-1,1]){const sideP=[];for(let i=0;i<=16;i++)sideP.push([prof[i][0],prof[i][1]]);merge(lidI,extrude(sideP.map(p=>[p[0],p[1]]),{depth:.03,bevel:.004}),M4.chain(M4.tr(sx*(W/2-.012),0,0),M4.ry(PI/2)))}
+  merge(lidG,box(W+.016,.022,.03),M4.tr(0,.0,R));merge(lidG,box(W+.016,.022,.03),M4.tr(0,0,-R));
+  const LM=open?M4.chain(M4.tr(0,Hb,-R),M4.rx(-1.9),M4.tr(0,0,R)):M4.tr(0,Hb,0);
+  add('wood',lid,LM);add('iron',lidI,LM);add('gold',lidG,LM);
+  // 자물쇠
+  const lockM=open?M4.chain(LM,M4.tr(0,0,R+.02)):M4.tr(0,Hb-.02,D/2+.02);
+  add('gold',box(.12,.15,.03),lockM);add('dark',box(.022,.05,.01),M4.chain(lockM,M4.tr(0,-.01,.018)));add('dark',sphere(.016,10,8),M4.chain(lockM,M4.tr(0,.022,.016)));
+  if(open){add('glow',box(W-.08,.02,D-.08),M4.tr(0,Hb-.03,0));for(let i=0;i<70;i++){const x=(Math.random()-.5)*(W-.15),z=(Math.random()-.5)*(D-.15);add('gold',lathe([[0,0],[.028,0],[.028,.008],[0,.008]],12),M4.chain(M4.tr(x,Hb-.02+Math.random()*.03,z),M4.rx(Math.random()-.5),M4.rz(Math.random()-.5)))}}
+  return o}
+function renderChest(open,W,Hh,glowCol){const SS=2,w=W*SS,h=Hh*SS,keep={...cam};const parts=chestGeo(open);
+  const M={wood:mat({alb:PT.planks_d,nor:PT.planks_n,norS:1,rep:[1.2,1],col:[.5,.3,.17],rou:.6}),iron:mat({col:lin('#6a6c74'),met:1,rou:.38,rgh:PT.steel_r,nor:PT.steel_n,norS:.35,rep:[2,2]}),gold:mat({col:lin('#e8b850'),met:1,rou:.3,emi:V.sc(lin('#ffb040'),.06)}),dark:mat({col:lin('#0c0a0a'),rou:.9}),glow:mat({col:[0,0,0],emi:V.sc(lin(glowCol||'#ffd36b'),9)})};
+  const meshes=Object.entries(parts).filter(([k,g])=>g.p.length).map(([k,g])=>({m:mesh(g),mat:M[k]}));
+  try{const T=thumbRT(w,h);gl.bindFramebuffer(gl.FRAMEBUFFER,T.f);gl.viewport(0,0,w,h);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.depthMask(true);gl.disable(gl.BLEND);gl.disable(gl.CULL_FACE);
+    const tgt=[0,open?.46:.38,0],eye=open?[1.5,1.45,2.45]:[1.45,1.2,2.25],asp=w/h;cam.V=M4.look(eye,tgt,[0,1,0]);cam.P=M4.persp(26*PI/180,asp,.3,10);cam.VP=M4.mul(cam.P,cam.V);cam.eye=eye;
+    const lights=[[[1.8,2.4,2.2],[4.2,3.8,3.2],.02],[[-2.2,1.2,1.4],[.9,1,1.4],.02],[[0,2,-2],[2,1.7,1.3],.02],...(open?[[[0,.75,.15],V.sc(lin(glowCol||'#ffd36b'),6),.25]]:[])];
+    setProgCommon(P_PBR,eye,lights,999,[1.1,1,.9],0);for(const x of meshes)drawPBR(x.m,x.mat,M4.id());
+    gl.readPixels(0,0,w,h,gl.RGBA,gl.FLOAT,T.buf);gl.bindFramebuffer(gl.FRAMEBUFFER,null)}finally{meshes.forEach(x=>freeMesh(x.m));Object.assign(cam,keep)}
+  const B=TB.buf,big=document.createElement('canvas');big.width=w;big.height=h;const bx=big.getContext('2d'),img=bx.createImageData(w,h),D=img.data;
+  const ac=x=>{x*=1.05;const v=(x*(2.51*x+.03))/(x*(2.43*x+.59)+.14);return Math.pow(Math.min(1,Math.max(0,v)),1/2.2)*255};
+  for(let y=0;y<h;y++){const sy=(h-1-y)*w*4,dy=y*w*4;for(let x=0;x<w;x++){const i=sy+x*4,o2=dy+x*4,a=B[i+3];if(a<=0)continue;const k=1/Math.max(a,1e-3);D[o2]=ac(B[i]*k);D[o2+1]=ac(B[i+1]*k);D[o2+2]=ac(B[i+2]*k);D[o2+3]=Math.min(255,a*255)}}
+  bx.putImageData(img,0,0);const out=document.createElement('canvas');out.width=W;out.height=Hh;const ox=out.getContext('2d');ox.imageSmoothingQuality='high';ox.drawImage(big,0,0,W,Hh);return out}
 window.Forge3D={
   init(canvas,hooks){H=hooks;try{if(!initGL(canvas))return false;buildScene();ACTIVE=true;return true}catch(e){console.error('3D 초기화 실패',e);ACTIVE=false;return false}},
   get active(){return ACTIVE&&!lost},L:L3,
@@ -1452,6 +1491,7 @@ window.Forge3D={
   duelReady:(DQ)=>duelReady(DQ),dbg(o){DS.dbg=o},duelPt:()=>duelPt(),duelActorPt:s=>duelActorPt(s),preloadDuel(list){try{preloadDuel(list)}catch(e){}},charReady:k=>!!charReady(k),resetDuel(){DS.p=null;DS.o=null;parts.length=0},
   canvas:()=>cv,
   hit(res){try{hit(res)}catch(e){}},
+  chest(open,W,H,c){return renderChest(open,W,H,c)},
   thumb(w,W,H,rot){try{return thumb(w,W,H,rot)}catch(e){console.error('썸네일 오류',e);return null}},archName:(t,e)=>(ARCH_NAME[t]||{})[e]||null,
   setPose(p){FIXP=p},setQ(q){FIXQ=q;quality=q},stats:()=>({parts:parts.length,quality,ftAvg})
 };

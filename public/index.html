@@ -188,7 +188,12 @@ button{font:inherit}
 @media (max-width:600px){.ak{width:48px;height:48px;font-size:28px}}
 .chargrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
 .chr{border:2px solid var(--line);background:var(--panel);padding:8px;display:flex;flex-direction:column;gap:6px;cursor:pointer;text-align:left;color:inherit;font:inherit}
-.chr img{width:100%;aspect-ratio:3/4;object-fit:cover;background:#0b0910}
+.chr img{width:100%;aspect-ratio:1;object-fit:cover;background:#0b0910;border-radius:50%;border:2px solid var(--line)}
+.chr.on img{border-color:var(--ember);box-shadow:0 0 14px rgba(255,174,61,.45)}
+.chargrid{grid-template-columns:repeat(auto-fill,minmax(104px,1fr))!important}
+.face{width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--line);vertical-align:middle;margin-right:8px;background:#0b0910}
+.hud .face{width:38px;height:38px;margin:0}
+.side{display:flex;gap:8px;align-items:center}.side.them{flex-direction:row-reverse}.side>div{min-width:0}
 .chr b{font-family:var(--display);font-size:17px;font-weight:400}.chr span{font-size:12px;color:var(--muted)}
 .chr.on{border-color:var(--ember);box-shadow:0 0 0 2px var(--ember) inset}
 .invgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
@@ -460,9 +465,9 @@ button{font:inherit}
 
 <div id="duel" hidden>
   <div class="hud">
-    <div class="side me"><div class="hn">나</div><div class="hw" id="dPW"></div><div class="pips" id="dPP"><i></i><i></i></div></div>
+    <div class="side me"><img class="face" id="dPF" alt=""><div><div class="hn">나</div><div class="hw" id="dPW"></div><div class="pips" id="dPP"><i></i><i></i></div></div></div>
     <div class="mid"><div id="dRound">결투</div><button class="btn ghost sm" id="forfeit" type="button">기권</button></div>
-    <div class="side them"><div class="hn" id="dON"></div><div class="hw" id="dOW"></div><div class="pips" id="dOP"><i></i><i></i></div></div>
+    <div class="side them"><img class="face" id="dOF" alt=""><div><div class="hn" id="dON"></div><div class="hw" id="dOW"></div><div class="pips" id="dOP"><i></i><i></i></div></div></div>
   </div>
   <div id="dstage"><canvas id="dcv"></canvas></div>
   <div class="qpanel">
@@ -1623,7 +1628,7 @@ function renderArena(){
     const card=document.createElement('article');card.className='rival';card.style.setProperty('--c',pal(r,1).c);
     card.innerHTML=`<div class="rv-top"><span class="tag ${tag[1]}">${tag[0]}</span><span class="purse">상금 ${fmt(r.purse)} G</span></div>
       <canvas class="rv-cv"></canvas>
-      <div class="rv-name">${esc(r.name)} <span class="who ${r.real?'real':'bot'}">${r.real?'플레이어':'AI'}</span></div>
+      <div class="rv-name"><img class="face" src="assets/${CHAR_IDS.includes(r.ch)?r.ch:'guard'}_f.jpg" alt="">${esc(r.name)} <span class="who ${r.real?'real':'bot'}">${r.real?'플레이어':'AI'}</span></div>
       ${r.real?`<div class="rv-w">결투 수익 ${r.earn>=0?'+':'−'}${fmt(Math.abs(r.earn))} G · ${r.wins}승 ${r.losses}패</div>`:''}
       <div class="rv-w">${isHidden(r)?'<span class="hidtag">HIDDEN</span>':''}+${r.lv} ${wname(r)} · ${elLabel(r)}</div>
       <dl class="rv-stats"><div><dt>내 입력</dt><dd>${P.len}개 · ${P.TL.toFixed(1)}초</dd></div><div><dt>함정 버튼</dt><dd>${P.decoys?P.decoys+'개'+(P.look?' (닮은꼴)':''):'없음'}</dd></div><div><dt>단어 이동</dt><dd>${traps}</dd></div><div><dt>상대 성공률</dt><dd>${Math.round(pS*100)}%</dd></div></dl>
@@ -1648,6 +1653,7 @@ function startDuel(i){
 }
 function hud(){
   if(!D)return;
+  $('#dPF').src=`assets/${D.pch}_f.jpg`;$('#dOF').src=`assets/${CHAR_IDS.includes(D.och)?D.och:'guard'}_f.jpg`;
   $('#dPW').textContent=`+${D.pw.lv} ${wname(D.pw)}`;$('#dON').textContent=D.rv.name;$('#dOW').textContent=`+${D.ow.lv} ${wname(D.ow)}`;
   $('#dPP').innerHTML=[0,1].map(k=>`<i class="${k<D.ps?'on':''}"></i>`).join('');
   $('#dOP').innerHTML=[0,1].map(k=>`<i class="${k<D.os?'on':''}"></i>`).join('');
@@ -1880,7 +1886,16 @@ function duelTick(now,dt){
 }
 
 /* ---------- 상점 & 상자 ---------- */
-function drawChest(c,x,y,s,glow,time,open){
+const CHEST_IMG={c:new Image(),o:new Image()};CHEST_IMG.c.src='assets/chest_c.webp';CHEST_IMG.o.src='assets/chest_o.webp';
+CHEST_IMG.c.onload=()=>{if(tab==='shop')renderShop()};
+function drawChest(c,x,y,s,glow,time,open){const im=open?CHEST_IMG.o:CHEST_IMG.c;
+  if(im.complete&&im.naturalWidth){const W=250*s,H=W*im.naturalHeight/im.naturalWidth;
+    if(glow){c.save();c.globalCompositeOperation='lighter';const g=c.createRadialGradient(x,y-H*.15,10,x,y-H*.15,W*.85);g.addColorStop(0,rgba(glow,.42));g.addColorStop(1,rgba(glow,0));c.fillStyle=g;c.fillRect(x-W,y-H*1.3,W*2,H*2.4);c.restore()}
+    c.drawImage(im,x-W/2,y-H*.62,W,H);
+    if(glow&&!open){c.save();c.globalCompositeOperation='lighter';c.shadowColor=glow;c.shadowBlur=22*s;c.strokeStyle=rgba(glow,.9);c.lineWidth=3*s;c.beginPath();c.moveTo(x-W*.36,y-H*.1);c.lineTo(x+W*.3,y-H*.13);c.stroke();c.restore()}
+    return}
+  drawChest2D(c,x,y,s,glow,time,open)}
+function drawChest2D(c,x,y,s,glow,time,open){
   c.save();c.translate(x,y);c.scale(s,s);
   if(glow){c.save();c.globalCompositeOperation='lighter';const g=c.createRadialGradient(0,-20,10,0,-20,170);g.addColorStop(0,rgba(glow,.45));g.addColorStop(1,rgba(glow,0));c.fillStyle=g;c.fillRect(-180,-200,360,360);c.restore()}
   let g=c.createLinearGradient(0,-20,0,72);g.addColorStop(0,'#4a2a72');g.addColorStop(1,'#1c0f2e');c.fillStyle=g;rr(c,-100,-20,200,92,10);c.fill();c.strokeStyle='#e2b23a';c.lineWidth=4;c.stroke();
@@ -1962,6 +1977,7 @@ function drawBoxOv(now,dt){
     let g=c.createRadialGradient(w/2,h*.5,10,w/2,h*.5,Math.max(w,h)*.55);g.addColorStop(0,rgba(B.hid?'#ff5fd2':E.c,.28));g.addColorStop(1,'rgba(11,9,16,0)');c.fillStyle=g;c.fillRect(0,0,w,h);
     if(B.hid)speedLines(c,w,h,now,.7,w/2,h*.5);
     const k=ease.out(clamp(r/.55,0,1));
+    c.save();c.globalAlpha=Math.min(1,r*2)*.9;drawChest(c,w/2,h*.92,Math.min(w/300,h/260,1.7)*.9,null,tt,true);c.restore();
     drawWeapon(c,B.best,{x:w/2,y:h*.5,size:h*.82*(.3+.7*k),rot:-.12+Math.sin(tt*.9)*.03*RM,time:tt,alpha:k});
     if(B.hid&&!B.said&&r>.3){B.said=true;popText(B.texts,'HIDDEN!!',w/2,h*.16,{size:Math.min(90,w*.15),rainbow:true,dur:2600});popText(B.texts,tname(B.best.type)+' 획득',w/2,h*.86,{size:Math.min(44,w*.08),band:'#2a2335',dur:2600})}
     if(!B.shown&&r>.75)showBoxRes();
@@ -1989,7 +2005,7 @@ function equip(id){S.cur=id;frenzyUntil=0;FX.appear=performance.now();ensureRiva
 /* ---------- 보관함 ---------- */
 let confirmId=null;
 function renderChars(){const g=$('#charGrid');g.innerHTML='';
-  CHARS.forEach(c=>{const b=document.createElement('button');b.type='button';b.className='chr'+(S.char===c.id?' on':'');b.innerHTML=`<img src="assets/${c.id}_t.jpg" alt=""><b>${c.name}</b><span>${S.char===c.id?'선택됨 · ':''}${c.d}</span>`;
+  CHARS.forEach(c=>{const b=document.createElement('button');b.type='button';b.className='chr'+(S.char===c.id?' on':'');b.innerHTML=`<img src="assets/${c.id}_f.jpg" alt=""><b>${c.name}</b><span>${S.char===c.id?'선택됨 · ':''}${c.d}</span>`;
     b.onclick=()=>{S.char=c.id;save();renderChars();if(F3)F3.preloadDuel([c.id]);toast(`${c.name}(으)로 결투에 나갑니다`)};g.appendChild(b)})}
 function renderAuras(){const g=$('#auraGrid');g.innerHTML='';
   const keys=Object.keys(S.auras||{}).filter(k=>auraObj(k)&&S.auras[k]>0).sort((a,b)=>auraRank(b)-auraRank(a));

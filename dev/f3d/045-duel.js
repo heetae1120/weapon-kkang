@@ -203,6 +203,7 @@ function duelFrame(now,dt){
   dist*=DS.cam.dk;
   const sh=(DQ.shake||0)*.002,jit=[rnd(-1,1)*sh,rnd(-1,1)*sh,0],rl=DS.cam.roll;
   const eye=V.add(V.add(tgt,V.sc(V.norm([Math.sin(t*.13)*.08,.16,1]),dist)),jit);
+  if(DS.dbg&&DS.dbg.portrait&&DS.headW&&DS.headW.p){const hp=V.add(DS.headW.p,[0,DS.dbg.py??.06,0]);const e2=V.add(hp,DS.dbg.pe||[.1,.03,.55]);cam.V=M4.look(e2,hp,[0,1,0]);eye[0]=e2[0];eye[1]=e2[1];eye[2]=e2[2]}else
   cam.V=M4.look(eye,V.add(tgt,jit),[Math.sin(rl),Math.cos(rl),0]);cam.P=M4.persp(fov,asp,.05,60);cam.VP=M4.mul(cam.P,cam.V);cam.eye=eye;
   const EP=EW(DQ.pw),EO=EW(DQ.ow);
   const lights=[[[-3,2.6,1.4],V.sc(EP.c,2.2),.05],[[3,2.6,1.4],V.sc(EO.c,2.2),.05],[[0,4,3],[1.1,1.05,1],.02],[[-4.5,1.8,-2.5],V.sc([3,1.3,.4],.85+.15*Math.sin(t*9)),.25],[[4.5,1.8,-2.5],V.sc([3,1.3,.4],.85+.15*Math.sin(t*8+1)),.25],[[0,1.3,.6],[0,0,0],1]];
@@ -214,7 +215,8 @@ function duelFrame(now,dt){
   // 캐릭터 + 무기
   const actors=[[DS.p,'p',PW,DQ.pw,EP,DQ.pa||null],[DS.o,'o',OW,DQ.ow,EO,DQ.oa||null]];const wmats=[];
   for(const[a,side,R,wd,E,AU]of actors){const cfg=CFG[side],K=CH[cfg.ch],clips=ANIM[cfg.an];
-    const Root=M4.chain(M4.tr(a.x,0,0),M4.ry(side==='p'?PI/2:-PI/2)),Ri=M4.inv(Root);const{W,L}=actorWorld(a,K,clips);const ix=K.idx;
+    const yaw=DS.dbg&&DS.dbg.yaw!=null?DS.dbg.yaw:(side==='p'?PI/2:-PI/2),Root=M4.chain(M4.tr(a.x,0,0),M4.ry(yaw)),Ri=M4.inv(Root);const{W,L}=actorWorld(a,K,clips);const ix=K.idx;
+    if(ix.Head!=null){DS.headW=DS.headW||{};DS.headW[side]=M4.pt(Root,M4.pos(W[ix.Head]))}
     let Mw=null;
     const toL=p=>M4.pt(Ri,p);
     const pole=(arm)=>{const s=M4.pt(Root,M4.pos(W[ix[arm]])),c=M4.pt(Root,M4.pos(W[ix.Spine2]));return toL(V.add(s,V.add(V.sc(V.norm(V.sub(s,c)),1),[0,-1.1,0])))};
@@ -230,7 +232,7 @@ function duelFrame(now,dt){
     let Mw2=null;if(R.dual&&ix.LeftHand!=null)Mw2=M4.chain(Root,W[ix.LeftHand],gripMatrix(R,K,'L'));
     drawSkin(K,Root,W,cfg.tint);
     const broken=DQ.phase==='result'&&DQ.res&&!DQ.res.win&&side==='p'&&DQ.res.broken;
-    if(Mw&&!broken){wmats.push([R,Mw,E,a,wd,AU]);for(const b of R.batches)drawPBR(b.m,b.mat,Mw);if(Mw2)for(const b of R.batches)drawPBR(b.m,b.mat,Mw2)}
+    if(Mw&&!broken&&!(DS.dbg&&DS.dbg.noW)){wmats.push([R,Mw,E,a,wd,AU]);for(const b of R.batches)drawPBR(b.m,b.mat,Mw);if(Mw2)for(const b of R.batches)drawPBR(b.m,b.mat,Mw2)}
     // 잔상용 스냅샷
     const B=K.bones,mats=new Float32Array(24*16);for(let i=0;i<B.length&&i<24;i++)mats.set(M4.chain(Root,W[i],B[i].inv),i*16);
     a._last={K,mats,Mw,R,E:auraCol(E,wd,t)};
