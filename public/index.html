@@ -163,6 +163,19 @@ button{font:inherit}
 .otable tr.hrow td{color:var(--hid);font-weight:700}
 
 /* 보관함 */
+.arows{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;height:100%;padding:10px}
+.ak{width:64px;height:64px;display:grid;place-items:center;font-size:38px;font-weight:900;background:var(--panel-2);border:3px solid var(--qc);color:var(--qc);border-radius:10px;transition:transform .12s,opacity .2s}
+.ak.cur{background:var(--qc);color:#120e18;transform:scale(1.18);box-shadow:0 0 18px var(--qc)}
+.ak.done{opacity:.25;transform:scale(.85)}
+.ak.wrong{animation:wrong .3s}
+.ahint{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:12px;color:var(--muted);pointer-events:none}
+.sa{font-style:normal;font-weight:900;margin-right:2px}
+@media (max-width:600px){.ak{width:48px;height:48px;font-size:28px}}
+.chargrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+.chr{border:2px solid var(--line);background:var(--panel);padding:8px;display:flex;flex-direction:column;gap:6px;cursor:pointer;text-align:left;color:inherit;font:inherit}
+.chr img{width:100%;aspect-ratio:3/4;object-fit:cover;background:#0b0910}
+.chr b{font-family:var(--display);font-size:17px;font-weight:400}.chr span{font-size:12px;color:var(--muted)}
+.chr.on{border-color:var(--ember);box-shadow:0 0 0 2px var(--ember) inset}
 .invgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .inv{background:var(--panel);border:1px solid var(--line);padding:8px;display:flex;flex-direction:column;gap:6px;min-width:0;position:relative}
 .inv.cur{border-color:var(--ember);box-shadow:inset 0 0 0 1px var(--ember)}
@@ -369,7 +382,7 @@ button{font:inherit}
         <canvas id="scv"></canvas>
         <div class="boxname">랜덤 무기 상자</div>
         <div class="boxprice"><s>3,000 G</s> · 베타 무료</div>
-        <div class="bsub">일반 무기는 +1~+8로 나옵니다. 1% 확률로 히든 무기 광선검·죽도·낫이 등장합니다.</div>
+        <div class="bsub">일반 무기는 +1~+8로 나옵니다. 히든 무기 광선검·죽도·낫이 각각 3% 확률로 등장합니다.</div>
         <div class="boxbtns">
           <button class="bigbtn" id="buy1" type="button">1회 열기</button>
           <button class="bigbtn alt" id="buy10" type="button">10회 열기</button>
@@ -386,6 +399,8 @@ button{font:inherit}
 
   <section id="inv" hidden>
     <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="card-h"><b>결투 캐릭터</b><span class="hint">결투장에서 싸울 내 캐릭터를 고르세요</span></div>
+      <div class="chargrid" id="charGrid"></div>
       <div class="card-h"><span class="hint" id="invInfo"></span><div class="sellbar" id="sellBar"><select id="sellLv" aria-label="판매 기준 강화 단계"></select><span class="hint">이하 무기</span><button class="btn sm" type="button" id="sellGo">일괄 판매</button></div></div>
       <div class="invgrid" id="invGrid"></div>
     </div>
@@ -499,6 +514,8 @@ const HTYPES=[{id:'saber',name:'광선검'},{id:'shinai',name:'죽도'},{id:'scy
 const ALLT=TYPES.concat(HTYPES);
 const isHidden=w=>!!w&&(w.type==='saber'||w.type==='shinai'||w.type==='scythe');
 const HID_TYPES=['saber','shinai','scythe'];
+const CHARS=[{id:'paladin',name:'팔라딘',d:'묵직한 중갑 기사'},{id:'guard',name:'성 경비병',d:'붉은 망토의 경비대장'},{id:'orc',name:'오크 전사',d:'거구의 야만 전사'},{id:'erika',name:'에리카',d:'날렵한 레인저'},{id:'ninja',name:'닌자',d:'그림자 속 암살자'},{id:'kachujin',name:'카추진',d:'동방의 여검사'},{id:'smith',name:'대장장이',d:'모루를 떠난 장인'}];
+const CHAR_IDS=CHARS.map(c=>c.id);
 const tname=t=>t?(ALLT.find(x=>x.id===t)||{name:'?'}).name:'미정';
 const ELS={
   fire:{name:'화염',ch:'炎',c:'#ff6a2b',l:'#ffd36b',d:'#7a1a08'},
@@ -580,13 +597,13 @@ const LOOK={'일섬':'일선','참격':'참겹','섬광':'섬강','역린':'역�
 const RIVAL_NAMES=['흑풍의 카게로','백야의 시온','적월의 렌','뇌명의 하야테','빙화의 유키나','성검사 아리아','심연의 노아','홍련의 아카네','질풍의 소라','철벽의 강무','묵검 무진','은빛 세레나','잿빛 카이','월광의 미오'];
 const CUT_P=['일섬!!','필살!!','참(斬)!!','극의!!','천붕참!!'];
 const CUT_O=['반격!!','역습!!','간파!!'];
-const CAP=30;
+const CAP=100;
 const BOX_W=[[1,35],[2,25],[3,15],[4,10],[5,7],[6,4],[7,2.5],[8,1.5]];
-const HID_P=.01;
+const HID_P=.09;// 광선검·죽도·낫 각 3%
 
 /* ---------- 상태 ---------- */
 const KEY='ganghwa-duel-v2';
-const S={inv:[],cur:null,earn:0,wins:0,losses:0,best:0,log:[],rivals:[],codex:{type:'sword',el:'fire'},muted:false,boxes:0,hidCount:0};
+const S={char:'paladin',inv:[],cur:null,earn:0,wins:0,losses:0,best:0,log:[],rivals:[],codex:{type:'sword',el:'fire'},muted:false,boxes:0,hidCount:0};
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}queueSave()}
 
 /* ---------- 서버 ---------- */
@@ -606,7 +623,7 @@ async function api(path,opts={}){
   }catch(e){if(e&&e.code)throw e;throw{code:'offline',message:'서버에 연결할 수 없어요.'}}
   finally{clearTimeout(tm)}
 }
-const statePayload=()=>({inv:S.inv,cur:S.cur,log:S.log.slice(0,30),codex:S.codex,muted:S.muted,boxes:S.boxes,hidCount:S.hidCount});
+const statePayload=()=>({char:S.char,inv:S.inv,cur:S.cur,log:S.log.slice(0,30),codex:S.codex,muted:S.muted,boxes:S.boxes,hidCount:S.hidCount});
 function queueSave(){if(!NET.online||!NET.me)return;NET.dirty=true;clearTimeout(NET.saveT);NET.saveT=setTimeout(flushSave,1200)}
 async function flushSave(keepalive){
   if(!NET.online||!NET.me||!NET.dirty)return;
@@ -619,7 +636,7 @@ async function flushSave(keepalive){
 function setNet(s){const n=$('#net');n.className='net '+(s==='on'?'on':s==='off'?'off':'');n.textContent=s==='on'?'온라인':s==='off'?'오프라인 모드':s==='retry'?'저장 재시도 중':'연결 중'}
 function applyServer(d){
   const st=d.state||{};
-  if(Array.isArray(st.inv)&&st.inv.length){S.inv=st.inv;S.cur=st.cur;S.log=st.log||[];if(st.codex)S.codex=st.codex;S.muted=!!st.muted;S.boxes=st.boxes||0;S.hidCount=st.hidCount||0}
+  if(Array.isArray(st.inv)&&st.inv.length){S.inv=st.inv;S.cur=st.cur;S.log=st.log||[];if(st.codex)S.codex=st.codex;S.muted=!!st.muted;S.boxes=st.boxes||0;S.hidCount=st.hidCount||0;if(st.char)S.char=st.char}
   S.earn=d.earn;S.wins=d.wins;S.losses=d.losses;S.best=Math.max(d.best||0,...S.inv.map(w=>w.lv));
   NET.me={id:d.id,name:d.name};
   $('#myName').textContent=d.name;$('#codeBtn').hidden=false;
@@ -1190,7 +1207,8 @@ const SHOUTS=['흡!','얍!','하앗!','이얍!','후웁!'];
 function swingDur(ph){const fz=performance.now()<frenzyUntil;return(fz?{wind:60,down:50,rec:80,back:120}:{wind:130,down:70,rec:140,back:260})[ph]}
 function strike(){
   const now=performance.now(),W=curW();
-  if(D||B||W.lv>=20||now<FX.hidden||FX.raise>0)return;
+  if(FX.raise>0){FX.raise=0;return}
+  if(D||B||W.lv>=20||now<FX.hidden)return;
   unlockAudio();const sw=FX.sw;
   if(sw.ph==='idle'||sw.ph==='back'){startSwing()}else sw.q=1;
 }
@@ -1491,9 +1509,10 @@ function newBlank(){
 
 /* ---------- 결투장 ---------- */
 function makeRival(lv,name){
-  if(lv>=8&&Math.random()<.05)return{name,type:pick(HID_TYPES),el:null,lv,purse:Math.round(purse(lv)*1.5/10)*10};
-  if(lv===0)return{name,type:null,el:null,lv,purse:purse(0)};
-  return{name,type:pick(TYPES).id,el:pick(EL_IDS),lv,purse:purse(lv)};
+  const ch=pick(CHAR_IDS);
+  if(lv>=8&&Math.random()<.05)return{name,ch,type:pick(HID_TYPES),el:null,lv,purse:Math.round(purse(lv)*1.5/10)*10};
+  if(lv===0)return{name,ch,type:null,el:null,lv,purse:purse(0)};
+  return{name,ch,type:pick(TYPES).id,el:pick(EL_IDS),lv,purse:purse(lv)};
 }
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 let rivalSeq=0;
@@ -1510,7 +1529,7 @@ function ensureRivals(force){
       real.sort((a,b)=>a.lv-b.lv);
       real.forEach((r,i)=>{S.rivals[i===0&&real.length===1?1:i]=r});
       S.rivals.sort((a,b)=>a.lv-b.lv);
-      if(tab==='arena')renderArena();
+      if(tab==='arena')renderArena();if(F3)F3.preloadDuel(S.rivals.map(r=>r.ch||'guard'));
     }).catch(()=>{});
   }
 }
@@ -1543,7 +1562,7 @@ const dcv=$('#dcv'),dctx=dcv.getContext('2d');
 function startDuel(i){
   const rv=S.rivals[i];if(!rv)return;unlockAudio();const now=performance.now(),W=curW();
   D={rv,pid:W.id,pw:{...W},ow:{type:rv.type,el:rv.el,lv:rv.lv},ps:0,os:0,round:0,phase:'intro',ph0:now,parts:[],texts:[],shake:0,inv:0,flash:0,slash:null,q:null,clash:null,adv:advW(W,rv),vsHit:0,cardShown:false};
-  D.id=now;D.d3=!!(F3&&F3.active&&F3.duelReady());if(D.d3){F3.resetDuel();const f=$('#f3d');f.style.height='100%';$('#dstage').prepend(f)}
+  D.id=now;D.pch=S.char||'paladin';D.och=rv.ch||'guard';D.d3=!!(F3&&F3.active);if(D.d3)F3.preloadDuel([D.pch,D.och]);if(D.d3){F3.resetDuel();const f=$('#f3d');f.style.height='100%';$('#dstage').prepend(f)}
   $('#duel').hidden=false;document.body.classList.add('lock');$('#rcard').hidden=true;
   $('#qarea').innerHTML='';$('#seq').innerHTML='';$('#qmsg').textContent='결투 준비';
   $('#tFill').style.width='100%';$('#tFill').classList.remove('urgent');$('#tVal').textContent='';
@@ -1568,14 +1587,16 @@ function startQTE(){
   const pool=shuffle(PHRASES.slice()),seq=pool.slice(0,P.len),cols=shuffle(QCOL.slice()).slice(0,P.len);
   let dec=[];if(P.decoys){if(P.look)dec=shuffle(seq.map((s,i)=>({t:LOOK[s],c:cols[i]})).filter(d=>d.t)).slice(0,P.decoys);const rest=pool.slice(P.len);while(dec.length<P.decoys&&rest.length)dec.push({t:rest.pop(),c:'#7a7389'})}
   const succ=Math.random()<aiSucc(M,O,D.adv);
-  D.q={P,seq,cols,dec,i:0,start:performance.now(),pen:0,rem:P.TL,aiSucc:succ,aiT:succ?P.TL*rnd(.5,.93):Infinity,failAt:succ?0:P.TL*rnd(.45,.9),failFrac:rnd(.35,.85),aiFail:false,done:false,btns:[]};
+  const PA=ARROW_MODE?{...P,TL:P.len*P.per*.55+1}:P;
+  D.q={P:PA,arr:ARROW_MODE?seq.map(()=>Math.floor(Math.random()*4)):null,seq,cols,dec,i:0,start:performance.now(),pen:0,rem:PA.TL,aiSucc:succ,aiT:succ?PA.TL*rnd(.5,.93):Infinity,failAt:succ?0:PA.TL*rnd(.45,.9),failFrac:rnd(.35,.85),aiFail:false,done:false,btns:[]};
   D.phase='qte';D.ph0=performance.now();
   $('#qmsg').textContent='';$('#aFill').classList.remove('fail');$('#aFill').style.width='0';$('#aVal').textContent='0%';
   buildQTE();
 }
 function buildQTE(){
   const q=D.q,area=$('#qarea'),seqHost=$('#seq');area.innerHTML='';area.classList.remove('fade');seqHost.innerHTML='';
-  q.seq.forEach((t,i)=>{const s=document.createElement('span');s.className='sq'+(i===0?' cur':'');s.style.setProperty('--qc',q.cols[i]);s.innerHTML=`<b>${i+1}</b>${t}`;seqHost.appendChild(s)});
+  q.seq.forEach((t,i)=>{const s=document.createElement('span');s.className='sq'+(i===0?' cur':'');s.style.setProperty('--qc',q.cols[i]);s.innerHTML=q.arr?`<b>${i+1}</b><i class="sa">${ARW[q.arr[i]]}</i>${t}`:`<b>${i+1}</b>${t}`;seqHost.appendChild(s)});
+  if(q.arr){q.btns=[];area.innerHTML='<div class="arows">'+q.arr.map((k,i)=>`<span class="ak${i===0?' cur':''}" style="--qc:${q.cols[i]}">${ARW[k]}</span>`).join('')+'</div><div class="ahint">← ↑ → ↓ 화살표 키로 순서대로</div>';return}
   q.btns=shuffle(q.seq.map((t,i)=>({t,c:q.cols[i]})).concat(q.dec)).map(it=>{
     const b=document.createElement('button');b.type='button';b.className='qb';b.textContent=it.t;b.dataset.t=it.t;b.style.setProperty('--qc',it.c);
     b.addEventListener('pointerdown',e=>{e.preventDefault();qClick(b)});
@@ -1602,6 +1623,14 @@ function moveQ(dt){
     if(m.y<hy){m.y=hy;m.vy=Math.abs(m.vy)}else if(m.y>ah-hy){m.y=Math.max(hy,ah-hy);m.vy=-Math.abs(m.vy)}
     m.b.style.transform=`translate(${(m.x-hx).toFixed(1)}px,${(m.y-hy).toFixed(1)}px)`;
   }
+}
+const ARROW_MODE=!!(window.matchMedia&&matchMedia('(pointer: fine)').matches&&!('ontouchstart' in window));
+const ARW=['←','↑','→','↓'],ARW_KEY={ArrowLeft:0,ArrowUp:1,ArrowRight:2,ArrowDown:3};
+function qArrow(k){
+  if(!D||D.phase!=='qte'||!D.q||D.q.done||!D.q.arr)return;const q=D.q,tiles=$('#qarea').querySelectorAll('.ak'),chipsEl=$('#seq').children;
+  if(k===q.arr[q.i]){tiles[q.i].classList.remove('cur');tiles[q.i].classList.add('done');chipsEl[q.i].classList.remove('cur');chipsEl[q.i].classList.add('done');
+    q.i++;sfx.ok(q.i);if(q.i>=q.seq.length)return endRound('p');tiles[q.i].classList.add('cur');chipsEl[q.i].classList.add('cur')}
+  else{q.pen+=.5;const t=tiles[q.i];t.classList.remove('wrong');void t.offsetWidth;t.classList.add('wrong');sfx.bad();D.shake=Math.max(D.shake,6)}
 }
 function qClick(b){
   if(!D||D.phase!=='qte'||D.q.done||b.classList.contains('hit'))return;
@@ -1776,7 +1805,7 @@ function drawChest(c,x,y,s,glow,time,open){
 }
 function renderShop(){
   const host=$('#scv'),{w,h,d}=fitCanvas(host);if(w>2){const c=host.getContext('2d');c.setTransform(d,0,0,d,0,0);c.clearRect(0,0,w,h);drawChest(c,w/2,h*.58,Math.min(w/260,h/220),'#ffd36b',0)}
-  const rows=[`<tr class="hrow"><td>히든 무기 (광선검·죽도·낫 중 하나, +1)</td><td class="n">${(HID_P*100).toFixed(2)}%</td></tr>`].concat(BOX_W.map(([lv,wt])=>`<tr><td>일반 무기 +${lv}</td><td class="n">${(wt*(1-HID_P)).toFixed(2)}%</td></tr>`));
+  const rows=[`<tr class="hrow"><td>히든 무기 (광선검·죽도·낫 각 3%, +1)</td><td class="n">${(HID_P*100).toFixed(2)}%</td></tr>`].concat(BOX_W.map(([lv,wt])=>`<tr><td>일반 무기 +${lv}</td><td class="n">${(wt*(1-HID_P)).toFixed(2)}%</td></tr>`));
   $('#oddsTbl').innerHTML=rows.join('');
   $('#boxStat').textContent=`지금까지 ${fmt(S.boxes)}개 개봉 · 히든 ${S.hidCount}개`;
 }
@@ -1840,8 +1869,11 @@ function equip(id){S.cur=id;frenzyUntil=0;FX.appear=performance.now();ensureRiva
 
 /* ---------- 보관함 ---------- */
 let confirmId=null;
+function renderChars(){const g=$('#charGrid');g.innerHTML='';
+  CHARS.forEach(c=>{const b=document.createElement('button');b.type='button';b.className='chr'+(S.char===c.id?' on':'');b.innerHTML=`<img src="assets/${c.id}_t.jpg" alt=""><b>${c.name}</b><span>${S.char===c.id?'선택됨 · ':''}${c.d}</span>`;
+    b.onclick=()=>{S.char=c.id;save();renderChars();if(F3)F3.preloadDuel([c.id]);toast(`${c.name}(으)로 결투에 나갑니다`)};g.appendChild(b)})}
 function renderInv(){
-  const g=$('#invGrid');g.innerHTML='';renderSellBar();
+  const g=$('#invGrid');g.innerHTML='';renderSellBar();renderChars();
   $('#invInfo').textContent=`${S.inv.length}/${CAP}칸 · 무기를 눌러 장착하면 대장간과 결투장에서 사용합니다`;
   const list=S.inv.slice().sort((a,b)=>(b.id===S.cur)-(a.id===S.cur)||(isHidden(b)-isHidden(a))||(b.lv-a.lv));
   list.forEach(w=>{
@@ -1880,7 +1912,7 @@ function renderCodex(){
   const hidSel=isHidden({type:S.codex.type});
   chips($('#cxType'),TYPES.concat(HTYPES.map(x=>({...x,h:1}))),S.codex.type,id=>{S.codex.type=id;save();renderCodex()},'type');
   const eh=$('#cxEl');eh.hidden=hidSel;if(!hidSel)chips(eh,EL_IDS.map(id=>({id})),S.codex.el,id=>{S.codex.el=id;save();renderCodex()},'el');
-  $('#cxNote').textContent=hidSel?'히든 무기(광선검·죽도·낫)는 상점 랜덤 상자에서 1% 확률로 나오며, 결투에서 모든 속성에 우위입니다. 강화 단계마다 외형과 이름이 모두 다릅니다.':'+0 쇳덩이가 +1이 되는 순간 종류와 속성이 무작위로 정해집니다. 단계마다 금속, 날 모양, 날밑, 구멍·가시·톱날 장식과 이름이 모두 바뀝니다. 속성 상성은 화염 → 빙결 → 뇌전 → 암흑 → 신성 → 화염 순으로 앞이 뒤에 강합니다.';
+  $('#cxNote').textContent=hidSel?'히든 무기(광선검·죽도·낫)는 상점 랜덤 상자에서 각각 3% 확률로 나오며, 결투에서 모든 속성에 우위입니다. 강화 단계마다 외형과 이름이 모두 다릅니다.':'+0 쇳덩이가 +1이 되는 순간 종류와 속성이 무작위로 정해집니다. 단계마다 금속, 날 모양, 날밑, 구멍·가시·톱날 장식과 이름이 모두 바뀝니다. 속성 상성은 화염 → 빙결 → 뇌전 → 암흑 → 신성 → 화염 순으로 앞이 뒤에 강합니다.';
   const g=$('#cxGrid');g.innerHTML='';
   for(let lv=1;lv<=20;lv++){
     const w={type:S.codex.type,el:hidSel?null:S.codex.el,lv};
@@ -1924,7 +1956,8 @@ function bind(){
   document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
   $('#strike').onclick=strike;
   fcv.addEventListener('pointerdown',e=>{e.preventDefault();strike()});
-  document.addEventListener('keydown',e=>{if(e.code==='Space'&&!D&&!B&&tab==='forge'&&!e.target.closest('button,input,textarea')){e.preventDefault();strike()}});
+  document.addEventListener('keydown',e=>{if(e.code==='Space'&&!D&&!B&&tab==='forge'&&!e.target.closest('input,textarea,select')){e.preventDefault();if(e.target.closest&&e.target.closest('button'))e.target.blur();strike()}
+    if(D&&ARW_KEY[e.key]!=null&&D.phase==='qte'){e.preventDefault();qArrow(ARW_KEY[e.key])}});
   $('#mute').onclick=()=>{S.muted=!S.muted;unlockAudio();save();renderHeader()};
   $('#newBtn').onclick=newBlank;
   $('#reroll').onclick=()=>{ensureRivals(true);renderArena()};
@@ -1957,7 +1990,7 @@ function start(data){
   if(data&&data.S&&Array.isArray(data.S.inv))Object.assign(S,data.S);else load();
   curW();bind();
   try{if(window.Forge3D&&!/[?&]2d\b/.test(location.search)&&Forge3D.init($('#f3d'),{ELS,METALS,FORMS,formOf,SABER_C,SHINAI_P,SCYTHE_C,FX,curW,isHidden,getDuel:()=>D,onLost:()=>{F3=null;$('#f3d').hidden=true}}))F3=Forge3D}catch(e){F3=null}
-  if(F3)setTimeout(()=>{try{F3.preloadDuel()}catch(e){}},2500);
+  if(F3)setTimeout(()=>{try{F3.preloadDuel([S.char||'paladin','guard'])}catch(e){}},2500);
   if(!F3)$('#f3d').hidden=true;
   renderHeader();renderForge();ensureRivals();boot();
   if(document.fonts&&document.fonts.load){document.fonts.load('40px "Black Han Sans"').catch(()=>{})}

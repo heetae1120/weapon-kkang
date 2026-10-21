@@ -5,11 +5,13 @@ function getWeapon(w){const key=(w.type||'blank')+'|'+(w.el||'')+'|'+w.lv;let R=
   if(!R){R=buildWeapon(w);R.key=key;R.gripY={sword:-.1,dagger:-.06,spear:-.55,axe:-.62,saber:-.13,shinai:-.14,scythe:-.7,blank:-.12}[R.type];WCACHE.set(key,R);
     if(WCACHE.size>6){const k=WCACHE.keys().next().value;freeWeapon(WCACHE.get(k));WCACHE.delete(k)}}
   return R}
-const DUEL_CH={p:{ch:'paladin',an:'paladin',tint:null},o:{ch:'paladin',an:'paladin',tint:[1.25,.62,.55]}};
+const CHAR_IDS=['paladin','smith','guard','orc','erika','ninja','kachujin'];
+function duelCfg(DQ){const pc=CHAR_IDS.includes(DQ.pch)?DQ.pch:'paladin',oc=CHAR_IDS.includes(DQ.och)?DQ.och:'guard';return{p:{ch:pc,an:'paladin',tint:null},o:{ch:oc,an:'paladin',tint:pc===oc?[1.25,.62,.55]:null}}}
 let GRIP=[0,.075,.02, PI/2,0,0];// 손 뼈 기준 위치(x,y,z)와 회전(rx,ry,rz)
 const DS={clock:0,last:null,p:null,o:null,mark:'',sparkDone:false};
-function duelReady(){return['paladin'].every(k=>CH[k]&&CH[k]!=='loading'&&ANIM[k]&&ANIM[k]!=='loading')}
-function preloadDuel(){loadChar('paladin','paladin');loadAnims('paladin','paladin_anim')}
+function charReady(k){return CH[k]&&CH[k]!=='loading'}
+function duelReady(DQ){const c=DQ?duelCfg(DQ):{p:{ch:'paladin'},o:{ch:'paladin'}};return charReady(c.p.ch)&&charReady(c.o.ch)&&ANIM.paladin&&ANIM.paladin!=='loading'}
+function preloadDuel(list){loadAnims('paladin','paladin_anim');for(const k of(list||['paladin']))if(CHAR_IDS.includes(k))loadChar(k,k)}
 function newActor(side){return{side,x:side==='p'?-2.6:2.6,cur:{name:'idle',t0:0,rate:1,loop:true,off:0,root:false},prev:null,bt0:0,bdur:.2}}
 function setClip(a,name,o={}){const c=a.cur;if(c.name===name&&!o.force)return;a.prev={...c};a.bt0=DS.clock;a.bdur=o.blend??.18;
   a.cur={name,t0:DS.clock,rate:o.rate??1,loop:!!o.loop,off:o.off||0,root:!!o.root}}
@@ -23,7 +25,7 @@ function actorWorld(a,K,clips){
   if(a.prev){const k=clamp((DS.clock-a.bt0)/1000/a.bdur,0,1);if(k>=1)a.prev=null;else{const pv=sampleLocal(clips,a.prev),e=k*k*(3-2*k);const q2={};for(const bn in q)q2[bn]=pv.q[bn]?qSlerp(pv.q[bn],q[bn],e):q[bn];q=q2;if(pv.hp&&hp)hp=V.mix(pv.hp,hp,e)}}
   const B=K.bones,W=new Array(B.length);
   for(let i=0;i<B.length;i++){const b=B[i],qq=q[b.name];let L;
-    if(qq){L=qToM(qq);if(b.name==='Hips'&&hp){L[12]=hp[0]*K.sc;L[13]=(hp[1]-K.loy)*K.sc;L[14]=hp[2]*K.sc}else{L[12]=b.local[12];L[13]=b.local[13];L[14]=b.local[14]}}
+    if(qq){L=qToM(qq);if(b.name==='Hips'&&hp){const hs=(clips.__hsc||K.sc)*(clips.__hrest?b.local[13]/clips.__hrest:1);L[12]=hp[0]*hs;L[13]=hp[1]*hs;L[14]=hp[2]*hs}else{L[12]=b.local[12];L[13]=b.local[13];L[14]=b.local[14]}}
     else L=b.local;
     W[i]=b.parent>=0?M4.mul(W[b.parent],L):L}
   return W}
@@ -55,7 +57,7 @@ function choreo(DQ,now){
 function duelSparks(){const T=[0,1.25,0];for(let i=0;i<70;i++){const d=V.norm([rnd(-1,1),rnd(-.3,1.3),rnd(-.6,.9)]);emit({p:[...T],v:V.sc(d,rnd(1.6,5)),g:6,st:.03,life:rnd(.3,.8),s0:.012,s1:.007,c0:[7,4.8,1.8],c1:[3,1,.2],sh:1,a0:1,a1:.2})}
   emit({p:[...T],life:.16,s0:.9,s1:.2,c0:[9,7,4],sh:0,a0:1,a1:0});emit({p:[...T],life:.35,s0:.05,s1:1.6,c0:[3,2.5,1.6],sh:2,a0:1,a1:0})}
 function duelFrame(now,dt){
-  const DQ=H.getDuel&&H.getDuel();if(!DQ||!duelReady())return false;
+  const DQ=H.getDuel&&H.getDuel();if(!DQ)return false;const CFG=duelCfg(DQ);if(!duelReady(DQ)){preloadDuel([CFG.p.ch,CFG.o.ch]);return false}
   const fr=prepFrame(now);if(!fr)return true;const{w,h,cw,ch}=fr,t=now/1000;
   const frozen=now<(DQ.inv||0);DS.clock+=dt*1000*(frozen?.04:1);
   if(!DS.p||DS.duelId!==DQ.id){DS.p=newActor('p');DS.o=newActor('o');DS.mark='';DS.duelId=DQ.id;parts.length=0}
@@ -77,7 +79,7 @@ function duelFrame(now,dt){
   for(const sx of[-3.6,3.6]){drawPBR(MS.box,SC.forgeM,M4.chain(M4.tr(sx,1.6,-2.6),M4.sc(.55,3.2,.55)));drawPBR(MS.box,SC.ironM,M4.chain(M4.tr(sx,1.85,-2.25),M4.sc(.1,.35,.1)))}
   // 캐릭터 + 무기
   const actors=[[DS.p,'p',PW,DQ.pw,EP],[DS.o,'o',OW,DQ.ow,EO]];const wmats=[];
-  for(const[a,side,R,wd,E]of actors){const cfg=DUEL_CH[side],K=CH[cfg.ch],clips=ANIM[cfg.an];
+  for(const[a,side,R,wd,E]of actors){const cfg=CFG[side],K=CH[cfg.ch],clips=ANIM[cfg.an];
     const Root=M4.chain(M4.tr(a.x,0,0),M4.ry(side==='p'?PI/2:-PI/2));const W=actorWorld(a,K,clips);
     drawSkin(K,Root,W,cfg.tint);
     const hi=K.idx.RightHand;if(hi!=null&&!(DQ.phase==='result'&&DQ.res&&!DQ.res.win&&side==='p'&&DQ.res.broken)){const Mw=M4.chain(Root,W[hi],gripMatrix(R));wmats.push([R,Mw,E]);

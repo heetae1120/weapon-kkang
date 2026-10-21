@@ -80,9 +80,10 @@ function cleanWeapon(w) {
   return { type: type, el, lv: type || lv === 0 ? lv : 0 };
 }
 
+const CHAR_IDS = ['paladin', 'smith', 'guard', 'orc', 'erika', 'ninja', 'kachujin'];
 function cleanState(st) {
   if (!st || typeof st !== 'object') return null;
-  const inv = Array.isArray(st.inv) ? st.inv.slice(0, 30).map(w => ({
+  const inv = Array.isArray(st.inv) ? st.inv.slice(0, 100).map(w => ({
     id: String(w && w.id || '').slice(0, 24) || Math.random().toString(36).slice(2, 10),
     ...cleanWeapon(w),
     fz: Math.max(0, Math.min(10, Math.floor(Number(w && w.fz) || 0)))
@@ -95,6 +96,7 @@ function cleanState(st) {
   const codex = st.codex && typeof st.codex === 'object' ? { type: String(st.codex.type || 'sword').slice(0, 10), el: String(st.codex.el || 'fire').slice(0, 10) } : { type: 'sword', el: 'fire' };
   return {
     inv, cur, log, codex,
+    char: CHAR_IDS.includes(st.char) ? st.char : 'paladin',
     muted: !!st.muted,
     boxes: Math.max(0, Math.floor(Number(st.boxes) || 0)),
     hidCount: Math.max(0, Math.floor(Number(st.hidCount) || 0))
@@ -153,7 +155,7 @@ export async function onRequest(ctx) {
       const best = Math.max(0, ...state.inv.map(w => w.lv));
       await db.prepare(
         `INSERT INTO players(id,token_hash,name,state,weapon,lv,best,hid,seen,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?,?)`
-      ).bind(id, await sha256(token), name, JSON.stringify(state), JSON.stringify(cleanWeapon(cur)), cur.lv, best, state.hidCount, t, t, t).run();
+      ).bind(id, await sha256(token), name, JSON.stringify(state), JSON.stringify({ ...cleanWeapon(cur), ch: state.char }), cur.lv, best, state.hidCount, t, t, t).run();
       const p = await db.prepare('SELECT * FROM players WHERE id=?').bind(id).first();
       return meResponse(db, p, { token });
     }
@@ -198,7 +200,7 @@ export async function onRequest(ctx) {
       const raw = JSON.stringify(state);
       if (raw.length > 60000) return fail(413, 'too_big', '저장 데이터가 너무 큽니다.');
       await db.prepare(`UPDATE players SET state=?, weapon=?, lv=?, best=?, hid=?, updated=? WHERE id=?`)
-        .bind(raw, JSON.stringify(cleanWeapon(cur)), cur.lv, best, Math.max(me.hid, state.hidCount), now(), me.id).run();
+        .bind(raw, JSON.stringify({ ...cleanWeapon(cur), ch: state.char }), cur.lv, best, Math.max(me.hid, state.hidCount), now(), me.id).run();
       return json({ ok: true, best });
     }
 
@@ -213,7 +215,7 @@ export async function onRequest(ctx) {
         rivals: (results || []).map(r => {
           const w = safeParse(r.weapon);
           const hidden = w.type === 'saber' || w.type === 'shinai' || w.type === 'scythe';
-          return { id: r.id, name: r.name, type: w.type || null, el: w.el || null, lv: r.lv, purse: purse(r.lv, hidden), earn: r.earn, wins: r.wins, losses: r.losses, real: true };
+          return { id: r.id, name: r.name, type: w.type || null, el: w.el || null, lv: r.lv, purse: purse(r.lv, hidden), earn: r.earn, wins: r.wins, losses: r.losses, ch: CHAR_IDS.includes(w.ch) ? w.ch : 'guard', real: true };
         })
       });
     }
