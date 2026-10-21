@@ -1658,7 +1658,7 @@ function endRound(wn){
   q.btns.forEach(b=>b.disabled=true);$('#qarea').classList.add('fade');
   const short=D.rv.name.split(' ').pop();
   $('#qmsg').textContent=wn==='p'?'선공 성공!':wn==='o'?`${short}에게 선수를 빼앗겼다`:'시간 초과 · 서로 막아냈다';
-  D.clash={w:wn,t0:now,ev:{}};D.phase='clash';D.ph0=now;
+  D.clash={w:wn,t0:now,ev:{},fin:(wn==='p'&&D.ps>=1)||(wn==='o'&&D.os>=1)};D.phase='clash';D.ph0=now;
 }
 // 칼 맞대기 타임라인(초): 돌진→부딪힘(imp)→맞대기→밀쳐냄(brk)→베임(cut)→복귀(back)→끝(end)
 const CLASH={imp:.3,brk:1.3,cut:1.62,back:2.05,end:2.5};

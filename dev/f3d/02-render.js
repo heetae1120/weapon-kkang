@@ -63,8 +63,8 @@ function loadChar(name,file){const b=(H&&H.assetBase)||'assets/';if(!P_SKIN||CH[
     const meshes=J.meshes.map(m=>({start:m.start,count:m.count,mat:mat({col:m.col.map(v=>Math.pow(v,2.2)),alb:m.tex?loadImgTex(b+m.tex,{srgb:1}):null,nor:m.nor?loadImgTex(b+m.nor,{def:[128,128,255,255]}):null,rgh:m.rgh?loadImgTex(b+m.rgh,{def:[128,128,128,255]}):null,norS:1,rou:m.rou??.6,met:m.met??0})}));
     CH[name]={vao,ib,bones,idx,meshes,J,sc:J.sc||1,loy:J.loy||0};if(name==='smith')SMITH=CH[name]}).catch(()=>{delete CH[name]})}
 function loadAnims(name,file){const b=(H&&H.assetBase)||'assets/';if(ANIM[name])return;ANIM[name]='loading';
-  fetch(b+file+'.json').then(r=>{if(!r.ok)throw 0;return r.json()}).then(J=>{const clips={};for(const[k,c]of Object.entries(J.clips)){if(!c.q)continue;const q={};for(const[bn,arr]of Object.entries(c.q))q[bn]=new Float32Array(arr);clips[k]={n:c.n,fps:c.fps||30,dur:(c.n-1)/(c.fps||30),q,hips:new Float32Array(c.hips||[])}}clips.__hsc=J.hsc;clips.__hrest=J.hrest;ANIM[name]=clips}).catch(()=>{delete ANIM[name]})}
-function loadSmith(){loadChar('smith','smith')}
+  fetch(b+file+'.json').then(r=>{if(!r.ok)throw 0;return r.json()}).then(J=>{const clips={};for(const[k,c]of Object.entries(J.clips)){const src=c.d||c.q;if(!src)continue;const q={};for(const[bn,arr]of Object.entries(src))q[bn]=new Float32Array(arr);clips[k]={n:c.n,fps:c.fps||30,dur:(c.n-1)/(c.fps||30),q,hips:new Float32Array(c.hips||[]),loop:!!c.loop}}clips.__hsc=J.hsc;clips.__hrest=J.hrest;clips.__world=!!J.world;ANIM[name]=clips}).catch(()=>{delete ANIM[name]})}
+function loadSmith(){loadChar('smith','smith');loadAnims('ual','ual_anim')}
 function makeTextures(){
   const r=rng(7);
   // 벽돌

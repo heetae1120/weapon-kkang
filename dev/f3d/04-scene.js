@@ -136,7 +136,11 @@ function drawSmithSkinned(now,t,a,pow,fz,Mw,wVis){
   const Ms=M4.chain(M4.tr(P[0],P[1],P[2]),M4.ry(yaw)),Mi=M4.inv(Ms);
   const lean=.12+Math.max(0,pow)*.18-Math.max(0,-pow)*.08-(H.FX.flinch||0)*.15;
   const rotAbout=(M,pivot,R)=>M4.chain(M4.tr(pivot[0],pivot[1],pivot[2]),R,M4.tr(-pivot[0],-pivot[1],-pivot[2]),M);
-  const calc=i=>{const b=B[i];W[i]=b.parent>=0?M4.mul(W[b.parent],b.local):b.local};
+  // 몸은 자연스러운 서 있는 모션(숨쉬기·체중 이동), 팔은 아래에서 IK로 망치·집게를 쥠
+  const AN=ANIM.ual&&ANIM.ual!=='loading'&&ANIM.ual.stand?ANIM.ual:null;let BL=null;
+  if(AN){const c=AN.stand,x=((now/1000*c.fps)%(c.n-1)),i0=Math.floor(x),i1=Math.min(c.n-1,i0+1),f=x-i0,q={};for(const bn in c.q){const A=c.q[bn];q[bn]=qSlerp([A[i0*4],A[i0*4+1],A[i0*4+2],A[i0*4+3]],[A[i1*4],A[i1*4+1],A[i1*4+2],A[i1*4+3]],f)}
+    const h=c.hips;BL=worldPose(K,q,[0,h[i0*3+1]+(h[i1*3+1]-h[i0*3+1])*f,0]).L}
+  const calc=i=>{const b=B[i],l=BL?BL[i]:b.local;W[i]=b.parent>=0?M4.mul(W[b.parent],l):l};
   const child=(i,ci)=>M4.pos(M4.mul(W[i],B[ci].local));
   const align=(i,ci,target)=>{const p=M4.pos(W[i]),c=child(i,ci);W[i]=rotAbout(W[i],p,M4.rotFromTo(V.sub(c,p),V.sub(target,p)))};
   // 모델 공간 목표 (월드→캐릭터 로컬)

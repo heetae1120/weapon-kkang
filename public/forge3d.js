@@ -311,8 +311,8 @@ function loadChar(name,file){const b=(H&&H.assetBase)||'assets/';if(!P_SKIN||CH[
     const meshes=J.meshes.map(m=>({start:m.start,count:m.count,mat:mat({col:m.col.map(v=>Math.pow(v,2.2)),alb:m.tex?loadImgTex(b+m.tex,{srgb:1}):null,nor:m.nor?loadImgTex(b+m.nor,{def:[128,128,255,255]}):null,rgh:m.rgh?loadImgTex(b+m.rgh,{def:[128,128,128,255]}):null,norS:1,rou:m.rou??.6,met:m.met??0})}));
     CH[name]={vao,ib,bones,idx,meshes,J,sc:J.sc||1,loy:J.loy||0};if(name==='smith')SMITH=CH[name]}).catch(()=>{delete CH[name]})}
 function loadAnims(name,file){const b=(H&&H.assetBase)||'assets/';if(ANIM[name])return;ANIM[name]='loading';
-  fetch(b+file+'.json').then(r=>{if(!r.ok)throw 0;return r.json()}).then(J=>{const clips={};for(const[k,c]of Object.entries(J.clips)){if(!c.q)continue;const q={};for(const[bn,arr]of Object.entries(c.q))q[bn]=new Float32Array(arr);clips[k]={n:c.n,fps:c.fps||30,dur:(c.n-1)/(c.fps||30),q,hips:new Float32Array(c.hips||[])}}clips.__hsc=J.hsc;clips.__hrest=J.hrest;ANIM[name]=clips}).catch(()=>{delete ANIM[name]})}
-function loadSmith(){loadChar('smith','smith')}
+  fetch(b+file+'.json').then(r=>{if(!r.ok)throw 0;return r.json()}).then(J=>{const clips={};for(const[k,c]of Object.entries(J.clips)){const src=c.d||c.q;if(!src)continue;const q={};for(const[bn,arr]of Object.entries(src))q[bn]=new Float32Array(arr);clips[k]={n:c.n,fps:c.fps||30,dur:(c.n-1)/(c.fps||30),q,hips:new Float32Array(c.hips||[]),loop:!!c.loop}}clips.__hsc=J.hsc;clips.__hrest=J.hrest;clips.__world=!!J.world;ANIM[name]=clips}).catch(()=>{delete ANIM[name]})}
+function loadSmith(){loadChar('smith','smith');loadAnims('ual','ual_anim')}
 function makeTextures(){
   const r=rng(7);
   // 벽돌
@@ -722,7 +722,11 @@ function drawSmithSkinned(now,t,a,pow,fz,Mw,wVis){
   const Ms=M4.chain(M4.tr(P[0],P[1],P[2]),M4.ry(yaw)),Mi=M4.inv(Ms);
   const lean=.12+Math.max(0,pow)*.18-Math.max(0,-pow)*.08-(H.FX.flinch||0)*.15;
   const rotAbout=(M,pivot,R)=>M4.chain(M4.tr(pivot[0],pivot[1],pivot[2]),R,M4.tr(-pivot[0],-pivot[1],-pivot[2]),M);
-  const calc=i=>{const b=B[i];W[i]=b.parent>=0?M4.mul(W[b.parent],b.local):b.local};
+  // 몸은 자연스러운 서 있는 모션(숨쉬기·체중 이동), 팔은 아래에서 IK로 망치·집게를 쥠
+  const AN=ANIM.ual&&ANIM.ual!=='loading'&&ANIM.ual.stand?ANIM.ual:null;let BL=null;
+  if(AN){const c=AN.stand,x=((now/1000*c.fps)%(c.n-1)),i0=Math.floor(x),i1=Math.min(c.n-1,i0+1),f=x-i0,q={};for(const bn in c.q){const A=c.q[bn];q[bn]=qSlerp([A[i0*4],A[i0*4+1],A[i0*4+2],A[i0*4+3]],[A[i1*4],A[i1*4+1],A[i1*4+2],A[i1*4+3]],f)}
+    const h=c.hips;BL=worldPose(K,q,[0,h[i0*3+1]+(h[i1*3+1]-h[i0*3+1])*f,0]).L}
+  const calc=i=>{const b=B[i],l=BL?BL[i]:b.local;W[i]=b.parent>=0?M4.mul(W[b.parent],l):l};
   const child=(i,ci)=>M4.pos(M4.mul(W[i],B[ci].local));
   const align=(i,ci,target)=>{const p=M4.pos(W[i]),c=child(i,ci);W[i]=rotAbout(W[i],p,M4.rotFromTo(V.sub(c,p),V.sub(target,p)))};
   // 모델 공간 목표 (월드→캐릭터 로컬)
@@ -807,7 +811,7 @@ function hit(res){
 /* ---------------- 결투 장면 (캐릭터 + 모션) ---------------- */
 const WCACHE=new Map();
 const GRIPY={sword:-.1,dagger:-.06,spear:-.55,axe:-.62,saber:-.13,shinai:-.14,scythe:-.7,blank:-.12};
-const OFFH={sword:.09,dagger:0,spear:.3,axe:.26,saber:.1,shinai:.12,scythe:.32,blank:0};// 왼손이 잡는 간격(0이면 한손)
+const OFFH={sword:0,dagger:0,spear:.3,axe:.26,saber:0,shinai:.12,scythe:.32,blank:0};// 왼손이 잡는 간격(0이면 한손)
 const KAMAE={sword:[.34,1.02,.72],dagger:[.36,1.08,.45],spear:[.3,1.0,.32],axe:[.3,1.0,.95],saber:[.34,1.02,.72],shinai:[.34,1.02,.62],scythe:[.28,1.0,1.05],blank:[.34,1.0,.6]};// 앞으로 거리, 손 높이, 각도
 const CONTACT_K={sword:.72,dagger:.8,spear:.86,axe:.82,saber:.72,shinai:.74,scythe:.86,blank:.7};// 칼끼리 닿는 지점(손잡이 끝→끝 비율)
 function getWeapon(w){const key=(w.type||'blank')+'|'+(w.el||'')+'|'+w.lv;let R=WCACHE.get(key);
@@ -815,25 +819,37 @@ function getWeapon(w){const key=(w.type||'blank')+'|'+(w.el||'')+'|'+w.lv;let R=
     if(WCACHE.size>6){const k=WCACHE.keys().next().value;freeWeapon(WCACHE.get(k));WCACHE.delete(k)}}
   return R}
 const CHAR_IDS=['paladin','smith','guard','orc','erika','ninja','kachujin'];
-function duelCfg(DQ){const pc=CHAR_IDS.includes(DQ.pch)?DQ.pch:'paladin',oc=CHAR_IDS.includes(DQ.och)?DQ.och:'guard';return{p:{ch:pc,an:'paladin',tint:null},o:{ch:oc,an:'paladin',tint:pc===oc?[1.25,.62,.55]:null}}}
+function duelCfg(DQ){const pc=CHAR_IDS.includes(DQ.pch)?DQ.pch:'paladin',oc=CHAR_IDS.includes(DQ.och)?DQ.och:'guard';return{p:{ch:pc,an:'ual',tint:null},o:{ch:oc,an:'ual',tint:pc===oc?[1.25,.62,.55]:null}}}
 // 칼 맞대기 타임라인(초) — index.html의 CLASH와 같은 값
 const CLASH_T={imp:.3,brk:1.3,cut:1.62,back:2.05,end:2.5};
 const DS={clock:0,last:null,p:null,o:null,mark:'',sub:'',ev:{},ghosts:[],C:null,cpx:null,cam:null};
 function charReady(k){return CH[k]&&CH[k]!=='loading'}
-function duelReady(DQ){const c=DQ?duelCfg(DQ):{p:{ch:'paladin'},o:{ch:'paladin'}};return charReady(c.p.ch)&&charReady(c.o.ch)&&ANIM.paladin&&ANIM.paladin!=='loading'}
-function preloadDuel(list){loadAnims('paladin','paladin_anim');for(const k of(list||['paladin']))if(CHAR_IDS.includes(k))loadChar(k,k)}
+function duelReady(DQ){const c=DQ?duelCfg(DQ):{p:{ch:'paladin'},o:{ch:'paladin'}};return charReady(c.p.ch)&&charReady(c.o.ch)&&ANIM.ual&&ANIM.ual!=='loading'&&(!DS.dbg||!DS.dbg.an||(ANIM[DS.dbg.an]&&ANIM[DS.dbg.an]!=='loading'))}
+function preloadDuel(list){loadAnims('ual','ual_anim');if(DS.dbg&&DS.dbg.an)loadAnims(DS.dbg.an,DS.dbg.an+'_anim');for(const k of(list||['paladin']))if(CHAR_IDS.includes(k))loadChar(k,k)}
 function newActor(side){return{side,sg:side==='p'?1:-1,x:side==='p'?-2.6:2.6,cur:{name:'idle',t0:0,rate:1,loop:true,off:0,root:false},prev:null,bt0:0,bdur:.2,
   wp:null,trail:[],trailOn:false,aura:.5,auraAcc:0,ghostT:0,lean:0,hidden:false}}
 function setClip(a,name,o={}){const c=a.cur;if(c.name===name&&!o.force)return;a.prev={...c};a.bt0=DS.clock;a.bdur=o.blend??.18;
-  a.cur={name,t0:DS.clock,rate:o.rate??1,loop:!!o.loop,off:o.off||0,root:!!o.root}}
+  a.cur={name,t0:DS.clock,rate:o.rate??1,loop:!!o.loop,off:o.off||0,root:!!o.root,inplace:!!o.inplace}}
 function sampleLocal(clips,c){const clip=clips[c.name]||clips.idle;const t=c.off+(DS.clock-c.t0)/1000*c.rate,n=clip.n;let x=t*clip.fps;
   if(c.loop)x=((x%(n-1))+(n-1))%(n-1);else x=clamp(x,0,n-1);const i=Math.floor(x),j=Math.min(n-1,i+1),a=x-i;
   const q={};for(const bn in clip.q){const A=clip.q[bn],o1=i*4,o2=j*4;q[bn]=qSlerp([A[o1],A[o1+1],A[o1+2],A[o1+3]],[A[o2],A[o2+1],A[o2+2],A[o2+3]],a)}
-  let hp=null;const h=clip.hips;if(h.length){hp=V.mix([h[i*3],h[i*3+1],h[i*3+2]],[h[j*3],h[j*3+1],h[j*3+2]],a);if(!c.root){hp[0]-=h[0];hp[2]-=h[2]}}
+  let hp=null;const h=clip.hips;if(h.length){hp=V.mix([h[i*3],h[i*3+1],h[i*3+2]],[h[j*3],h[j*3+1],h[j*3+2]],a);if(c.inplace){hp[0]=0;hp[2]=0}else if(!c.root){hp[0]-=h[0];hp[2]-=h[2]}}
   return{q,hp}}
+const qMul=(a,b)=>[a[3]*b[0]+a[0]*b[3]+a[1]*b[2]-a[2]*b[1],a[3]*b[1]-a[0]*b[2]+a[1]*b[3]+a[2]*b[0],a[3]*b[2]+a[0]*b[1]-a[1]*b[0]+a[2]*b[3],a[3]*b[3]-a[0]*b[0]-a[1]*b[1]-a[2]*b[2]];
+const qInv=a=>[-a[0],-a[1],-a[2],a[3]];
+/* 캐릭터 T자(바인드) 자세의 뼈 월드 회전 (한 번만 계산) */
+function restQ(K){if(K.restQ)return K.restQ;const B=K.bones,W=[];K.restQ=B.map((b,i)=>{W[i]=b.parent>=0?M4.mul(W[b.parent],b.local):b.local;return qFromM(W[i])});return K.restQ}
+/* 월드 변화량 모션(dev/ual2anim.py) → 이 캐릭터의 뼈 행렬 */
+function worldPose(K,q,hp){const B=K.bones,R=restQ(K),W=new Array(B.length),L=new Array(B.length),G=new Array(B.length);
+  for(let i=0;i<B.length;i++){const b=B[i],d=q[b.name];G[i]=d?qMul(d,R[i]):(b.parent>=0?qMul(G[b.parent],qMul(qInv(R[b.parent]),R[i])):R[i]);
+    const lq=b.parent>=0?qMul(qInv(G[b.parent]),G[i]):G[i],Lm=qToM(lq);
+    if(b.parent<0&&hp){const h=b.local[13];Lm[12]=hp[0]*h;Lm[13]=hp[1]*h;Lm[14]=hp[2]*h}else{Lm[12]=b.local[12];Lm[13]=b.local[13];Lm[14]=b.local[14]}
+    L[i]=Lm;W[i]=b.parent>=0?M4.mul(W[b.parent],Lm):Lm}
+  return{W,L}}
 function actorWorld(a,K,clips){
   const cur=sampleLocal(clips,a.cur);let q=cur.q,hp=cur.hp;
   if(a.prev){const k=clamp((DS.clock-a.bt0)/1000/a.bdur,0,1);if(k>=1)a.prev=null;else{const pv=sampleLocal(clips,a.prev),e=k*k*(3-2*k);const q2={};for(const bn in q)q2[bn]=pv.q[bn]?qSlerp(pv.q[bn],q[bn],e):q[bn];q=q2;if(pv.hp&&hp)hp=V.mix(pv.hp,hp,e)}}
+  if(clips.__world)return worldPose(K,q,hp);
   const B=K.bones,W=new Array(B.length),L=new Array(B.length);
   for(let i=0;i<B.length;i++){const b=B[i],qq=q[b.name];let Lm;
     if(qq){Lm=qToM(qq);if(b.name==='Hips'&&hp){const hs=(clips.__hsc||K.sc)*(clips.__hrest?b.local[13]/clips.__hrest:1);Lm[12]=hp[0]*hs;Lm[13]=hp[1]*hs;Lm[14]=hp[2]*hs}else{Lm[12]=b.local[12];Lm[13]=b.local[13];Lm[14]=b.local[14]}}
@@ -863,12 +879,13 @@ function armIK(K,W,L,arm,fa,hd,target,pole,Hm){
   W[hd]=M4.chain(M4.tr(p[0],p[1],p[2]),M4.rotFromTo(hy,fy),M4.tr(-p[0],-p[1],-p[2]),W[hd]);if(Hm)W[hd]=Hm;return A}
 /* 무기 자세: 손잡이 위치(월드) + 각도(수평 기준, 앞쪽 +) */
 function wDir(sg,ang){return[sg*Math.cos(ang),Math.sin(ang),0]}
-function wMat(R,grip,d,zf){const s=Math.min(1,1.15/R.len);let Z=[0,0,zf||1];const X=V.norm(V.cross(d,Z));Z=V.cross(X,d);
+function wMat(R,grip,d,zf){const s=wS(R);let Z=[0,0,zf||1];const X=V.norm(V.cross(d,Z));Z=V.cross(X,d);
   return M4.chain(M4.basis(X,d,Z,grip),M4.sc(s),M4.tr(0,-R.gripY,0))}
 function contactY(R){return lerp(R.bot,R.top,CONTACT_K[R.type]||.72)}
-function gripFromContact(R,C,d){const s=Math.min(1,1.15/R.len);return V.madd(C,d,-(contactY(R)-R.gripY)*s)}
-function gripMatrix(R,K){const s=Math.min(1,1.15/R.len),g=handGrip(K,'R');// 손잡이가 쥔 구멍을 지나고 날은 엄지 쪽으로
+function gripFromContact(R,C,d){const s=wS(R);return V.madd(C,d,-(contactY(R)-R.gripY)*s)}
+function gripMatrix(R,K){const s=wS(R),g=handGrip(K,'R');// 손잡이가 쥔 구멍을 지나고 날은 엄지 쪽으로
   return M4.chain(M4.basis([0,1,0],[g.th,0,0],[0,0,-g.th],g.p),M4.sc(s),M4.tr(0,-R.gripY,0))}
+const WSCALE=1.5;function wS(R){return Math.min(1,1.15/R.len)*WSCALE}
 const ease={io:x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2,in:x=>x*x*x,out:x=>1-Math.pow(1-x,3),back:x=>{const c=1.7;return 1+(c+1)*Math.pow(x-1,3)+c*Math.pow(x-1,2)}};
 /* 연출: 게임 결투 상태를 읽어 동작과 무기 자세를 고름 */
 function choreo(DQ,now,PW,OW){
@@ -877,59 +894,56 @@ function choreo(DQ,now,PW,OW){
   const cam=DS.camT={tgt:[0,1.05,0],dk:1,roll:0,cut:false};
   if(DS.mark!==mark){DS.sub='';DS.ev={};P.wp=null;O.wp=null;P.hidden=O.hidden=false}
   P.trailOn=O.trailOn=false;
-  const kamae=(a,R,ph0)=>{const br=Math.sin(DS.clock/1000*2.1+ph0),A=KAMAE[R.type]||KAMAE.sword;a.wp={g:[a.x+a.sg*A[0],A[1]+br*.012,.1],d:wDir(a.sg,A[2]+br*.03)}};
-  if(ph==='intro'){const k=ease.io(clamp((t-.1)/.8,0,1));P.x=lerp(-2.8,-st,k);O.x=lerp(2.8,st,k);P.aura=O.aura=.3+.7*k;kamae(P,PW,0);kamae(O,OW,1.3);if(DS.mark!==mark){setClip(P,'idle',{loop:true});setClip(O,'idle',{loop:true,off:.7})}}
-  else if(ph==='ready'||ph==='qte'){P.x+=(-st-P.x)*.15;O.x+=(st-O.x)*.15;P.aura=O.aura=ph==='qte'?.8:.6;kamae(P,PW,0);kamae(O,OW,1.3);if(DS.mark!==mark){setClip(P,'idle',{loop:true,blend:.3});setClip(O,'idle',{loop:true,off:.7,blend:.3})}}
-  else if(ph==='clash'&&DQ.clash){const c=(now-DQ.clash.t0)/1000,Wn=DQ.clash.w;
+  const home=a=>a===P?-st:st,idleOn=(a,o={})=>setClip(a,'idle',{loop:true,inplace:true,blend:.3,...o});
+  if(ph==='intro'){const k=ease.io(clamp((t-.1)/.8,0,1));P.x=lerp(-2.8,-st,k);O.x=lerp(2.8,st,k);P.aura=O.aura=.3+.7*k;
+    if(DS.mark!==mark){setClip(P,'dash',{off:.05,rate:.9,inplace:true,blend:.05});setClip(O,'dash',{off:.05,rate:.9,inplace:true,blend:.05})}
+    if(t>.95&&DS.sub!=='in'){DS.sub='in';idleOn(P,{blend:.35});idleOn(O,{off:.7,blend:.35})}}
+  else if(ph==='ready'||ph==='qte'){P.x+=(-st-P.x)*.15;O.x+=(st-O.x)*.15;P.aura=O.aura=ph==='qte'?.8:.6;if(DS.mark!==mark){idleOn(P);idleOn(O,{off:.7})}}
+  else if(ph==='clash'&&DQ.clash){const c=(now-DQ.clash.t0)/1000,Wn=DQ.clash.w,fin=!!DQ.clash.fin;
     const win=Wn==='p'?P:Wn==='o'?O:null,lose=Wn==='p'?O:Wn==='o'?P:null,RW=Wn==='p'?PW:OW,RL=Wn==='p'?OW:PW;
     // 맞대는 지점: 이긴 쪽이 조금씩 밀어붙임
     const bk=clamp((c-T.imp)/(T.brk-T.imp),0,1),push=win?win.sg*.12*ease.io(bk):0,trem=c>T.imp&&c<T.brk?1:0;
-    const C=[push+Math.sin(c*61)*.008*trem,1.42+Math.sin(c*47)*.01*trem,.02];DS.C=C;
+    const C=[push+Math.sin(c*61)*.008*trem,1.36+Math.sin(c*47)*.01*trem,.02];DS.C=C;
     const BA=.55;// 맞댄 칼 각도
     const bind=(a,R)=>{const d=wDir(a.sg,BA+(a===win?.04:a===lose?-.05:0)*bk),Cz=[C[0],C[1],C[2]+a.sg*.03],g=gripFromContact(R,Cz,d);return{g,d}};
-    const BP=bind(P,PW),BO=bind(O,OW);const bx={p:BP.g[0]-.4,o:BO.g[0]+.4};
-    if(c<T.imp){// 돌진하며 내려베기
-      const k=clamp(c/T.imp,0,1),e=ease.in(k);if(DS.sub!=='rush'){DS.sub='rush';setClip(P,'slash',{off:.2,rate:1.3,blend:.08});setClip(O,'slash',{off:.2,rate:1.3,blend:.08})}
-      P.x=lerp(-st,bx.p,ease.io(k));O.x=lerp(st,bx.o,ease.io(k));
-      for(const[a,B,R]of[[P,BP,PW],[O,BO,OW]]){const A=KAMAE[R.type]||KAMAE.sword,gk=[a.x+a.sg*A[0],A[1],.1],g0=[a.x+a.sg*.04,1.62,0],r=.38;
-        if(k<r){const u=ease.out(k/r);a.wp={g:V.mix(gk,g0,u),d:wDir(a.sg,lerp(A[2],2.3,u))}}// 치켜들기
-        else{const u=ease.in((k-r)/(1-r));a.wp={g:V.mix(g0,B.g,u),d:wDir(a.sg,lerp(2.3,BA,u))};a.trailOn=u>.15}// 내려베기
-        a.aura=1.1}
-      cam.dk=lerp(1,.9,k);cam.tgt=[0,1.15,0]}
-    else if(c<T.brk){// 칼날 맞대기 (츠바제리아이)
-      if(DS.sub!=='lock'){DS.sub='lock';P.cur.rate=.05;O.cur.rate=.05}
-      P.x=bx.p;O.x=bx.o;P.wp=BP;O.wp=BO;P.lean=O.lean=.16;P.aura=O.aura=1.5+bk*.6;
-      cam.dk=lerp(.78,.7,bk);cam.tgt=[C[0]*.6,1.32,0];cam.roll=-.07*(win?win.sg:1)*ease.io(Math.min(1,bk*3))}
-    else if(win){// 이긴 쪽이 밀쳐내고 스쳐 지나가며 벤다
-      const x0w=win===P?bx.p:bx.o,x0l=lose===P?bx.p:bx.o,xEnd=x0l+win.sg*1.15;
-      const d1=T.brk+.13;
-      if(DS.sub!=='brk'){DS.sub='brk';setClip(win,'power',{off:.42,rate:1.6,blend:.06});setClip(lose,'blockidle',{blend:.1,rate:.4});DS.ghosts.length=0;win.ghostT=0}
-      if(c<d1){const k=ease.out((c-T.brk)/.13);win.x=lerp(x0w,xEnd,k);win.wp={g:[win.x+win.sg*.42,lerp(1.18,1.0,k),.08],d:wDir(win.sg,lerp(BA,-.75,k))};win.trailOn=true;win.ghostOn=true;win.aura=2}
-      else{win.x=xEnd;win.wp={g:[xEnd+win.sg*.46,1.0,.08],d:wDir(win.sg,-.75)};win.ghostOn=false;win.aura=c<T.cut?1.4:1.8;
-        if(c>T.back){// 순간이동으로 제자리 복귀
-          if(DS.sub!=='home'){DS.sub='home';ghostSnap(win,true);setClip(win,'idle',{loop:true,blend:.2})}win.x=win===P?-st:st;win.wp=null;win.aura=1}}
+    const BP=bind(P,PW),BO=bind(O,OW);const bx={p:BP.g[0]-.5,o:BO.g[0]+.5};
+    if(c<T.imp){// 치켜든 칼을 내려치며 돌진 (모션: 위에서 아래로 베며 런지)
+      const k=clamp(c/T.imp,0,1);if(DS.sub!=='rush'){DS.sub='rush';for(const a of[P,O])setClip(a,'rb',{off:0,rate:1.1,inplace:true,blend:.06})}
+      P.x=lerp(-st,bx.p,ease.io(k));O.x=lerp(st,bx.o,ease.io(k));P.trailOn=O.trailOn=k>.25;P.aura=O.aura=1.1;
+      cam.dk=lerp(1,.9,k);cam.tgt=[0,1.1,0]}
+    else if(c<T.brk){// 칼날 맞대기: 몸은 런지 자세로 멈추고 두 손은 맞댄 칼을 쥠
+      if(DS.sub!=='lock'){DS.sub='lock';for(const a of[P,O]){a.cur.rate=.03}}
+      P.x=bx.p;O.x=bx.o;P.wp=BP;O.wp=BO;P.aura=O.aura=1.5+bk*.6;
+      cam.dk=lerp(.78,.7,bk);cam.tgt=[C[0]*.6,1.28,0];cam.roll=-.07*(win?win.sg:1)*ease.io(Math.min(1,bk*3))}
+    else if(win){// 이긴 쪽: 밀쳐내고 몸을 돌려 베며 스쳐 지나감 / 진 쪽: 베인 뒤 휘청(마지막 판이면 쓰러짐)
+      const x0w=win===P?bx.p:bx.o,x0l=lose===P?bx.p:bx.o,xEnd=x0l+win.sg*1.1,d1=T.brk+.22;
+      if(DS.sub!=='brk'){DS.sub='brk';setClip(win,'ha',{off:.08,rate:1.5,inplace:true,blend:.05});setClip(lose,'block',{off:.3,rate:.6,inplace:true,blend:.06});DS.ghosts.length=0;win.ghostT=0}
+      if(c<d1){const k=ease.out((c-T.brk)/(d1-T.brk));win.x=lerp(x0w,xEnd,k);win.trailOn=true;win.ghostOn=true;win.aura=2}
+      else{win.x=xEnd;win.ghostOn=false;win.aura=c<T.cut?1.4:1.8;
+        if(c>T.back){if(DS.sub!=='home'){DS.sub='home';ghostSnap(win,true);idleOn(win,{blend:.2})}win.x=home(win);win.aura=1}}
       const lk=clamp((c-T.brk)/.18,0,1);
-      if(c<T.cut){lose.x=x0l-lose.sg*.08*ease.out(lk);lose.wp={g:[lose.x+lose.sg*lerp(.4,.22,ease.out(lk)),lerp(1.15,1.3,ease.out(lk)),0],d:wDir(lose.sg,lerp(BA,1.75,ease.back(lk)))};lose.aura=1}
-      else{if(!DS.ev.cut){DS.ev.cut=1;setClip(lose,'hit',{blend:.05,rate:.85});cutFX(lose,RW,RL)}
-        const kk=ease.out(clamp((c-T.cut)/.45,0,1));lose.x=x0l-lose.sg*(.08+.55*kk);lose.wp=null;lose.aura=.35;
-        if(c>T.back+.15&&!DS.ev.lrec){DS.ev.lrec=1;setClip(lose,'idle',{loop:true,blend:.4})}
-        if(c>T.back){const k2=clamp((c-T.back)/(T.end-T.back),0,1);lose.x=lerp(x0l-lose.sg*.63,lose===P?-st:st,ease.io(k2))}}
+      if(c<T.cut){lose.x=x0l-lose.sg*.12*ease.out(lk);lose.aura=1}
+      else{if(!DS.ev.cut){DS.ev.cut=1;setClip(lose,fin?'kb':'hit2',fin?{blend:.05,rate:1.05}:{blend:.05,rate:1.2,inplace:true});cutFX(lose,RW,RL)}
+        const kk=ease.out(clamp((c-T.cut)/.45,0,1));lose.x=x0l-lose.sg*(.12+(fin?.15:.5)*kk);lose.aura=fin?.2:.35;
+        if(!fin){if(c>T.back+.1&&!DS.ev.lrec){DS.ev.lrec=1;idleOn(lose,{blend:.4})}
+          if(c>T.back){const k2=clamp((c-T.back)/(T.end-T.back),0,1);lose.x=lerp(x0l-lose.sg*.62,home(lose),ease.io(k2))}}}
       // 카메라: 돌파 순간 이긴 쪽 따라가기 → 정적 → 베인 순간 흔들림
-      if(c<d1+.05){cam.tgt=[win.x*.55,1.2,0];cam.dk=.82;cam.roll=.09*win.sg}
-      else if(c<T.cut){cam.tgt=[(win.x+lose.x)*.5,1.1,0];cam.dk=.92;cam.roll=.04*win.sg}
-      else if(c<T.back){cam.tgt=[(win.x+lose.x)*.5,1.1,0];cam.dk=.98}
+      if(c<d1+.05){cam.tgt=[win.x*.55,1.15,0];cam.dk=.82;cam.roll=.09*win.sg}
+      else if(c<T.cut){cam.tgt=[(win.x+lose.x)*.5,1.05,0];cam.dk=.92;cam.roll=.04*win.sg}
+      else if(c<T.back){cam.tgt=[(win.x+lose.x)*.5,1.0,0];cam.dk=.98}
       else{cam.dk=1}
       if(c>=T.brk&&!DS.ev.brk){DS.ev.brk=1;burstAt(C,EW(DQ[win===P?'pw':'ow']),1.2);cam.cut=true}}
-    else{// 상쇄: 서로 튕겨남
-      if(DS.sub!=='rep'){DS.sub='rep';setClip(P,'blockidle',{blend:.1});setClip(O,'blockidle',{blend:.1});burstAt(C,EW(DQ.pw),1);burstAt(C,EW(DQ.ow),.6)}
+    else{// 상쇄: 서로 막으며 튕겨남
+      if(DS.sub!=='rep'){DS.sub='rep';for(const a of[P,O])setClip(a,'block',{off:.15,rate:1,inplace:true,blend:.06});burstAt(C,EW(DQ.pw),1);burstAt(C,EW(DQ.ow),.6)}
       const k=ease.out(clamp((c-T.brk)/.35,0,1));
-      if(c<T.cut){for(const[a,B]of[[P,BP],[O,BO]]){a.x=lerp(B.g[0]-a.sg*.4,a.sg*-(st+.12),k);a.wp={g:[a.x+a.sg*.36,lerp(1.15,1.25,k),0],d:wDir(a.sg,lerp(BA,1.35,k))};a.aura=1.2}}
-      else{if(!DS.ev.ri){DS.ev.ri=1;setClip(P,'idle',{loop:true,blend:.35});setClip(O,'idle',{loop:true,off:.7,blend:.35})}P.wp=O.wp=null;P.x+=(-st-P.x)*.08;O.x+=(st-O.x)*.08;P.aura=O.aura=.8}
+      if(c<T.cut){for(const[a,B]of[[P,BP],[O,BO]]){a.x=lerp(B.g[0]-a.sg*.5,a.sg*-(st+.12),k);a.aura=1.2}}
+      else{if(!DS.ev.ri){DS.ev.ri=1;idleOn(P,{blend:.35});idleOn(O,{off:.7,blend:.35})}P.x+=(-st-P.x)*.08;O.x+=(st-O.x)*.08;P.aura=O.aura=.8}
       cam.dk=lerp(.75,1,k)}
     if(c>=T.imp&&!DS.ev.imp){DS.ev.imp=1;impactFX(C,EW(DQ.pw),EW(DQ.ow))}
     if(c>=T.imp&&c<T.brk)bindSparks(C,now)}
-  else if(ph==='result'&&DQ.res){if(DS.mark!==mark){const win=DQ.res.win;setClip(win?P:O,'victory',{blend:.3});setClip(win?O:P,'death',{root:true,blend:.15})}
-    const wa=DQ.res.win?P:O,la=DQ.res.win?O:P;wa.aura=2;la.aura=.15;cam.tgt=[wa.x*.4,1.1,0]}
+  else if(ph==='result'&&DQ.res){const wa=DQ.res.win?P:O,la=DQ.res.win?O:P;
+    if(DS.mark!==mark){setClip(wa,'cele',{blend:.3,inplace:true});if(la.cur.name!=='kb')setClip(la,'death',{blend:.15})}
+    wa.aura=2;la.aura=.15;cam.tgt=[wa.x*.4,1.1,0]}
   DS.mark=mark}
 /* ---- 이펙트 ---- */
 function spark(p,dir,sp,col,life,sz){emit({p:[...p],v:V.sc(V.norm(dir),sp),g:7,drag:1.2,st:.028,life,s0:sz||.011,s1:.004,c0:col,c1:[3,.9,.15],sh:1,a0:1,a1:.15})}
@@ -982,9 +996,8 @@ function recTrail(a,R,Mw){const now=DS.clock;if(a.trailOn&&Mw){const tip=M4.pt(M
 function drawTrail(a,E){const T=a.trail,n=T.length;if(n<2)return;const now=DS.clock;
   for(let i=1;i<n;i++){const A=T[i-1],B=T[i],k=1-(now-B.t)/230;if(k<=0)continue;
     for(let s=0;s<3;s++){const u0=s/3,u1=(s+1)/3,p0=V.mix(A.tip,B.tip,u0),p1=V.mix(A.tip,B.tip,u1),m0=V.mix(A.mid,B.mid,u0),m1=V.mix(A.mid,B.mid,u1);
-      pushSpr(V.mix(p0,p1,.5),V.sub(p1,p0),.035*k+.01,1,V.sc([1,1,1],7*k),k);
-      for(const f of[.25,.5,.75]){const q0=V.mix(m0,p0,f),q1=V.mix(m1,p1,f);pushSpr(V.mix(q0,q1,.5),V.sub(q1,q0),.07*k,0,V.sc(E.l,2.2*k*f),k)}
-      pushSpr(V.mix(m0,m1,.5),V.sub(m1,m0),.05*k,0,V.sc(E.c,1.5*k),k)}}}
+      pushSpr(V.mix(p0,p1,.5),V.sub(p1,p0),.02*k+.006,1,V.sc([1,.95,.9],3.2*k*k),k);
+      for(const f of[.35,.7]){const q0=V.mix(m0,p0,f),q1=V.mix(m1,p1,f);pushSpr(V.mix(q0,q1,.5),V.sub(q1,q0),.05*k,0,V.sc(E.l,1.1*k*k*f),k)}}}}
 function drawCutLine(){const L=DS.cutLine;if(!L)return;const age=(DS.clock-L.t0)/500;if(age>=1){DS.cutLine=null;return}
   const k=1-age,len=lerp(.4,1.4,ease.out(Math.min(1,age*4))),d=V.norm([L.sg*.9,-.55,.15]),c=L.c;
   pushSpr(c,V.sc(d,len),.06*k,1,[14,14,14],1);pushSpr(c,V.sc(d,len*1.05),.22*k,0,V.sc(L.E.c,3*k),1)}
@@ -996,6 +1009,8 @@ function duelFrame(now,dt){
   DS.pwd=DQ.pw;DS.owd=DQ.ow;
   const PW=getWeapon(DQ.pw),OW=getWeapon(DQ.ow);
   choreo(DQ,now,PW,OW);
+  if(DS.dbg){const g=DS.dbg;for(const[a,s]of[[DS.p,'p'],[DS.o,'o']]){const d=g[s];if(!d)continue;a.cur={name:d.clip,t0:DS.clock-(d.t||0)*1000,rate:0.0000001,loop:false,off:d.t||0,root:false};a.prev=null;a.wp=d.wp||null;a.x=d.x??a.x;a.trailOn=false;a.aura=d.aura??a.aura}
+    if(g.cam)DS.camT=Object.assign({tgt:[0,1.05,0],dk:1,roll:0},g.cam);if(g.an)CFG.p.an=CFG.o.an=g.an}
   // 카메라 (애니 연출: 줌·기울기·컷)
   const CT=DS.camT;if(!DS.cam||CT.cut)DS.cam={tgt:[...CT.tgt],dk:CT.dk,roll:CT.roll};else{const f=1-Math.exp(-dt*9);DS.cam.tgt=V.mix(DS.cam.tgt,CT.tgt,f);DS.cam.dk=lerp(DS.cam.dk,CT.dk,f);DS.cam.roll=lerp(DS.cam.roll,CT.roll,f)}
   const asp=cw/ch,fov=34*PI/180,tn=Math.tan(fov/2),tgt=DS.cam.tgt;
@@ -1016,18 +1031,19 @@ function duelFrame(now,dt){
   for(const[a,side,R,wd,E]of actors){const cfg=CFG[side],K=CH[cfg.ch],clips=ANIM[cfg.an];
     const Root=M4.chain(M4.tr(a.x,0,0),M4.ry(side==='p'?PI/2:-PI/2)),Ri=M4.inv(Root);const{W,L}=actorWorld(a,K,clips);const ix=K.idx;
     let Mw=null;
-    if(a.wp){// 손을 무기 손잡이로 (IK)
-      if(a.lean&&ix.Spine1!=null){rotBone(W,ix.Spine1,M4.rx(a.lean));refreshBelow(K,W,L,ix.Spine1)}
+    const toL=p=>M4.pt(Ri,p);
+    const pole=(arm)=>{const s=M4.pt(Root,M4.pos(W[ix[arm]])),c=M4.pt(Root,M4.pos(W[ix.Spine2]));return toL(V.add(s,V.add(V.sc(V.norm(V.sub(s,c)),1),[0,-1.1,0])))};
+    const hold=(arm,fa,hd,s,g,d)=>{const shW=M4.pt(Root,M4.pos(W[ix[arm]])),Hw=handFrame(handGrip(K,s),g,d,V.norm(V.sub(g,shW)));armIK(K,W,L,ix[arm],ix[fa],ix[hd],toL(M4.pos(Hw)),pole(arm),M4.mul(Ri,Hw))};
+    const off=OFFH[R.type]||0;
+    if(a.wp){// 칼 맞대기: 두 손을 정해진 손잡이 위치로 (IK)
       Mw=wMat(R,a.wp.g,a.wp.d,1);
-      const fwd=[a.sg,0,0],toL=p=>M4.pt(Ri,p);
-      const pole=(arm)=>{const s=M4.pt(Root,M4.pos(W[ix[arm]])),c=M4.pt(Root,M4.pos(W[ix.Spine2]));return toL(V.add(s,V.add(V.sc(V.norm(V.sub(s,c)),1),[0,-1.1,0])))};
-      const hold=(arm,fa,hd,s,g)=>{const shW=M4.pt(Root,M4.pos(W[ix[arm]])),Hw=handFrame(handGrip(K,s),g,a.wp.d,V.norm(V.sub(g,shW)));armIK(K,W,L,ix[arm],ix[fa],ix[hd],toL(M4.pos(Hw)),pole(arm),M4.mul(Ri,Hw))};
-      if(ix.RightArm!=null)hold('RightArm','RightForeArm','RightHand','R',a.wp.g);
-      const off=OFFH[R.type]||0;
-      if(off&&ix.LeftArm!=null){const s=Math.min(1,1.15/R.len);hold('LeftArm','LeftForeArm','LeftHand','L',V.madd(a.wp.g,a.wp.d,-off*s))}}
+      if(ix.RightArm!=null)hold('RightArm','RightForeArm','RightHand','R',a.wp.g,a.wp.d);
+      if(off&&ix.LeftArm!=null)hold('LeftArm','LeftForeArm','LeftHand','L',V.madd(a.wp.g,a.wp.d,-off*wS(R)),a.wp.d)}
+    else if(ix.RightHand!=null){// 평소: 모션이 움직이는 오른손에 무기, 양손 무기는 왼손이 자루를 잡음
+      Mw=M4.chain(Root,W[ix.RightHand],gripMatrix(R,K));
+      if(off&&ix.LeftArm!=null){const d=V.norm(M4.dir(Mw,[0,1,0])),g=M4.pt(Mw,[0,R.gripY-off,0]);hold('LeftArm','LeftForeArm','LeftHand','L',g,d)}}
     drawSkin(K,Root,W,cfg.tint);
-    const hi=ix.RightHand;const broken=DQ.phase==='result'&&DQ.res&&!DQ.res.win&&side==='p'&&DQ.res.broken;
-    if(!Mw&&hi!=null)Mw=M4.chain(Root,W[hi],gripMatrix(R,K));
+    const broken=DQ.phase==='result'&&DQ.res&&!DQ.res.win&&side==='p'&&DQ.res.broken;
     if(Mw&&!broken){wmats.push([R,Mw,E,a,wd]);for(const b of R.batches)drawPBR(b.m,b.mat,Mw)}
     // 잔상용 스냅샷
     const B=K.bones,mats=new Float32Array(24*16);for(let i=0;i<B.length&&i<24;i++)mats.set(M4.chain(Root,W[i],B[i].inv),i*16);
@@ -1187,7 +1203,7 @@ window.Forge3D={
   get active(){return ACTIVE&&!lost},L:L3,
   frame(now,dt,st){try{frame(now,dt,st)}catch(e){console.error('3D 렌더 오류',e);ACTIVE=false;if(H&&H.onLost)H.onLost()}},
   duel(now,dt){try{return duelFrame(now,dt)}catch(e){console.error('3D 결투 오류',e);return false}},
-  duelReady:(DQ)=>duelReady(DQ),duelPt:()=>duelPt(),duelActorPt:s=>duelActorPt(s),preloadDuel(list){try{preloadDuel(list)}catch(e){}},charReady:k=>!!charReady(k),resetDuel(){DS.p=null;DS.o=null;parts.length=0},
+  duelReady:(DQ)=>duelReady(DQ),dbg(o){DS.dbg=o},duelPt:()=>duelPt(),duelActorPt:s=>duelActorPt(s),preloadDuel(list){try{preloadDuel(list)}catch(e){}},charReady:k=>!!charReady(k),resetDuel(){DS.p=null;DS.o=null;parts.length=0},
   canvas:()=>cv,
   hit(res){try{hit(res)}catch(e){}},
   setPose(p){FIXP=p},setQ(q){FIXQ=q;quality=q},stats:()=>({parts:parts.length,quality,ftAvg})
