@@ -29,7 +29,20 @@ const SCHEMA = [
     a_won INTEGER NOT NULL,
     gold INTEGER NOT NULL
   )`,
-  `CREATE INDEX IF NOT EXISTS duels_b ON duels(b, at)`
+  `CREATE INDEX IF NOT EXISTS duels_b ON duels(b, at)`,
+  // 실시간 PvP: 대기열과 진행 중인 대결
+  `CREATE TABLE IF NOT EXISTS pvp_queue(pid TEXT PRIMARY KEY, at INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS pvp(
+    id TEXT PRIMARY KEY, a TEXT NOT NULL, b TEXT NOT NULL, ainfo TEXT NOT NULL, binfo TEXT NOT NULL,
+    seed INTEGER NOT NULL, qlv INTEGER NOT NULL, rnd INTEGER NOT NULL DEFAULT 1,
+    sa INTEGER NOT NULL DEFAULT 0, sb INTEGER NOT NULL DEFAULT 0,
+    ar INTEGER NOT NULL DEFAULT 0, br INTEGER NOT NULL DEFAULT 0, start INTEGER NOT NULL DEFAULT 0,
+    ams INTEGER NOT NULL DEFAULT -2, bms INTEGER NOT NULL DEFAULT -2, ap INTEGER NOT NULL DEFAULT 0, bp INTEGER NOT NULL DEFAULT 0,
+    aseen INTEGER NOT NULL, bseen INTEGER NOT NULL, hist TEXT NOT NULL DEFAULT '[]',
+    done INTEGER NOT NULL DEFAULT 0, winner TEXT, gold INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS pvp_a ON pvp(a, done)`,
+  `CREATE INDEX IF NOT EXISTS pvp_b ON pvp(b, done)`
 ];
 
 // 나중에 추가한 열: 보유 중인 최고 무기(랭킹 기준)
@@ -222,6 +235,8 @@ export async function onRequest(ctx) {
 
     if (path === '/me' && m === 'GET') return meResponse(db, me);
 
+    if (path.startsWith('/pvp/')) { const r = await pvpRoute(path, m, request, db, me); if (r) return r; }
+
     if (path === '/save' && m === 'PUT') {
       const body = await readJson(request);
       const state = cleanState(body && body.state);
@@ -288,6 +303,108 @@ export async function onRequest(ctx) {
   } catch (e) {
     return fail(500, 'server', '서버 오류가 났어요. 잠시 후 다시 시도해 주세요.');
   }
+}
+
+
+/* ---------------- 실시간 PvP ----------------
+   대기열에서 두 명을 짝지어 대결을 만들고, 두 클라이언트가 0.5초마다 /pvp/sync로 상태를 주고받는다.
+   라운드마다 같은 시드로 같은 단어 순서를 만들고, 서버가 정한 시각에 동시에 시작한다. 먼저 끝낸 쪽(ms가 작은 쪽)이 공격. */
+const PVP_START_DELAY = 1800, PVP_GONE = 15000, PVP_QUEUE_TTL = 12000, PVP_ROUND_MAX = 30000;
+function pvpInfo(p) { const w = safeParse(p.weapon); return { id: p.id, name: p.name, type: w.type || null, el: w.el || null, lv: p.lv, ch: CHAR_IDS.includes(w.ch) ? w.ch : 'paladin', au: cleanAura(w.au), earn: p.earn, wins: p.wins, losses: p.losses }; }
+function pvpView(m, me, t) {
+  const side = m.a === me.id ? 'a' : 'b', o = side === 'a' ? 'b' : 'a';
+  return {
+    id: m.id, side, seed: m.seed, qlv: m.qlv, round: m.rnd, me: safeParse(m[side + 'info']), opp: safeParse(m[o + 'info']),
+    my: m['s' + side], their: m['s' + o], hist: safeParse(m.hist).map(x => x === side ? 'p' : x === o ? 'o' : null),
+    go: m.start ? m.start - t : null, oppProg: m[o + 'p'], submitted: m[side + 'ms'] !== -2, oppSubmitted: m[o + 'ms'] !== -2,
+    done: !!m.done, win: m.done ? m.winner === side : null, gold: m.gold, now: t
+  };
+}
+async function pvpResolve(db, m, t) {
+  // 1) 라운드 시간 초과: 안 낸 쪽은 실패(-1)
+  if (m.start && t > m.start + PVP_ROUND_MAX) {
+    await db.prepare(`UPDATE pvp SET ams=CASE WHEN ams=-2 THEN -1 ELSE ams END, bms=CASE WHEN bms=-2 THEN -1 ELSE bms END WHERE id=? AND rnd=?`).bind(m.id, m.rnd).run();
+  }
+  // 2) 둘 다 냈으면 판정 (한 번만 적용되도록 rnd 조건)
+  await db.prepare(`UPDATE pvp SET
+      sa=sa+(CASE WHEN ams>=0 AND (bms<0 OR ams<bms) THEN 1 ELSE 0 END),
+      sb=sb+(CASE WHEN bms>=0 AND (ams<0 OR bms<ams) THEN 1 ELSE 0 END),
+      hist=json_insert(hist,'$[#]',CASE WHEN ams>=0 AND (bms<0 OR ams<bms) THEN 'a' WHEN bms>=0 AND (ams<0 OR bms<ams) THEN 'b' ELSE NULL END),
+      rnd=rnd+1, ams=-2, bms=-2, ar=0, br=0, start=0, ap=0, bp=0
+    WHERE id=? AND rnd=? AND ams<>-2 AND bms<>-2 AND done=0`).bind(m.id, m.rnd).run();
+  // 3) 상대가 사라졌으면 남은 쪽 승리
+  const gone = t - m.aseen > PVP_GONE ? 'b' : t - m.bseen > PVP_GONE ? 'a' : null;
+  let fresh = await db.prepare('SELECT * FROM pvp WHERE id=?').bind(m.id).first();
+  const w = fresh.sa >= 2 ? 'a' : fresh.sb >= 2 ? 'b' : gone;
+  if (w && !fresh.done) await pvpSettle(db, fresh, w, t);
+  return await db.prepare('SELECT * FROM pvp WHERE id=?').bind(m.id).first();
+}
+async function pvpSettle(db, m, w, t) {
+  const l = w === 'a' ? 'b' : 'a', li = safeParse(m[l + 'info']);
+  const gold = purse(li.lv || 0, isHid(li.type));
+  const r = await db.prepare(`UPDATE pvp SET done=1, winner=?, gold=? WHERE id=? AND done=0`).bind(w, gold, m.id).run();
+  if (!r.meta || r.meta.changes !== 1) return; // 이미 정산됨
+  await db.batch([
+    db.prepare(`UPDATE players SET earn=earn+?, wins=wins+1 WHERE id=?`).bind(gold, m[w]),
+    db.prepare(`UPDATE players SET earn=earn-?, losses=losses+1 WHERE id=?`).bind(gold, m[l])
+  ]);
+}
+async function pvpRoute(path, m, request, db, me) {
+  const t = now();
+  const active = await db.prepare(`SELECT * FROM pvp WHERE (a=? OR b=?) AND (done=0 OR created>?) ORDER BY created DESC LIMIT 1`).bind(me.id, me.id, t - 20000).first();
+  if (path === '/pvp/join' && m === 'POST') {
+    if (active && !active.done) return json({ match: pvpView(active, me, t) });
+    await db.prepare(`DELETE FROM pvp_queue WHERE at<?`).bind(t - PVP_QUEUE_TTL).run();
+    const other = await db.prepare(`SELECT q.pid FROM pvp_queue q JOIN players p ON p.id=q.pid WHERE q.pid<>? ORDER BY q.at LIMIT 1`).bind(me.id).first();
+    if (other) {
+      const del = await db.prepare(`DELETE FROM pvp_queue WHERE pid=?`).bind(other.pid).run();
+      if (del.meta && del.meta.changes === 1) {
+        const op = await db.prepare('SELECT * FROM players WHERE id=?').bind(other.pid).first();
+        const A = pvpInfo(op), B = pvpInfo(me), id = crypto.randomUUID(), seed = Math.floor(Math.random() * 2147483647);
+        await db.prepare(`DELETE FROM pvp_queue WHERE pid=?`).bind(me.id).run();
+        await db.prepare(`INSERT INTO pvp(id,a,b,ainfo,binfo,seed,qlv,aseen,bseen,created) VALUES(?,?,?,?,?,?,?,?,?,?)`)
+          .bind(id, op.id, me.id, JSON.stringify(A), JSON.stringify(B), seed, Math.round((A.lv + B.lv) / 2), t, t, t).run();
+        const mm = await db.prepare('SELECT * FROM pvp WHERE id=?').bind(id).first();
+        return json({ match: pvpView(mm, me, t) });
+      }
+    }
+    await db.prepare(`INSERT INTO pvp_queue(pid,at) VALUES(?,?) ON CONFLICT(pid) DO UPDATE SET at=excluded.at`).bind(me.id, t).run();
+    const c = await db.prepare(`SELECT COUNT(*) AS c FROM pvp_queue WHERE at>?`).bind(t - PVP_QUEUE_TTL).first();
+    return json({ waiting: true, queue: c ? c.c : 1 });
+  }
+  if (path === '/pvp/leave' && m === 'POST') {
+    await db.prepare(`DELETE FROM pvp_queue WHERE pid=?`).bind(me.id).run();
+    if (active && !active.done) { const side = active.a === me.id ? 'a' : 'b'; await pvpSettle(db, active, side === 'a' ? 'b' : 'a', t); }
+    return json({ ok: true });
+  }
+  if (path === '/pvp/sync' && m === 'POST') {
+    const body = (await readJson(request)) || {};
+    const mt = await db.prepare('SELECT * FROM pvp WHERE id=? AND (a=? OR b=?)').bind(String(body.m || ''), me.id, me.id).first();
+    if (!mt) return json({ gone: true });
+    if (mt.done) return json({ match: pvpView(mt, me, t) });
+    const active = mt, side = active.a === me.id ? 'a' : 'b';
+    const prog = Math.max(0, Math.min(20, Math.floor(Number(body.prog) || 0)));
+    await db.prepare(`UPDATE pvp SET ${side}seen=?, ${side}p=CASE WHEN rnd=? THEN ? ELSE ${side}p END WHERE id=?`).bind(t, active.rnd, prog, active.id).run();
+    if (body.ready && Number(body.round) === active.rnd && !active.done) {
+      await db.prepare(`UPDATE pvp SET ${side}r=? WHERE id=? AND rnd=?`).bind(active.rnd, active.id, active.rnd).run();
+      await db.prepare(`UPDATE pvp SET start=? WHERE id=? AND rnd=? AND ar=rnd AND br=rnd AND start=0`).bind(t + PVP_START_DELAY, active.id, active.rnd).run();
+    }
+    if (body.submit && Number(body.round) === active.rnd && !active.done) {
+      const ms = Math.floor(Number(body.ms));
+      const ok = Number.isFinite(ms) && ms >= 0 && ms < PVP_ROUND_MAX ? ms : -1;
+      await db.prepare(`UPDATE pvp SET ${side}ms=? WHERE id=? AND rnd=? AND ${side}ms=-2 AND start>0`).bind(ok, active.id, active.rnd).run();
+    }
+    const cur = await db.prepare('SELECT * FROM pvp WHERE id=?').bind(active.id).first();
+    const res = await pvpResolve(db, cur, t);
+    return json({ match: pvpView(res, me, t) });
+  }
+  if (path === '/pvp/status' && m === 'GET') {
+    await db.prepare(`DELETE FROM pvp_queue WHERE at<?`).bind(t - PVP_QUEUE_TTL).run();
+    const q = await db.prepare(`SELECT COUNT(*) AS c FROM pvp_queue`).first();
+    const live = await db.prepare(`SELECT COUNT(*) AS c FROM pvp WHERE done=0 AND created>?`).bind(t - 600000).first();
+    return json({ queue: q ? q.c : 0, live: live ? live.c : 0, match: active && !active.done ? pvpView(active, me, t) : null });
+  }
+  return null;
 }
 
 function safeParse(s) { try { return JSON.parse(s || '{}') || {}; } catch (e) { return {}; } }

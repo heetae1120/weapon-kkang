@@ -7,7 +7,7 @@
 | 경로 | 내용 |
 | --- | --- |
 | `public/index.html` | 게임 전체 (화면, 연출, 결투) |
-| `functions/api/[[path]].js` | 서버: 가입, 저장, 상대 찾기, 결투 정산, 랭킹 |
+| `functions/api/[[path]].js` | 서버: 가입, 저장, 상대 찾기, 결투 정산, 랭킹, 실시간 PvP(대기열·라운드 동기화) |
 | `build.mjs` | 배포할 때마다 `public/version.json`을 새로 써서 접속자 화면을 자동 업데이트 |
 | `dev/server.mjs` | 내 컴퓨터에서 테스트할 때만 쓰는 가짜 서버 (배포와 무관) |
 
