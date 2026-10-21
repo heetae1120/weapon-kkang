@@ -215,13 +215,13 @@ const UP_FS=`#version 300 es
 precision highp float;in vec2 vUv;out vec4 o;uniform sampler2D uT;uniform vec2 uTx;uniform float uW;
 void main(){vec3 c=vec3(0);for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){float w=(x==0?2.:1.)*(y==0?2.:1.);c+=texture(uT,vUv+uTx*vec2(x,y)*1.5).rgb*w;}o=vec4(c/16.*uW,1.);}`;
 const COMP_FS=`#version 300 es
-precision highp float;in vec2 vUv;out vec4 o;uniform sampler2D uS,uB;uniform float uBloom,uExp,uCA,uFz,uTime,uVig;
+precision highp float;in vec2 vUv;out vec4 o;uniform sampler2D uS,uB;uniform float uBloom,uExp,uCA,uFz,uTime,uVig,uInv;
 vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}
 float hash(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
 void main(){vec2 d=(vUv-.5)*uCA;vec3 c=vec3(texture(uS,vUv+d).r,texture(uS,vUv).g,texture(uS,vUv-d).b);
   c+=texture(uB,vUv).rgb*uBloom;c*=uExp;c=mix(c,c*vec3(1.35,.75,.62),uFz*.45);c=aces(c);
   float v=smoothstep(1.15,.35,length((vUv-.5)*vec2(1.1,1.)));c*=mix(1.,v,uVig);
-  c=pow(c,vec3(1./2.2));c+=(hash(vUv*997.+uTime)-.5)*.018;o=vec4(c,1.);}`;
+  c=pow(c,vec3(1./2.2));c=mix(c,vec3(1.)-vec3(dot(c,vec3(.3,.59,.11))),uInv);c+=(hash(vUv*997.+uTime)-.5)*.018;o=vec4(c,1.);}`;
 const SPR_VS=`#version 300 es
 layout(location=0) in vec2 aC;layout(location=1) in vec3 iP;layout(location=2) in vec3 iD;layout(location=3) in vec2 iS;layout(location=4) in vec4 iC;
 uniform mat4 uVP;uniform vec2 uRes,uPS;out vec2 vC;out vec4 vCol;flat out float vSh;

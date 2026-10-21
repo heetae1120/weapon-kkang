@@ -1660,17 +1660,26 @@ function endRound(wn){
   $('#qmsg').textContent=wn==='p'?'선공 성공!':wn==='o'?`${short}에게 선수를 빼앗겼다`:'시간 초과 · 서로 막아냈다';
   D.clash={w:wn,t0:now,ev:{}};D.phase='clash';D.ph0=now;
 }
+// 칼 맞대기 타임라인(초): 돌진→부딪힘(imp)→맞대기→밀쳐냄(brk)→베임(cut)→복귀(back)→끝(end)
+const CLASH={imp:.3,brk:1.3,cut:1.62,back:2.05,end:2.5};
+function clashPt(){const p=D.d3&&F3&&F3.active&&F3.duelPt?F3.duelPt():null,{w,h}=dsz();return p&&isFinite(p.x)?p:{x:w/2,y:h*.42}}
 function updateClash(now){
-  const c=(now-D.clash.t0)/1000,ev=D.clash.ev,{w,h}=dsz(),cx=w/2,cy=h*.42,t=now/1000,PP=pal(D.pw,t),PO=pal(D.ow,t);
-  if(c>=.32&&!ev.imp){ev.imp=1;D.inv=now+95;D.shake=24;D.flash=.35;sfx.impact();spawnSparks(D.parts,cx,cy,46,['#ffffff',PP.l,PO.l,'#ffd36b'],1.4);D.parts.push({kind:'ring',x:cx,y:cy,r:10,vr:900,life:1,decay:2.2,col:'#ffffff',lw:6})}
-  if(c>=.32&&c<.85&&Math.random()<.5)spawnSparks(D.parts,cx,cy,2,['#ffd36b','#ffffff'],.7);
-  if(c>=.85&&!ev.sl){ev.sl=1;const W=D.clash.w;
-    if(W){const E=W==='p'?PP:PO;D.slash={t0:now,dir:W==='p'?1:-1,c:E.c,l:E.l};D.shake=18;sfx.slash();
-      popText(D.texts,pick(W==='p'?CUT_P:CUT_O),w/2,h*.22,{size:Math.min(76,w*.12),band:mix(E.c,'#000000',.15),dur:1100});
-      if(W==='p')D.ps++;else D.os++;hud();
-      spawnSparks(D.parts,W==='p'?w*.66:w*.34,h*.5,30,[E.c,E.l,'#ffffff'],1.2)}
-    else{popText(D.texts,'상쇄!',w/2,h*.24,{size:Math.min(58,w*.11),band:'#4b4458'});sfx.hold()}}
-  if(c>=1.95){if(D.ps>=2||D.os>=2)finish();else setPhase('ready')}
+  const T=CLASH,c=(now-D.clash.t0)/1000,ev=D.clash.ev,{w,h}=dsz(),t=now/1000,PP=pal(D.pw,t),PO=pal(D.ow,t),W=D.clash.w,d3=D.d3&&F3&&F3.active;
+  const{x:cx,y:cy}=clashPt();
+  if(c>=T.imp&&!ev.imp){ev.imp=1;D.inv=now+110;D.shake=26;D.flash=.35;sfx.impact();if(!d3)spawnSparks(D.parts,cx,cy,46,['#ffffff',PP.l,PO.l,'#ffd36b'],1.4);D.parts.push({kind:'ring',x:cx,y:cy,r:10,vr:900,life:1,decay:2.2,col:'#ffffff',lw:6})}
+  if(c>=T.imp&&c<T.brk){const k=(c-T.imp)/(T.brk-T.imp);D.shake=Math.max(D.shake,3+k*7);
+    if(!d3&&Math.random()<.6)spawnSparks(D.parts,cx,cy,3,['#ffd36b','#ffffff'],.8);
+    if(!ev.gt||c>ev.gt){ev.gt=c+.16+Math.random()*.08;sfx.clang()}}
+  if(c>=T.brk&&!ev.sl){ev.sl=1;
+    if(W){D.inv=now+70;D.shake=16;D.flash=.18;sfx.slash();
+      if(!d3){const E=W==='p'?PP:PO;D.slash={t0:now,dir:W==='p'?1:-1,c:E.c,l:E.l}}}
+    else{D.inv=now+90;D.shake=20;popText(D.texts,'상쇄!',w/2,h*.24,{size:Math.min(58,w*.11),band:'#4b4458'});sfx.hold();D.parts.push({kind:'ring',x:cx,y:cy,r:10,vr:1100,life:1,decay:2,col:'#ffffff',lw:5})}}
+  if(W&&c>=T.cut&&!ev.cut){ev.cut=1;const E=W==='p'?PP:PO;D.inv=now+130;D.shake=28;D.flash=.25;sfx.impact();
+    popText(D.texts,pick(W==='p'?CUT_P:CUT_O),w/2,h*.22,{size:Math.min(76,w*.12),band:mix(E.c,'#000000',.15),dur:1100});
+    if(W==='p')D.ps++;else D.os++;hud();
+    const lp3=d3&&F3.duelActorPt?F3.duelActorPt(W==='p'?'o':'p'):null;
+    spawnSparks(D.parts,lp3?lp3.x:(W==='p'?w*.66:w*.34),lp3?lp3.y:h*.5,30,[E.c,E.l,'#ffffff'],1.2)}
+  if(c>=T.end){if(D.ps>=2||D.os>=2)finish();else setPhase('ready')}
 }
 function finish(){
   const now=performance.now();D.phase='result';D.ph0=now;if(D.q)D.q.done=true;
@@ -1715,11 +1724,11 @@ function duelPose(w,h,now){
   if(D.phase==='intro'){const k=ease.out(clamp((t-.15)/.6,0,1));p.x=lerp(-w*.25,w*.26,k);o.x=lerp(w*1.25,w*.74,k)}
   else if(D.phase==='clash'){
     const c=(now-D.clash.t0)/1000,W=D.clash.w,cp={x:w*.445,y:by-h*.02,rot:.98,a:1},co={x:w*.555,y:by-h*.02,rot:.98,a:1};
-    if(c<.32){const k=ease.in(c/.32);p=lp(base.p,cp,k);o=lp(base.o,co,k)}
-    else if(c<.85){const j=Math.sin(c*95)*2.5*RM;p={...cp,x:cp.x+j};o={...co,x:co.x+j}}
+    if(c<CLASH.imp){const k=ease.in(c/CLASH.imp);p=lp(base.p,cp,k);o=lp(base.o,co,k)}
+    else if(c<CLASH.brk){const j=Math.sin(c*95)*2.5*RM;p={...cp,x:cp.x+j};o={...co,x:co.x+j}}
     else{const E2=clashEnds(w,by,W);
-      if(c<1.45){const k=ease.out((c-.85)/.6);p=lp(cp,E2.p,k);o=lp(co,E2.o,k);if(W==='p')o.y-=Math.sin(k*Math.PI)*h*.18;if(W==='o')p.y-=Math.sin(k*Math.PI)*h*.18}
-      else{const k=ease.io(clamp((c-1.45)/.45,0,1));p=lp({...E2.p,rot:normRot(E2.p.rot)},base.p,k);o=lp({...E2.o,rot:normRot(E2.o.rot)},base.o,k)}}
+      const c2=c-CLASH.brk+.85;if(c2<1.45){const k=ease.out((c2-.85)/.6);p=lp(cp,E2.p,k);o=lp(co,E2.o,k);if(W==='p')o.y-=Math.sin(k*Math.PI)*h*.18;if(W==='o')p.y-=Math.sin(k*Math.PI)*h*.18}
+      else{const k=ease.io(clamp((c2-1.45)/.45,0,1));p=lp({...E2.p,rot:normRot(E2.p.rot)},base.p,k);o=lp({...E2.o,rot:normRot(E2.o.rot)},base.o,k)}}
   }
   else if(D.phase==='result'){const k=ease.out(clamp(t/.7,0,1)),ctr={x:w/2,y:h*.54,rot:.12,a:1,s:1+.15*k};
     if(D.res.win){p=lp(base.p,ctr,k);o={...base.o,a:Math.max(0,1-k*2)}}else{o=lp(base.o,ctr,k);p={...base.p,a:Math.max(0,1-k*2)}}}
@@ -1773,11 +1782,14 @@ function drawDuel(now,dt){
   const P=duelPose(w,h,now),tt=now/1000;
   if(!use3&&P.p.a>.01)drawWeapon(c,D.pw,{x:P.p.x,y:P.p.y,size:P.size*(P.p.s||1),rot:P.p.rot,time:tt,alpha:P.p.a});
   if(!use3&&P.o.a>.01)drawWeapon(c,D.ow,{x:P.o.x,y:P.o.y,size:P.size*(P.o.s||1),rot:P.o.rot,time:tt+3,alpha:P.o.a,flip:true});
+  if(use3&&D.phase==='clash'&&D.clash){const cc=(now-D.clash.t0)/1000,T=CLASH,pt=clashPt();let k=0;
+    if(cc<T.imp)k=cc/T.imp*.9;else if(cc<T.brk)k=.35+.25*Math.sin(cc*30);else if(D.clash.w&&cc<T.brk+.2)k=1;else if(D.clash.w&&cc>T.cut&&cc<T.cut+.35)k=.9*(1-(cc-T.cut)/.35);
+    if(k>0)speedLines(c,w,h,now,k,pt.x,pt.y)}
   if(D.slash)drawSlash(c,w,h,now);
   stepParts(c,D.parts,dt);drawTexts(c,D.texts,now);
   c.restore();
   if(D.phase==='intro')drawIntro(c,w,h,t);
-  if(now<D.inv){c.save();c.globalCompositeOperation='difference';c.fillStyle='#fff';c.fillRect(0,0,w,h);c.globalCompositeOperation='source-over';c.strokeStyle='#000';const cx=w/2,cy=h*.42;for(let k=0;k<46;k++){const a=hash(k*2.3+Math.floor(now/40))*Math.PI*2;c.lineWidth=1+hash(k)*5;c.beginPath();c.moveTo(cx+Math.cos(a)*30,cy+Math.sin(a)*30);c.lineTo(cx+Math.cos(a)*w*1.5,cy+Math.sin(a)*w*1.5);c.stroke()}c.restore()}
+  if(now<D.inv){c.save();if(!use3){c.globalCompositeOperation='difference';c.fillStyle='#fff';c.fillRect(0,0,w,h);c.globalCompositeOperation='source-over'}c.strokeStyle='#000';const{x:cx,y:cy}=D.phase==='clash'?clashPt():{x:w/2,y:h*.42};for(let k=0;k<46;k++){const a=hash(k*2.3+Math.floor(now/40))*Math.PI*2;c.lineWidth=1+hash(k)*5;c.beginPath();c.moveTo(cx+Math.cos(a)*30,cy+Math.sin(a)*30);c.lineTo(cx+Math.cos(a)*w*1.5,cy+Math.sin(a)*w*1.5);c.stroke()}c.restore()}
   if(D.flash>0){c.fillStyle=`rgba(255,255,255,${D.flash})`;c.fillRect(0,0,w,h);D.flash=Math.max(0,D.flash-dt*3)}
 }
 function duelTick(now,dt){
@@ -1985,11 +1997,11 @@ function loop(now){
   try{if(B)drawBoxOv(now,dt);else if(D)duelTick(now,dt);else if(tab==='forge')drawForge(now,dt)}catch(e){console.error(e)}
   requestAnimationFrame(loop);
 }
-if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname))window.__dbg={curW:()=>curW(),FX,renderForge:()=>renderForge(),F3:()=>F3};if(window.__dbg)window.__D=()=>D;
+if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname))window.__dbg={curW:()=>curW(),FX,renderForge:()=>renderForge(),F3:()=>F3,S,startDuel:i=>startDuel(i),startQTE:()=>startQTE(),endRound:w=>endRound(w),get D(){return D}};if(window.__dbg)window.__D=()=>D;
 function start(data){
   if(data&&data.S&&Array.isArray(data.S.inv))Object.assign(S,data.S);else load();
   curW();bind();
-  try{if(window.Forge3D&&!/[?&]2d\b/.test(location.search)&&Forge3D.init($('#f3d'),{ELS,METALS,FORMS,formOf,SABER_C,SHINAI_P,SCYTHE_C,FX,curW,isHidden,getDuel:()=>D,onLost:()=>{F3=null;$('#f3d').hidden=true}}))F3=Forge3D}catch(e){F3=null}
+  try{if(window.Forge3D&&!/[?&]2d\b/.test(location.search)&&Forge3D.init($('#f3d'),{ELS,METALS,FORMS,formOf,SABER_C,SHINAI_P,SCYTHE_C,FX,curW,isHidden,CLASH,getDuel:()=>D,onLost:()=>{F3=null;$('#f3d').hidden=true}}))F3=Forge3D}catch(e){F3=null}
   if(F3)setTimeout(()=>{try{F3.preloadDuel([S.char||'paladin','guard'])}catch(e){}},2500);
   if(!F3)$('#f3d').hidden=true;
   renderHeader();renderForge();ensureRivals();boot();
