@@ -44,7 +44,7 @@ function frame(now,dt,st){
   const FX=H.FX,W=H.curW(),t=now/1000,sdt=st.stopped?0:dt;
   // 무기 갱신
   const key=(W.type||'blank')+'|'+(W.el||'')+'|'+W.lv;
-  if(key!==WKEY){freeWeapon(WPN);WPN=buildWeapon(W);WPN.gripY={sword:-.1,dagger:-.06,spear:-.64,axe:-.7,saber:-.13,shinai:-.14,scythe:-.75,blank:-.12}[WPN.type];WKEY=key}
+  if(key!==WKEY){freeWeapon(WPN);WPN=buildWeapon(W);WPN.gripY={sword:-.1,dagger:-.06,spear:-.64,axe:-.7,saber:-.13,shinai:-.14,scythe:-.75,blank:-.12}[WPN.type];WPN.flipLie=/^(spear|axe|scythe)$/.test(WPN.type);WPN.tongY=WPN.flipLie?WPN.top*.85:WPN.gripY;WKEY=key}
   // 포즈
   const blank=WPN.type==='blank',idle=FX.sw.ph==='idle'&&now-lastHitT>950;
   if(FX.raise>0&&now-FX.raiseT>1300)FX.raise=0;
@@ -128,7 +128,7 @@ window.Forge3D={
   frame(now,dt,st){try{frame(now,dt,st)}catch(e){console.error('3D 렌더 오류',e);ACTIVE=false;if(H&&H.onLost)H.onLost()}},
   duel(now,dt){try{return duelFrame(now,dt)}catch(e){console.error('3D 결투 오류',e);return false}},
   duelReady:(DQ)=>duelReady(DQ),duelPt:()=>duelPt(),duelActorPt:s=>duelActorPt(s),preloadDuel(list){try{preloadDuel(list)}catch(e){}},charReady:k=>!!charReady(k),resetDuel(){DS.p=null;DS.o=null;parts.length=0},
-  setGrip(g){GRIP=g},canvas:()=>cv,
+  canvas:()=>cv,
   hit(res){try{hit(res)}catch(e){}},
   setPose(p){FIXP=p},setQ(q){FIXQ=q;quality=q},stats:()=>({parts:parts.length,quality,ftAvg})
 };

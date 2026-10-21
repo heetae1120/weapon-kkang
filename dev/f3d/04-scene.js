@@ -63,7 +63,7 @@ function ik(S,Hd,a,b,pole){let d=V.sub(Hd,S);let L=V.len(d);const dir=V.sc(d,1/(
 function lieRot(blank){const sb=blank?0:.62,cb=Math.sqrt(1-sb*sb);return M4.basis([0,cb,-sb],[-1,0,0],[0,sb,cb],[0,0,0])}
 function weaponMatrix(now,t){
   const R=WPN,blank=R.type==='blank',sL=Math.min(1,1.3/R.len),sF=Math.min(1.12,1.28/R.len)*(1+(H.FX.raise>0?.08:0));
-  const Rl=lieRot(blank),bw=(R.bladeW||.04)*sL;
+  const Rl=R.flipLie?M4.mul(M4.ry(PI),lieRot(blank)):lieRot(blank),bw=(R.bladeW||.04)*sL;// 자루가 긴 무기는 자루가 대장장이 반대쪽(모루 뿔 쪽)으로
   const lieY=AT+(blank?.031:bw*.8+.006);const Tl=[-.04,lieY,.02];
   const posL=V.sub(Tl,V.sc(M4.dir(Rl,[0,R.hitY,0]),sL));
   const spin=Math.sin(t*.55)*.55+(H.FX.raise>0?(now-H.FX.raiseT)/1300*TAU:0);
@@ -122,7 +122,7 @@ function drawSmith(now,t,a,pow,fz,Mw,wVis){
   drawPBR(MS.box,SC.hamFace,M4.basis(V.sc(d,.082),V.sc(tg,.025),V.sc(zz,.082),V.madd(head,tg,.085)));
   // 집게 팔
   const S2=pt(Mc,[-.235,.45,0]);let gripW,hand2;
-  if(wVis&&pose.p<.5&&Mw){gripW=M4.pt(Mw,[0,WPN.gripY,0]);const dd=V.sub(S2,gripW);hand2=V.madd(gripW,V.norm(dd),.32)}
+  if(wVis&&pose.p<.5&&Mw){gripW=M4.pt(Mw,[0,WPN.tongY??WPN.gripY,0]);const dd=V.sub(S2,gripW);hand2=V.madd(gripW,V.norm(dd),.32)}
   else{hand2=pt(Mc,[-.3,-.02,.14]);gripW=V.add(hand2,[0,-.28,.06])}
   const B=ik(S2,hand2,.3,.28,V.add(V.norm(V.sub(S2,pt(Mc,[0,.35,0]))),[0,-.7,0]));
   seg(MS.cyl,SC.skin,S2,B.E,.06);ball(SC.skin,S2,.072);seg(MS.cyl,SC.skin,B.E,B.H,.05);ball(SC.skin,B.E,.055);ball(SC.skin,B.H,.05);
@@ -141,7 +141,7 @@ function drawSmithSkinned(now,t,a,pow,fz,Mw,wVis){
   const align=(i,ci,target)=>{const p=M4.pos(W[i]),c=child(i,ci);W[i]=rotAbout(W[i],p,M4.rotFromTo(V.sub(c,p),V.sub(target,p)))};
   // 모델 공간 목표 (월드→캐릭터 로컬)
   const toL=p=>M4.pt(Mi,p),toW=p=>M4.pt(Ms,p);
-  let S=null,head=null,hand=null,gripW=null,hand2=null;
+  let S=null,head=null,hand=null,gripW=null,hand2=null;const handM={};
   const done=new Set();
   for(let i=0;i<n;i++){
     if(done.has(i))continue;calc(i);const nm=B[i].name;
@@ -155,21 +155,23 @@ function drawSmithSkinned(now,t,a,pow,fz,Mw,wVis){
       const Tc=[...Tw],D=V.sub(Tc,S),fs=V.norm([D[0],0,D[2]]),up=[0,1,0];
       const hh=V.dot(D,fs),vv=D[1],hl=.085,RR=Math.sqrt(Math.max(.01,V.dot(D,D)-hl*hl)),phc=Math.atan2(hh,-vv)+Math.atan2(hl,RR),ph=phc+a;
       const d=V.add(V.sc(fs,Math.sin(ph)),V.sc(up,-Math.cos(ph))),tg=V.add(V.sc(fs,Math.cos(ph)),V.sc(up,Math.sin(ph)));
-      head=V.madd(S,d,RR);hand=V.madd(S,d,(la+lb)*.82);
-      const out=V.norm(V.sub(S,toW([0,1.2,0])));const A=ik(S,hand,la,lb,V.add(out,[0,-.7,0]));
-      W[i]=W[i];align(i,fa,toL(A.E));W[fa]=M4.mul(W[i],B[fa].local);align(fa,hd,toL(A.H));done.add(fa);SC._ham={d,tg,head,hand};
+      head=V.madd(S,d,RR);hand=V.madd(S,d,Math.min(RR-.24,(la+lb)*.8));// 손잡이는 어깨→망치머리 선, 주먹은 휘두르는 방향으로
+      const HwL=handFrame(handGrip(K,'L'),hand,d,tg),wr=M4.pos(HwL);
+      const out=V.norm(V.sub(S,toW([0,1.2,0])));const A=ik(S,wr,la,lb,V.add(out,[0,-.7,0]));
+      align(i,fa,toL(A.E));W[fa]=M4.mul(W[i],B[fa].local);align(fa,hd,toL(A.H));done.add(fa);handM.L=M4.mul(Mi,HwL);SC._ham={d,tg,head,hand};
     }
     // 집게 팔 (오른팔)
     if(nm==='RightArm'&&ix.RightForeArm!=null&&ix.RightHand!=null){
       const S2=toW(M4.pos(W[i])),fa=ix.RightForeArm,hd=ix.RightHand,la=V.len(B[fa].local.slice(12,15)),lb=V.len(B[hd].local.slice(12,15));
-      if(wVis&&pose.p<.5&&Mw){gripW=M4.pt(Mw,[0,WPN.gripY,0]);hand2=V.madd(gripW,V.norm(V.sub(S2,gripW)),.3)}
+      if(wVis&&pose.p<.5&&Mw){gripW=M4.pt(Mw,[0,WPN.tongY??WPN.gripY,0]);hand2=V.madd(gripW,V.norm(V.sub(S2,gripW)),.3)}
       else{hand2=toW([-.28,.95,.12]);gripW=V.add(hand2,[0,-.26,.06])}
-      const A=ik(S2,hand2,la,lb,V.add(V.norm(V.sub(S2,toW([0,1.2,0]))),[0,-.7,0]));
-      align(i,fa,toL(A.E));W[fa]=M4.mul(W[i],B[fa].local);align(fa,hd,toL(A.H));done.add(fa);hand2=A.H;
+      const tdir=V.norm(V.sub(gripW,hand2)),HwR=handFrame(handGrip(K,'R'),hand2,tdir,V.norm(V.sub(hand2,S2)));
+      const A=ik(S2,M4.pos(HwR),la,lb,V.add(V.norm(V.sub(S2,toW([0,1.2,0]))),[0,-.7,0]));
+      align(i,fa,toL(A.E));W[fa]=M4.mul(W[i],B[fa].local);align(fa,hd,toL(A.H));done.add(fa);handM.R=M4.mul(Mi,HwR);
     }
   }
   // 왼팔/오른팔 아래 뼈는 위에서 이미 갱신했으니 손 이하만 다시
-  for(let i=0;i<n;i++){const nm=B[i].name;if(nm==='LeftHand'||nm==='RightHand'){W[i]=M4.mul(W[B[i].parent],B[i].local)}}
+  for(let i=0;i<n;i++){const nm=B[i].name;if(nm==='LeftHand'||nm==='RightHand'){W[i]=handM[nm[0]]||M4.mul(W[B[i].parent],B[i].local)}}
   // 그리기
   const u=P_SKIN.u;gl.useProgram(P_SKIN.p);
   const mats=new Float32Array(24*16);for(let i=0;i<n&&i<24;i++)mats.set(M4.chain(Ms,W[i],B[i].inv),i*16);
@@ -179,7 +181,7 @@ function drawSmithSkinned(now,t,a,pow,fz,Mw,wVis){
   gl.useProgram(P_PBR.p);
   // 망치·집게
   const hm=SC._ham;SC._ham=null;
-  if(hm){const{d,tg,head:hd2,hand:hn}=hm;seg(MS.cyl,SC.woodM,V.madd(hn,d,-.08),hd2,.016);const zz=V.norm(V.cross(d,tg));
+  if(hm){const{d,tg,head:hd2,hand:hn}=hm;seg(MS.cyl,SC.woodM,V.madd(hn,d,-.07),hd2,.016);const zz=V.norm(V.cross(d,tg));
     drawPBR(MS.box,SC.hamHead,M4.basis(V.sc(d,.075),V.sc(tg,.17),V.sc(zz,.075),hd2));
     drawPBR(MS.box,SC.hamFace,M4.basis(V.sc(d,.082),V.sc(tg,.025),V.sc(zz,.082),V.madd(hd2,tg,-.085)));drawPBR(MS.box,SC.hamFace,M4.basis(V.sc(d,.082),V.sc(tg,.025),V.sc(zz,.082),V.madd(hd2,tg,.085)))}
   if(hand2&&gripW){const side=V.norm(V.cross(V.sub(gripW,hand2),[0,1,0]));for(const sd of[1,-1])seg(MS.cyl,SC.ironM,V.madd(hand2,side,sd*.012),V.madd(gripW,side,sd*.006),.007)}

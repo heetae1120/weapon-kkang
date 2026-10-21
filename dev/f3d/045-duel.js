@@ -10,7 +10,6 @@ function getWeapon(w){const key=(w.type||'blank')+'|'+(w.el||'')+'|'+w.lv;let R=
   return R}
 const CHAR_IDS=['paladin','smith','guard','orc','erika','ninja','kachujin'];
 function duelCfg(DQ){const pc=CHAR_IDS.includes(DQ.pch)?DQ.pch:'paladin',oc=CHAR_IDS.includes(DQ.och)?DQ.och:'guard';return{p:{ch:pc,an:'paladin',tint:null},o:{ch:oc,an:'paladin',tint:pc===oc?[1.25,.62,.55]:null}}}
-let GRIP=[0,.075,.02, PI/2,0,0];// 손 뼈 기준 위치(x,y,z)와 회전(rx,ry,rz)
 // 칼 맞대기 타임라인(초) — index.html의 CLASH와 같은 값
 const CLASH_T={imp:.3,brk:1.3,cut:1.62,back:2.05,end:2.5};
 const DS={clock:0,last:null,p:null,o:null,mark:'',sub:'',ev:{},ghosts:[],C:null,cpx:null,cam:null};
@@ -44,20 +43,26 @@ function refreshBelow(K,W,L,i){const B=K.bones;for(let j=i+1;j<B.length;j++)if(i
 function rotBone(W,i,R){const p=M4.pos(W[i]);W[i]=M4.chain(M4.tr(p[0],p[1],p[2]),R,M4.tr(-p[0],-p[1],-p[2]),W[i])}
 function aimBone(K,W,L,i,ci,target){const p=M4.pos(W[i]),c=M4.pos(M4.mul(W[i],L[ci]));rotBone(W,i,M4.rotFromTo(V.sub(c,p),V.sub(target,p)))}
 /* 팔을 목표 지점(모델 공간)으로: 어깨-팔꿈치-손목 2관절 IK */
-function armIK(K,W,L,arm,fa,hd,target,pole){
+/* 쥔 손: 손 뼈 기준 '쥔 구멍' 정보 (dev/fist.py가 기록) */
+function handGrip(K,s){const g=K&&K.J&&K.J.grip&&K.J.grip[s];return g||{p:[0,.09,.03],r:.022,th:s==='R'?1:-1}}
+// 쥔 구멍이 hole(월드)에 오고, 엄지 쪽이 dir(무기 날 방향)을 향하고, 손가락 뿌리가 fdir 쪽인 손 뼈 월드 행렬
+function handFrame(g,hole,dir,fdir){const X=V.sc(V.norm(dir),g.th);let Y=V.sub(fdir,V.sc(X,V.dot(fdir,X)));if(V.len(Y)<1e-4)Y=Math.abs(X[1])<.9?[0,1,0]:[1,0,0];Y=V.norm(V.sub(Y,V.sc(X,V.dot(Y,X))));const Z=V.cross(X,Y);
+  return M4.basis(X,Y,Z,V.sub(hole,V.add(V.add(V.sc(X,g.p[0]),V.sc(Y,g.p[1])),V.sc(Z,g.p[2]))))}
+function armIK(K,W,L,arm,fa,hd,target,pole,Hm){
   const S=M4.pos(W[arm]),la=V.len([L[fa][12],L[fa][13],L[fa][14]]),lb=V.len([L[hd][12],L[hd][13],L[hd][14]]);
   const A=ik(S,target,la,lb,pole);
   aimBone(K,W,L,arm,fa,A.E);W[fa]=M4.mul(W[arm],L[fa]);aimBone(K,W,L,fa,hd,A.H);W[hd]=M4.mul(W[fa],L[hd]);
   // 손목은 아래팔과 일직선
   const hy=V.norm(M4.dir(W[hd],[0,1,0])),fy=V.norm(V.sub(A.H,A.E)),p=M4.pos(W[hd]);
-  W[hd]=M4.chain(M4.tr(p[0],p[1],p[2]),M4.rotFromTo(hy,fy),M4.tr(-p[0],-p[1],-p[2]),W[hd]);return A}
+  W[hd]=M4.chain(M4.tr(p[0],p[1],p[2]),M4.rotFromTo(hy,fy),M4.tr(-p[0],-p[1],-p[2]),W[hd]);if(Hm)W[hd]=Hm;return A}
 /* 무기 자세: 손잡이 위치(월드) + 각도(수평 기준, 앞쪽 +) */
 function wDir(sg,ang){return[sg*Math.cos(ang),Math.sin(ang),0]}
 function wMat(R,grip,d,zf){const s=Math.min(1,1.15/R.len);let Z=[0,0,zf||1];const X=V.norm(V.cross(d,Z));Z=V.cross(X,d);
   return M4.chain(M4.basis(X,d,Z,grip),M4.sc(s),M4.tr(0,-R.gripY,0))}
 function contactY(R){return lerp(R.bot,R.top,CONTACT_K[R.type]||.72)}
 function gripFromContact(R,C,d){const s=Math.min(1,1.15/R.len);return V.madd(C,d,-(contactY(R)-R.gripY)*s)}
-function gripMatrix(R){const s=Math.min(1,1.15/R.len);return M4.chain(M4.tr(GRIP[0],GRIP[1],GRIP[2]),M4.rz(GRIP[5]),M4.ry(GRIP[4]),M4.rx(GRIP[3]),M4.sc(s),M4.tr(0,-R.gripY,0))}
+function gripMatrix(R,K){const s=Math.min(1,1.15/R.len),g=handGrip(K,'R');// 손잡이가 쥔 구멍을 지나고 날은 엄지 쪽으로
+  return M4.chain(M4.basis([0,1,0],[g.th,0,0],[0,0,-g.th],g.p),M4.sc(s),M4.tr(0,-R.gripY,0))}
 const ease={io:x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2,in:x=>x*x*x,out:x=>1-Math.pow(1-x,3),back:x=>{const c=1.7;return 1+(c+1)*Math.pow(x-1,3)+c*Math.pow(x-1,2)}};
 /* 연출: 게임 결투 상태를 읽어 동작과 무기 자세를 고름 */
 function choreo(DQ,now,PW,OW){
@@ -210,13 +215,13 @@ function duelFrame(now,dt){
       Mw=wMat(R,a.wp.g,a.wp.d,1);
       const fwd=[a.sg,0,0],toL=p=>M4.pt(Ri,p);
       const pole=(arm)=>{const s=M4.pt(Root,M4.pos(W[ix[arm]])),c=M4.pt(Root,M4.pos(W[ix.Spine2]));return toL(V.add(s,V.add(V.sc(V.norm(V.sub(s,c)),1),[0,-1.1,0])))};
-      const palm=(g,sh)=>{const u=V.norm(V.sub(g,sh));return V.madd(g,u,-.075)};
-      if(ix.RightArm!=null){const shW=M4.pt(Root,M4.pos(W[ix.RightArm]));const tg=palm(a.wp.g,shW);armIK(K,W,L,ix.RightArm,ix.RightForeArm,ix.RightHand,toL(tg),pole('RightArm'))}
+      const hold=(arm,fa,hd,s,g)=>{const shW=M4.pt(Root,M4.pos(W[ix[arm]])),Hw=handFrame(handGrip(K,s),g,a.wp.d,V.norm(V.sub(g,shW)));armIK(K,W,L,ix[arm],ix[fa],ix[hd],toL(M4.pos(Hw)),pole(arm),M4.mul(Ri,Hw))};
+      if(ix.RightArm!=null)hold('RightArm','RightForeArm','RightHand','R',a.wp.g);
       const off=OFFH[R.type]||0;
-      if(off&&ix.LeftArm!=null){const s=Math.min(1,1.15/R.len),g2=V.madd(a.wp.g,a.wp.d,-off*s),shW=M4.pt(Root,M4.pos(W[ix.LeftArm]));armIK(K,W,L,ix.LeftArm,ix.LeftForeArm,ix.LeftHand,toL(palm(g2,shW)),pole('LeftArm'))}}
+      if(off&&ix.LeftArm!=null){const s=Math.min(1,1.15/R.len);hold('LeftArm','LeftForeArm','LeftHand','L',V.madd(a.wp.g,a.wp.d,-off*s))}}
     drawSkin(K,Root,W,cfg.tint);
     const hi=ix.RightHand;const broken=DQ.phase==='result'&&DQ.res&&!DQ.res.win&&side==='p'&&DQ.res.broken;
-    if(!Mw&&hi!=null)Mw=M4.chain(Root,W[hi],gripMatrix(R));
+    if(!Mw&&hi!=null)Mw=M4.chain(Root,W[hi],gripMatrix(R,K));
     if(Mw&&!broken){wmats.push([R,Mw,E,a,wd]);for(const b of R.batches)drawPBR(b.m,b.mat,Mw)}
     // 잔상용 스냅샷
     const B=K.bones,mats=new Float32Array(24*16);for(let i=0;i<B.length&&i<24;i++)mats.set(M4.chain(Root,W[i],B[i].inv),i*16);
