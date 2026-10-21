@@ -5,7 +5,7 @@ const OFFH={sword:0,dagger:0,spear:.3,axe:.26,saber:0,shinai:.12,scythe:.32,blan
 const KAMAE={sword:[.34,1.02,.72],dagger:[.36,1.08,.45],spear:[.3,1.0,.32],axe:[.3,1.0,.95],saber:[.34,1.02,.72],shinai:[.34,1.02,.62],scythe:[.28,1.0,1.05],blank:[.34,1.0,.6]};// 앞으로 거리, 손 높이, 각도
 const CONTACT_K={sword:.72,dagger:.8,spear:.86,axe:.82,saber:.72,shinai:.74,scythe:.86,blank:.7};// 칼끼리 닿는 지점(손잡이 끝→끝 비율)
 function getWeapon(w){const key=(w.type||'blank')+'|'+(w.el||'')+'|'+w.lv;let R=WCACHE.get(key);
-  if(!R){R=buildWeapon(w);R.key=key;R.gripY=GRIPY[R.type];WCACHE.set(key,R);
+  if(!R){R=buildWeapon(w);R.key=key;R.gripY=R.gripY??GRIPY[R.type];WCACHE.set(key,R);
     if(WCACHE.size>6){const k=WCACHE.keys().next().value;freeWeapon(WCACHE.get(k));WCACHE.delete(k)}}
   return R}
 const CHAR_IDS=['paladin','smith','guard','orc','erika','ninja','kachujin'];
@@ -73,7 +73,7 @@ function wMat(R,grip,d,zf){const s=wS(R);let Z=[0,0,zf||1];const X=V.norm(V.cros
   return M4.chain(M4.basis(X,d,Z,grip),M4.sc(s),M4.tr(0,-R.gripY,0))}
 function contactY(R){return lerp(R.bot,R.top,CONTACT_K[R.type]||.72)}
 function gripFromContact(R,C,d){const s=wS(R);return V.madd(C,d,-(contactY(R)-R.gripY)*s)}
-function gripMatrix(R,K){const s=wS(R),g=handGrip(K,'R');// 손잡이가 쥔 구멍을 지나고 날은 엄지 쪽으로
+function gripMatrix(R,K,side){const s=wS(R),g=handGrip(K,side||'R');// 손잡이가 쥔 구멍을 지나고 날은 엄지 쪽으로
   return M4.chain(M4.basis([0,1,0],[g.th,0,0],[0,0,-g.th],g.p),M4.sc(s),M4.tr(0,-R.gripY,0))}
 const WSCALE=1.5;function wS(R){return Math.min(1,1.15/R.len)*WSCALE}
 const ease={io:x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2,in:x=>x*x*x,out:x=>1-Math.pow(1-x,3),back:x=>{const c=1.7;return 1+(c+1)*Math.pow(x-1,3)+c*Math.pow(x-1,2)}};
@@ -219,7 +219,7 @@ function duelFrame(now,dt){
     const toL=p=>M4.pt(Ri,p);
     const pole=(arm)=>{const s=M4.pt(Root,M4.pos(W[ix[arm]])),c=M4.pt(Root,M4.pos(W[ix.Spine2]));return toL(V.add(s,V.add(V.sc(V.norm(V.sub(s,c)),1),[0,-1.1,0])))};
     const hold=(arm,fa,hd,s,g,d)=>{const shW=M4.pt(Root,M4.pos(W[ix[arm]])),Hw=handFrame(handGrip(K,s),g,d,V.norm(V.sub(g,shW)));armIK(K,W,L,ix[arm],ix[fa],ix[hd],toL(M4.pos(Hw)),pole(arm),M4.mul(Ri,Hw))};
-    const off=OFFH[R.type]||0;
+    const off=R.offH??OFFH[R.type]??0;
     if(a.wp){// 칼 맞대기: 두 손을 정해진 손잡이 위치로 (IK)
       Mw=wMat(R,a.wp.g,a.wp.d,1);
       if(ix.RightArm!=null)hold('RightArm','RightForeArm','RightHand','R',a.wp.g,a.wp.d);
@@ -227,9 +227,10 @@ function duelFrame(now,dt){
     else if(ix.RightHand!=null){// 평소: 모션이 움직이는 오른손에 무기, 양손 무기는 왼손이 자루를 잡음
       Mw=M4.chain(Root,W[ix.RightHand],gripMatrix(R,K));
       if(off&&ix.LeftArm!=null){const d=V.norm(M4.dir(Mw,[0,1,0])),g=M4.pt(Mw,[0,R.gripY-off,0]);hold('LeftArm','LeftForeArm','LeftHand','L',g,d)}}
+    let Mw2=null;if(R.dual&&ix.LeftHand!=null)Mw2=M4.chain(Root,W[ix.LeftHand],gripMatrix(R,K,'L'));
     drawSkin(K,Root,W,cfg.tint);
     const broken=DQ.phase==='result'&&DQ.res&&!DQ.res.win&&side==='p'&&DQ.res.broken;
-    if(Mw&&!broken){wmats.push([R,Mw,E,a,wd,AU]);for(const b of R.batches)drawPBR(b.m,b.mat,Mw)}
+    if(Mw&&!broken){wmats.push([R,Mw,E,a,wd,AU]);for(const b of R.batches)drawPBR(b.m,b.mat,Mw);if(Mw2)for(const b of R.batches)drawPBR(b.m,b.mat,Mw2)}
     // 잔상용 스냅샷
     const B=K.bones,mats=new Float32Array(24*16);for(let i=0;i<B.length&&i<24;i++)mats.set(M4.chain(Root,W[i],B[i].inv),i*16);
     a._last={K,mats,Mw,R,E:auraCol(E,wd,t)};

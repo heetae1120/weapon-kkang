@@ -120,6 +120,7 @@ function buildWeapon(w){
     wb.add('ingot',extrude(o,{depth:.12,bevel:.016}),M4.rz(PI/2));
     R.mats={ingot:mat({col:lin('#3a302c'),met:.5,rou:.6,emi:lin('#ff6a1a')})};Object.assign(R,{top:.2,bot:-.2,hitY:0,wingY:0,ringY:0,aura:null});
   }
+  else if(ARCH_B[type+'_'+el]&&(type==='sword'||type==='dagger'||type==='spear'||type==='axe')){const P=palette(el,lv);ARCH_B[type+'_'+el](wb,R,lv,P);R.mats=P;R.arch=type+'_'+el}
   else if(type==='sword'||type==='dagger'){
     const F=H.formOf(type,el,lv),P=palette(el,lv),b=swordBlade(type,el,lv,F);
     wb.add('blade',b.g,M4.tr(0,.022,0));
@@ -207,8 +208,9 @@ function buildWeapon(w){
     wb.add('trim',lathe([[0,-SL-.09],[.016,-SL-.02],[.02,-SL+.01],[0,-SL+.01]],12));
     R.mats=P;Object.assign(R,{top:.08,bot:-SL-.09,hitY:-.02,wingY:-.05,ringY:-.25,aura:{y0:-.05,y1:.1,w:R0,axe:1},bladeW:.03,scyEl:'dark'});
   }
+  let xr=0;for(const g of Object.values(wb.B))for(let i=0;i<g.p.length;i+=3)xr=Math.max(xr,Math.abs(g.p[i]),Math.abs(g.p[i+2]));R.xr=xr;
   R.batches=Object.entries(wb.B).map(([k,g])=>({m:mesh(g),mat:R.mats[k]||mat({})}));
-  if(!R.hidden&&type!=='blank'&&lv>=10){R.wings={m:mesh(wingGeo(el,lv)),mat:wingMat(el,lv)}}
+  if(!R.hidden&&type!=='blank'&&lv>=10&&!R.arch){R.wings={m:mesh(wingGeo(el,lv)),mat:wingMat(el,lv)}}
   if(type==='scythe'&&lv>=16){R.wings={m:mesh(wingGeo('dark',lv)),mat:wingMat('dark',lv)}}
   R.len=R.top-R.bot;R.mid=(R.top+R.bot)/2;
   return R}

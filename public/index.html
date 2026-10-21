@@ -553,6 +553,8 @@ const HID_TYPES=['saber','shinai','scythe'];
 const CHARS=[{id:'paladin',name:'팔라딘',d:'묵직한 중갑 기사'},{id:'guard',name:'성 경비병',d:'붉은 망토의 경비대장'},{id:'orc',name:'오크 전사',d:'거구의 야만 전사'},{id:'erika',name:'에리카',d:'날렵한 레인저'},{id:'ninja',name:'닌자',d:'그림자 속 암살자'},{id:'kachujin',name:'카추진',d:'동방의 여검사'},{id:'smith',name:'대장장이',d:'모루를 떠난 장인'}];
 const CHAR_IDS=CHARS.map(c=>c.id);
 const tname=t=>t?(ALLT.find(x=>x.id===t)||{name:'?'}).name:'미정';
+const ARCH_N={sword:{fire:'카타나',ice:'레이피어',thunder:'쌍검',dark:'대검',holy:'성검'},dagger:{fire:'쿠나이',ice:'스틸레토',thunder:'쌍단검',dark:'크리스',holy:'성단검'},spear:{fire:'언월도',ice:'삼지창',thunder:'방천화극',dark:'랜스',holy:'성창'},axe:{fire:'쌍날도끼',ice:'수염도끼',thunder:'전투망치',dark:'처형도끼',holy:'성부'}};
+const aname=w=>w&&w.type&&ARCH_N[w.type]&&ARCH_N[w.type][w.el]||tname(w&&w.type);
 const ELS={
   fire:{name:'화염',ch:'炎',c:'#ff6a2b',l:'#ffd36b',d:'#7a1a08'},
   ice:{name:'빙결',ch:'氷',c:'#5fd4ff',l:'#e6fbff',d:'#1b4f7a'},
@@ -614,7 +616,7 @@ function wname(w){
   if(w.type==='saber')return SABER_N[w.lv]+' 광선검';
   if(w.type==='shinai')return SHINAI_N[w.lv];
   if(w.type==='scythe')return SCYTHE_N[w.lv];
-  return TITLES[w.el][Math.max(1,w.lv)-1]+' '+tname(w.type);
+  return TITLES[w.el][Math.max(1,w.lv)-1]+' '+aname(w);
 }
 const elLabel=w=>!w.type?'종류·속성 미정':isHidden(w)?'히든':`${ELS[w.el].ch} ${ELS[w.el].name}`;
 const cost=lv=>Math.round(120*Math.pow(1.28,lv)/10)*10;
@@ -1224,7 +1226,13 @@ function drawWeapon(c,w,o){
   c.restore();WA=1;
 }
 function fitCanvas(cv){const r=cv.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1),w=Math.max(1,Math.round(r.width*d)),h=Math.max(1,Math.round(r.height*d));if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}return{w:r.width,h:r.height,d}}
-function drawStatic(cv,w,o={}){const{w:cw,h:ch,d}=fitCanvas(cv);if(cw<2)return;const c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);c.clearRect(0,0,cw,ch);const rot=o.rot||0;const size=.84*Math.min(ch*.9/Math.max(.3,Math.abs(Math.cos(rot))),cw*.85/Math.max(.25,Math.abs(Math.sin(rot))));drawWeapon(c,w,{x:cw/2,y:ch/2,size,rot,time:o.time??1.6,flip:o.flip})}
+/* 아이콘: 3D가 되면 실제 3D 무기 썸네일을 몇 개씩 나눠 그림 (없으면 2D 그림) */
+const TQ=[];
+function drawStatic(cv,w,o={}){if(F3&&F3.active&&F3.thumb&&!o.d2){cv._tw={w:{type:w.type,el:w.el,lv:w.lv},o};const{w:cw,h:ch,d}=fitCanvas(cv);cv.getContext('2d').clearRect(0,0,cv.width,cv.height);if(!cv._tq){cv._tq=1;TQ.push(cv)}return}return drawStatic2(cv,w,o)}
+function pumpThumbs(){if(!TQ.length||!F3||!F3.active)return;const t0=performance.now();
+  while(TQ.length&&performance.now()-t0<12){const cv=TQ.shift();cv._tq=0;if(!cv.isConnected||!cv._tw)continue;const{w,o}=cv._tw,r=cv.getBoundingClientRect(),d=Math.min(2,window.devicePixelRatio||1),W=Math.round(r.width*d),Hh=Math.round(r.height*d);if(W<4||Hh<4)continue;
+    const im=F3.thumb(w,W,Hh,o.rot||0);if(!im){drawStatic2(cv,w,o);continue}if(cv.width!==W||cv.height!==Hh){cv.width=W;cv.height=Hh}const c=cv.getContext('2d');c.setTransform(1,0,0,1,0,0);c.clearRect(0,0,W,Hh);c.drawImage(im,0,0)}}
+function drawStatic2(cv,w,o={}){const{w:cw,h:ch,d}=fitCanvas(cv);if(cw<2)return;const c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);c.clearRect(0,0,cw,ch);const rot=o.rot||0;const size=.84*Math.min(ch*.9/Math.max(.3,Math.abs(Math.cos(rot))),cw*.85/Math.max(.25,Math.abs(Math.sin(rot))));drawWeapon(c,w,{x:cw/2,y:ch/2,size,rot,time:o.time??1.6,flip:o.flip})}
 
 /* ---------- 파티클 & 글자 ---------- */
 function spawnSparks(arr,x,y,n,cols,sp=1){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,v=rnd(120,520)*sp;arr.push({kind:'spark',x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-rnd(0,120)*sp,life:1,decay:rnd(1.1,2.2),col:pick(cols),size:rnd(1,2.8),g:520})}}
@@ -1286,8 +1294,8 @@ function resolveStrike(px,py){
   if(res==='succ'||res==='great'){
     W.lv=Math.min(20,W.lv+(res==='great'?2:1));
     if(wasBlank){awaken(W);const E=pal(W);sfx.awake();FX.flash=.7;spawnSparks(FX.parts,cx,cy,70,[E.c,E.l,'#ffffff'],1.5);FX.parts.push({kind:'ring',x:cx,y:cy,r:10,vr:900,life:1,decay:1.6,col:E.l,lw:7});
-      popText(FX.texts,`${tname(W.type)} 각성!!`,fcv.clientWidth/2,ty-20,{size:54,band:E.c===ELS.holy.c?'#a8761c':E.c,dur:1500});popText(FX.texts,`${ELS[W.el].ch} ${ELS[W.el].name} 속성`,fcv.clientWidth/2,ty+36,{size:28,band:'#2a2335',dur:1500});
-      addLog(`쇳덩이 → ${tname(W.type)} · ${ELS[W.el].name}`,'awake','각성');res='awaken'}
+      popText(FX.texts,`${aname(W)} 각성!!`,fcv.clientWidth/2,ty-20,{size:54,band:E.c===ELS.holy.c?'#a8761c':E.c,dur:1500});popText(FX.texts,`${ELS[W.el].ch} ${ELS[W.el].name} 속성`,fcv.clientWidth/2,ty+36,{size:28,band:'#2a2335',dur:1500});
+      addLog(`쇳덩이 → ${aname(W)} · ${ELS[W.el].name}`,'awake','각성');res='awaken'}
     else{const E=pal(W,now/1000);
       if(res==='succ'){sfx.clang();spawnSparks(FX.parts,cx,cy,30,['#ffd36b','#ffffff',E.l,'#ff9a3c'],1.1);popText(FX.texts,`+${W.lv} 성공`,cx,ty,{size:40,band:'#2a8a5a'})}
       else{sfx.great();FX.flash=.45;spawnSparks(FX.parts,cx,cy,60,['#ffd36b','#ffffff',E.c,E.l],1.5);FX.parts.push({kind:'ring',x:cx,y:cy,r:10,vr:700,life:1,decay:2,col:E.l,lw:5});popText(FX.texts,'대성공!!',fcv.clientWidth/2,ty,{size:54,band:'#d1601c',dur:1200})}
@@ -1543,7 +1551,7 @@ function renderForge(){
   const W=curW(),now=performance.now(),fz=now<frenzyUntil;
   $('#fLv').textContent='+'+W.lv;
   $('#fName').innerHTML=(isHidden(W)?'<span class="hidtag">HIDDEN</span>':'')+wname(W);
-  $('#fMeta').textContent=!W.type?'다음 성공 시 종류·속성 무작위 각성':`${elLabel(W)} · ${tname(W.type)} · ${W.lv>=20?'최대 강화':'다음 목표 +'+(W.lv+1)}${isHidden(W)?' · 파괴되면 사라짐':''}`;
+  $('#fMeta').textContent=!W.type?'다음 성공 시 종류·속성 무작위 각성':`${elLabel(W)} · ${tname(W.type)}(${aname(W)}) · ${W.lv>=20?'최대 강화':'다음 목표 +'+(W.lv+1)}${isHidden(W)?' · 파괴되면 사라짐':''}`;
   $('#fCost').textContent=fmt(cost(W.lv));
   const o=odds(W.lv),host=$('#odds');
   if(!o){host.innerHTML='<div class="maxed">+20 최대 강화 달성. 결투장에서 상금을 쓸어 오세요.</div>'}
@@ -1559,7 +1567,7 @@ function renderArmory(force){const host=$('#armRow');if(!host)return;
   $('#armInfo').textContent=`${S.inv.length}개 · 눌러서 바로 강화`;
   if(!force&&sig===armSig)return;armSig=sig;host.innerHTML='';
   list.forEach(w=>{const b=document.createElement('button');b.type='button';b.className='arm'+(w.id===S.cur?' on':'')+(isHidden(w)?' h':'');b.title=`+${w.lv} ${wname(w)}`;
-    b.innerHTML=`<canvas></canvas><b>+${w.lv}</b><span>${w.type?tname(w.type):'쇳덩이'}</span>`;
+    b.innerHTML=`<canvas></canvas><b>+${w.lv}</b><span>${w.type?aname(w):'쇳덩이'}</span>`;
     b.onclick=()=>{if(w.id===S.cur)return;equip(w.id)};host.appendChild(b);drawStatic(b.querySelector('canvas'),w,{rot:.5,time:1.5})});
   const on=host.querySelector('.on');if(on)try{on.scrollIntoView({block:'nearest',inline:'nearest'})}catch(e){}}
 function chips(host,items,cur,onPick,kind){
@@ -2103,7 +2111,7 @@ function bind(){
 let last=performance.now();
 function loop(now){
   const dt=Math.min(.05,Math.max(0,(now-last)/1000));last=now;
-  try{if(B)drawBoxOv(now,dt);else if(D)duelTick(now,dt);else if(tab==='forge')drawForge(now,dt);else if(tab==='shop')drawShopAnim(now)}catch(e){console.error(e)}
+  pumpThumbs();try{if(B)drawBoxOv(now,dt);else if(D)duelTick(now,dt);else if(tab==='forge')drawForge(now,dt);else if(tab==='shop')drawShopAnim(now)}catch(e){console.error(e)}
   requestAnimationFrame(loop);
 }
 if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname))window.__dbg={curW:()=>curW(),FX,renderForge:()=>renderForge(),F3:()=>F3,S,startDuel:i=>startDuel(i),startQTE:()=>startQTE(),endRound:w=>endRound(w),get D(){return D}};if(window.__dbg)window.__D=()=>D;

@@ -44,7 +44,7 @@ function frame(now,dt,st){
   const FX=H.FX,W=H.curW(),t=now/1000,sdt=st.stopped?0:dt;
   // 무기 갱신
   const key=(W.type||'blank')+'|'+(W.el||'')+'|'+W.lv;
-  if(key!==WKEY){freeWeapon(WPN);WPN=buildWeapon(W);WPN.gripY={sword:-.1,dagger:-.06,spear:-.64,axe:-.7,saber:-.13,shinai:-.14,scythe:-.75,blank:-.12}[WPN.type];WPN.flipLie=/^(spear|axe|scythe)$/.test(WPN.type);WPN.tongY=WPN.flipLie?WPN.top*.85:WPN.gripY;WKEY=key}
+  if(key!==WKEY){freeWeapon(WPN);WPN=buildWeapon(W);WPN.gripY=WPN.gripY??{sword:-.1,dagger:-.06,spear:-.64,axe:-.7,saber:-.13,shinai:-.14,scythe:-.75,blank:-.12}[WPN.type];WPN.flipLie=/^(spear|axe|scythe)$/.test(WPN.type)||WPN.arch==='sword_dark'||WPN.arch==='spear_dark';WPN.tongY=WPN.flipLie?WPN.top*.85:WPN.gripY;WKEY=key}
   // 포즈
   const blank=WPN.type==='blank',idle=FX.sw.ph==='idle'&&now-lastHitT>950;
   if(FX.raise>0&&now-FX.raiseT>1300)FX.raise=0;
@@ -83,6 +83,7 @@ function frame(now,dt,st){
   if(wVis&&Mw){
     if(blank){WPN.mats.ingot.emi=V.sc([3,.9,.15],.55+.25*Math.sin(t*3)+heat*.6)}
     for(const b of WPN.batches)drawPBR(b.m,b.mat,Mw);
+    if(WPN.dual){const k=smooth(0,1,pose.p),M2=M4.chain(Mw,M4.tr(lerp(.07,0,k),0,lerp(0,-.04,k)),M4.rz(lerp(0,.8,k)));for(const b of WPN.batches)drawPBR(b.m,b.mat,M2)}
     if(WPN.wings&&pose.p>.04){const k=smooth(0,1,pose.p),fl2=1+Math.sin(t*2.2)*.05;drawPBR(WPN.wings.m,WPN.wings.mat,M4.chain(Mw,M4.tr(0,WPN.wingY,0),M4.sc(k*fl2,k,k)))}
   }
   // ---- 가산 / 데칼 ----
@@ -124,6 +125,39 @@ function frame(now,dt,st){
   gl.uniform1f(cu.uBloom,.16);gl.uniform1f(cu.uInv,0);gl.uniform1f(cu.uExp,1.05);gl.uniform1f(cu.uCA,Math.min(.012,(FX.shake||0)*.0006));gl.uniform1f(cu.uFz,st.fz?.6+.4*Math.sin(t*14):0);gl.uniform1f(cu.uTime,t%10);gl.uniform1f(cu.uVig,.75);
   gl.drawArrays(gl.TRIANGLES,0,3);gl.activeTexture(gl.TEXTURE0);
 }
+/* ---------------- 아이콘용 무기 썸네일 (보관함·도감·랭킹 등) ---------------- */
+let TB=null;const TCACHE=new Map();
+function thumbRT(w,h){if(TB&&TB.w===w&&TB.h===h)return TB;if(TB){gl.deleteFramebuffer(TB.f);gl.deleteRenderbuffer(TB.c);gl.deleteRenderbuffer(TB.d)}
+  const f=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,f);const c=gl.createRenderbuffer();gl.bindRenderbuffer(gl.RENDERBUFFER,c);gl.renderbufferStorage(gl.RENDERBUFFER,gl.RGBA32F,w,h);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.RENDERBUFFER,c);
+  const d=gl.createRenderbuffer();gl.bindRenderbuffer(gl.RENDERBUFFER,d);gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT24,w,h);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,d);
+  TB={f,c,d,w,h,buf:new Float32Array(w*h*4)};return TB}
+function thumb(wd,W,Hh,rot){W=Math.max(8,Math.min(512,W|0));Hh=Math.max(8,Math.min(512,Hh|0));rot=rot||0;
+  const key=(wd.type||'blank')+'|'+(wd.el||'')+'|'+(wd.lv|0)+'|'+W+'x'+Hh+'|'+rot.toFixed(2);if(TCACHE.has(key))return TCACHE.get(key);
+  const SS=2,w=W*SS,h=Hh*SS,R=buildWeapon(wd),keep={...cam};
+  try{const T=thumbRT(w,h);gl.bindFramebuffer(gl.FRAMEBUFFER,T.f);gl.viewport(0,0,w,h);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);gl.depthMask(true);gl.disable(gl.BLEND);gl.disable(gl.CULL_FACE);
+    const len=R.top-R.bot,mid=(R.top+R.bot)/2,wide=R.wings?.42:Math.max(R.dual?.2:.05,(R.xr||.05)*.9),c=Math.abs(Math.cos(rot)),s=Math.abs(Math.sin(rot));
+    const hh=(len/2)*c+wide*s+.03,hw=(len/2)*s+wide*c+.03,asp=w/h,fov=18*PI/180,tn=Math.tan(fov/2),dist=Math.max(hh/tn,hw/(tn*asp))*.97;
+    const eye=[0,0,dist];cam.V=M4.look(eye,[0,0,0],[0,1,0]);cam.P=M4.persp(fov,asp,dist*.2,dist*3);cam.VP=M4.mul(cam.P,cam.V);cam.eye=eye;
+    const M=M4.chain(M4.rz(-rot),M4.ry(-.42),M4.rx(.12),M4.tr(0,-mid,0));
+    const lights=[[[1.6,2.2,3],[3.2,3,2.8],.02],[[-2.4,.8,2],[.9,1.1,1.6],.02],[[0,1.5,-2.5],[1.6,1.5,1.4],.02],[[0,-2,1.5],[.5,.45,.4],.02]];
+    setProgCommon(P_PBR,eye,lights,999,[1.1,1,.95],performance.now()/1000);
+    for(const b of R.batches)drawPBR(b.m,b.mat,M);
+    if(R.dual){const M2=M4.chain(M,M4.tr(0,0,-.04),M4.rz(.8));for(const b of R.batches)drawPBR(b.m,b.mat,M2)}
+    if(R.wings)drawPBR(R.wings.m,R.wings.mat,M4.chain(M,M4.tr(0,R.wingY,0)));
+    gl.readPixels(0,0,w,h,gl.RGBA,gl.FLOAT,T.buf);gl.bindFramebuffer(gl.FRAMEBUFFER,null)}
+  finally{freeWeapon(R);Object.assign(cam,keep)}
+  // 톤매핑(ACES) + 감마 + 2배 축소, 밝은 부분은 살짝 번지게
+  const B=TB.buf,big=document.createElement('canvas');big.width=w;big.height=h;const bx=big.getContext('2d'),img=bx.createImageData(w,h),D=img.data;
+  const ac=x=>{x*=1.1;const v=(x*(2.51*x+.03))/(x*(2.43*x+.59)+.14);return Math.pow(Math.min(1,Math.max(0,v)),1/2.2)*255};
+  for(let y=0;y<h;y++){const sy=(h-1-y)*w*4,dy=y*w*4;for(let x=0;x<w;x++){const i=sy+x*4,o=dy+x*4,a=B[i+3];if(a<=0){D[o+3]=0;continue}const k=1/Math.max(a,1e-3);D[o]=ac(B[i]*k);D[o+1]=ac(B[i+1]*k);D[o+2]=ac(B[i+2]*k);D[o+3]=Math.min(255,a*255)}}
+  bx.putImageData(img,0,0);const out=document.createElement('canvas');out.width=W;out.height=Hh;const ox=out.getContext('2d');ox.imageSmoothingQuality='high';
+  // 발광 부분만 골라 번지게 (블룸 흉내)
+  const gl2=document.createElement('canvas');gl2.width=w;gl2.height=h;const gx=gl2.getContext('2d'),gi=gx.createImageData(w,h),GD=gi.data;let any=0;
+  for(let y=0;y<h;y++){const sy=(h-1-y)*w*4,dy=y*w*4;for(let x=0;x<w;x++){const i=sy+x*4,o=dy+x*4,a=B[i+3];if(a<=0)continue;const k=1/Math.max(a,1e-3),r=B[i]*k,g=B[i+1]*k,bb=B[i+2]*k,m=Math.max(r,g,bb);if(m>1.6){const f=Math.min(1,(m-1.6)/2);GD[o]=ac(r);GD[o+1]=ac(g);GD[o+2]=ac(bb);GD[o+3]=255*f;any=1}}}
+  if(any){gx.putImageData(gi,0,0);ox.filter='blur('+Math.max(2,W/40)+'px)';ox.globalCompositeOperation='lighter';ox.drawImage(gl2,0,0,W,Hh);ox.filter='none';ox.globalCompositeOperation='source-over'}
+  ox.drawImage(big,0,0,W,Hh);if(any){ox.globalCompositeOperation='lighter';ox.globalAlpha=.6;ox.filter='blur(1px)';ox.drawImage(gl2,0,0,W,Hh);ox.filter='none';ox.globalAlpha=1;ox.globalCompositeOperation='source-over'}
+  if(TCACHE.size>400)TCACHE.delete(TCACHE.keys().next().value);TCACHE.set(key,out);return out}
 window.Forge3D={
   init(canvas,hooks){H=hooks;try{if(!initGL(canvas))return false;buildScene();ACTIVE=true;return true}catch(e){console.error('3D 초기화 실패',e);ACTIVE=false;return false}},
   get active(){return ACTIVE&&!lost},L:L3,
@@ -132,6 +166,7 @@ window.Forge3D={
   duelReady:(DQ)=>duelReady(DQ),dbg(o){DS.dbg=o},duelPt:()=>duelPt(),duelActorPt:s=>duelActorPt(s),preloadDuel(list){try{preloadDuel(list)}catch(e){}},charReady:k=>!!charReady(k),resetDuel(){DS.p=null;DS.o=null;parts.length=0},
   canvas:()=>cv,
   hit(res){try{hit(res)}catch(e){}},
+  thumb(w,W,H,rot){try{return thumb(w,W,H,rot)}catch(e){console.error('썸네일 오류',e);return null}},archName:(t,e)=>(ARCH_NAME[t]||{})[e]||null,
   setPose(p){FIXP=p},setQ(q){FIXQ=q;quality=q},stats:()=>({parts:parts.length,quality,ftAvg})
 };
 })();
