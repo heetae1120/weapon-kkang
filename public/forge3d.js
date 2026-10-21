@@ -299,16 +299,20 @@ function loadPhoto(){const b=(H&&H.assetBase)||'assets/';for(const k of['wall','
   for(const k of['wall','floor','steel','leather','bark','planks'])PT[k+'_n']=loadImgTex(b+k+'_n.jpg',{def:[128,128,255,255]});
   for(const k of['wall','floor','steel','rust'])PT[k+'_r']=loadImgTex(b+k+'_r.jpg',{def:[128,128,128,255]});
   loadHDR(b+'env_hdr.wasm')}
-function loadSmith(){const b=(H&&H.assetBase)||'assets/';if(!P_SKIN)return;
-  Promise.all([fetch(b+'smith.json').then(r=>{if(!r.ok)throw 0;return r.json()}),fetch(b+'smith_bin.wasm').then(r=>r.arrayBuffer())]).then(([J,buf])=>{if(lost)return;
+const CH={},ANIM={};
+function loadChar(name,file){const b=(H&&H.assetBase)||'assets/';if(!P_SKIN||CH[name])return;CH[name]='loading';
+  Promise.all([fetch(b+file+'.json').then(r=>{if(!r.ok)throw 0;return r.json()}),fetch(b+file+'_bin.wasm').then(r=>{if(!r.ok)throw 0;return r.arrayBuffer()})]).then(([J,buf])=>{if(lost)return;
     const n=J.n,vao=gl.createVertexArray();gl.bindVertexArray(vao);let off=0;const bs=[];
     const at=(loc,sz,type,bytes)=>{const bb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,bb);gl.bufferData(gl.ARRAY_BUFFER,new Uint8Array(buf,off,n*bytes),gl.STATIC_DRAW);gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,sz,type,false,0,0);off+=n*bytes;bs.push(bb)};
     at(0,3,gl.FLOAT,12);at(1,3,gl.FLOAT,12);at(2,2,gl.FLOAT,8);at(3,4,gl.UNSIGNED_BYTE,4);at(4,4,gl.FLOAT,16);
-    let ib=null,ni=0;if(J.ni){ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array(buf,off,J.ni),gl.STATIC_DRAW);ni=J.ni}
+    let ib=null;if(J.ni){ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array(buf,off,J.ni),gl.STATIC_DRAW)}
     gl.bindVertexArray(null);
     const bones=J.bones.map(x=>({name:x.name,parent:x.parent,local:new Float32Array(x.local),inv:new Float32Array(x.invBind)}));const idx={};bones.forEach((x,i)=>idx[x.name]=i);
     const meshes=J.meshes.map(m=>({start:m.start,count:m.count,mat:mat({col:m.col.map(v=>Math.pow(v,2.2)),alb:m.tex?loadImgTex(b+m.tex,{srgb:1}):null,nor:m.nor?loadImgTex(b+m.nor,{def:[128,128,255,255]}):null,rgh:m.rgh?loadImgTex(b+m.rgh,{def:[128,128,128,255]}):null,norS:1,rou:m.rou??.6,met:m.met??0})}));
-    SMITH={vao,ib,bones,idx,meshes,J}}).catch(()=>{})}
+    CH[name]={vao,ib,bones,idx,meshes,J,sc:J.sc||1,loy:J.loy||0};if(name==='smith')SMITH=CH[name]}).catch(()=>{delete CH[name]})}
+function loadAnims(name,file){const b=(H&&H.assetBase)||'assets/';if(ANIM[name])return;ANIM[name]='loading';
+  fetch(b+file+'.json').then(r=>{if(!r.ok)throw 0;return r.json()}).then(J=>{const clips={};for(const[k,c]of Object.entries(J.clips)){const q={};for(const[bn,arr]of Object.entries(c.q))q[bn]=new Float32Array(arr);clips[k]={n:c.n,fps:c.fps||30,dur:(c.n-1)/(c.fps||30),q,hips:new Float32Array(c.hips||[])}}ANIM[name]=clips}).catch(()=>{delete ANIM[name]})}
+function loadSmith(){loadChar('smith','smith')}
 function makeTextures(){
   const r=rng(7);
   // 벽돌
@@ -799,17 +803,148 @@ function hit(res){
     emit({p:[FLX,1.65,.06],life:.6,s0:.2,s1:2.4,c0:V.sc(c,2.5),sh:2,a0:1,a1:0})}
   lastHitT=performance.now()}
 
+/* ---------------- 결투 장면 (캐릭터 + 모션) ---------------- */
+const WCACHE=new Map();
+function getWeapon(w){const key=(w.type||'blank')+'|'+(w.el||'')+'|'+w.lv;let R=WCACHE.get(key);
+  if(!R){R=buildWeapon(w);R.key=key;R.gripY={sword:-.1,dagger:-.06,spear:-.55,axe:-.62,saber:-.13,shinai:-.14,scythe:-.7,blank:-.12}[R.type];WCACHE.set(key,R);
+    if(WCACHE.size>6){const k=WCACHE.keys().next().value;freeWeapon(WCACHE.get(k));WCACHE.delete(k)}}
+  return R}
+const DUEL_CH={p:{ch:'paladin',an:'paladin',tint:null},o:{ch:'paladin',an:'paladin',tint:[1.25,.62,.55]}};
+let GRIP=[0,.075,.02, PI/2,0,0];// 손 뼈 기준 위치(x,y,z)와 회전(rx,ry,rz)
+const DS={clock:0,last:null,p:null,o:null,mark:'',sparkDone:false};
+function duelReady(){return['paladin'].every(k=>CH[k]&&CH[k]!=='loading'&&ANIM[k]&&ANIM[k]!=='loading')}
+function preloadDuel(){loadChar('paladin','paladin');loadAnims('paladin','paladin_anim')}
+function newActor(side){return{side,x:side==='p'?-2.6:2.6,cur:{name:'idle',t0:0,rate:1,loop:true,off:0,root:false},prev:null,bt0:0,bdur:.2}}
+function setClip(a,name,o={}){const c=a.cur;if(c.name===name&&!o.force)return;a.prev={...c};a.bt0=DS.clock;a.bdur=o.blend??.18;
+  a.cur={name,t0:DS.clock,rate:o.rate??1,loop:!!o.loop,off:o.off||0,root:!!o.root}}
+function sampleLocal(clips,c){const clip=clips[c.name]||clips.idle;const t=c.off+(DS.clock-c.t0)/1000*c.rate,n=clip.n;let x=t*clip.fps;
+  if(c.loop)x=((x%(n-1))+(n-1))%(n-1);else x=clamp(x,0,n-1);const i=Math.floor(x),j=Math.min(n-1,i+1),a=x-i;
+  const q={};for(const bn in clip.q){const A=clip.q[bn],o1=i*4,o2=j*4;q[bn]=qSlerp([A[o1],A[o1+1],A[o1+2],A[o1+3]],[A[o2],A[o2+1],A[o2+2],A[o2+3]],a)}
+  let hp=null;const h=clip.hips;if(h.length){hp=V.mix([h[i*3],h[i*3+1],h[i*3+2]],[h[j*3],h[j*3+1],h[j*3+2]],a);if(!c.root){hp[0]-=h[0];hp[2]-=h[2]}}
+  return{q,hp}}
+function actorWorld(a,K,clips){
+  const cur=sampleLocal(clips,a.cur);let q=cur.q,hp=cur.hp;
+  if(a.prev){const k=clamp((DS.clock-a.bt0)/1000/a.bdur,0,1);if(k>=1)a.prev=null;else{const pv=sampleLocal(clips,a.prev),e=k*k*(3-2*k);const q2={};for(const bn in q)q2[bn]=pv.q[bn]?qSlerp(pv.q[bn],q[bn],e):q[bn];q=q2;if(pv.hp&&hp)hp=V.mix(pv.hp,hp,e)}}
+  const B=K.bones,W=new Array(B.length);
+  for(let i=0;i<B.length;i++){const b=B[i],qq=q[b.name];let L;
+    if(qq){L=qToM(qq);if(b.name==='Hips'&&hp){L[12]=hp[0]*K.sc;L[13]=(hp[1]-K.loy)*K.sc;L[14]=hp[2]*K.sc}else{L[12]=b.local[12];L[13]=b.local[13];L[14]=b.local[14]}}
+    else L=b.local;
+    W[i]=b.parent>=0?M4.mul(W[b.parent],L):L}
+  return W}
+function drawSkin(K,Root,W,tint){const u=P_SKIN.u;gl.useProgram(P_SKIN.p);const B=K.bones,mats=new Float32Array(24*16);
+  for(let i=0;i<B.length&&i<24;i++)mats.set(M4.chain(Root,W[i],B[i].inv),i*16);gl.uniformMatrix4fv(u.uB,false,mats);gl.bindVertexArray(K.vao);
+  for(const m of K.meshes){const c0=m.mat.col;if(tint)m.mat.col=[c0[0]*tint[0],c0[1]*tint[1],c0[2]*tint[2]];setMat(u,m.mat,M4.id());m.mat.col=c0;if(K.ib)gl.drawElements(gl.TRIANGLES,m.count,gl.UNSIGNED_INT,m.start*4);else gl.drawArrays(gl.TRIANGLES,m.start,m.count)}gl.useProgram(P_PBR.p)}
+function gripMatrix(R){const s=Math.min(1,1.15/R.len);return M4.chain(M4.tr(GRIP[0],GRIP[1],GRIP[2]),M4.rz(GRIP[5]),M4.ry(GRIP[4]),M4.rx(GRIP[3]),M4.sc(s),M4.tr(0,-R.gripY,0))}
+/* 연출: 게임 결투 상태를 읽어 동작을 고름 */
+function choreo(DQ,now){
+  const ph=DQ.phase,t=(now-DQ.ph0)/1000,P=DS.p,O=DS.o,st=1.05;
+  const mark=ph+'|'+DQ.round+'|'+(DQ.clash?DQ.clash.t0:0);
+  const ease=x=>x<.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
+  if(ph==='intro'){const k=ease(clamp((t-.1)/.8,0,1));P.x=lerp(-2.8,-st,k);O.x=lerp(2.8,st,k);if(DS.mark!==mark){setClip(P,'idle',{loop:true});setClip(O,'idle',{loop:true,off:.7})}}
+  else if(ph==='ready'||ph==='qte'){P.x+=(-st-P.x)*.15;O.x+=(st-O.x)*.15;if(DS.mark!==mark){setClip(P,'idle',{loop:true,blend:.3});setClip(O,'idle',{loop:true,off:.7,blend:.3})}}
+  else if(ph==='clash'&&DQ.clash){const c=(now-DQ.clash.t0)/1000,Wn=DQ.clash.w,cl=.5;
+    if(DS.mark!==mark){DS.sub='';DS.sparkDone=false}
+    if(c<.32){const k=(c/.32)**2;P.x=lerp(-st,-cl,k);O.x=lerp(st,cl,k);if(DS.sub!=='rush'){DS.sub='rush';setClip(P,'slash',{off:.2,rate:1.3,blend:.08});setClip(O,'slash',{off:.2,rate:1.3,blend:.08})}}
+    else if(c<.85){const j=Math.sin(c*95)*.012;P.x=-cl+j;O.x=cl+j;if(DS.sub!=='lock'){DS.sub='lock';P.cur.rate=.06;O.cur.rate=.06}}
+    else if(c<1.45){const k=1-Math.pow(1-(c-.85)/.6,3);
+      if(DS.sub!=='res'){DS.sub='res';
+        if(Wn==='p'){setClip(P,'power',{off:.35,rate:1.25,blend:.1});setClip(O,'hit',{blend:.06,rate:.9})}
+        else if(Wn==='o'){setClip(O,'power',{off:.35,rate:1.25,blend:.1});setClip(P,'hit',{blend:.06,rate:.9})}
+        else{setClip(P,'blockidle',{blend:.08});setClip(O,'blockidle',{blend:.08})}}
+      if(Wn==='p'){P.x=lerp(-cl,-.3,k);O.x=lerp(cl,1.45,k)}else if(Wn==='o'){O.x=lerp(cl,.3,k);P.x=lerp(-cl,-1.45,k)}else{P.x=lerp(-cl,-.9,k);O.x=lerp(cl,.9,k)}}
+    else{const k=clamp((c-1.45)/.45,0,1);P.x+=(-st-P.x)*k*.3;O.x+=(st-O.x)*k*.3;if(DS.sub!=='back'){DS.sub='back';setClip(P,'idle',{loop:true,blend:.35});setClip(O,'idle',{loop:true,off:.7,blend:.35})}}
+    if(DQ.clash.ev&&DQ.clash.ev.imp&&!DS.sparkDone){DS.sparkDone=true;duelSparks()}}
+  else if(ph==='result'&&DQ.res){if(DS.mark!==mark){const win=DQ.res.win;setClip(win?P:O,'victory',{blend:.3});setClip(win?O:P,'death',{root:true,blend:.15})}}
+  DS.mark=mark}
+function duelSparks(){const T=[0,1.25,0];for(let i=0;i<70;i++){const d=V.norm([rnd(-1,1),rnd(-.3,1.3),rnd(-.6,.9)]);emit({p:[...T],v:V.sc(d,rnd(1.6,5)),g:6,st:.03,life:rnd(.3,.8),s0:.012,s1:.007,c0:[7,4.8,1.8],c1:[3,1,.2],sh:1,a0:1,a1:.2})}
+  emit({p:[...T],life:.16,s0:.9,s1:.2,c0:[9,7,4],sh:0,a0:1,a1:0});emit({p:[...T],life:.35,s0:.05,s1:1.6,c0:[3,2.5,1.6],sh:2,a0:1,a1:0})}
+function duelFrame(now,dt){
+  const DQ=H.getDuel&&H.getDuel();if(!DQ||!duelReady())return false;
+  const fr=prepFrame(now);if(!fr)return true;const{w,h,cw,ch}=fr,t=now/1000;
+  const frozen=now<(DQ.inv||0);DS.clock+=dt*1000*(frozen?.04:1);
+  if(!DS.p||DS.duelId!==DQ.id){DS.p=newActor('p');DS.o=newActor('o');DS.mark='';DS.duelId=DQ.id;parts.length=0}
+  choreo(DQ,now);
+  // 카메라
+  const asp=cw/ch,fov=34*PI/180,tn=Math.tan(fov/2),tgt=[0,1.05,0];
+  let dist=Math.max(1.05/tn,2.15/(tn*asp));if(DQ.phase==='intro'){const k=clamp((now-DQ.ph0)/1000/1.6,0,1);dist*=1+.45*(1-k*k*(3-2*k))}
+  if(DQ.phase==='clash'&&DQ.clash){const c=(now-DQ.clash.t0)/1000;if(c>.25&&c<1.1)dist*=.86}
+  const sh=(DQ.shake||0)*.002,jit=[rnd(-1,1)*sh,rnd(-1,1)*sh,0];
+  const eye=V.add(V.add(tgt,V.sc(V.norm([Math.sin(t*.13)*.08,.16,1]),dist)),jit);
+  cam.V=M4.look(eye,V.add(tgt,jit),[0,1,0]);cam.P=M4.persp(fov,asp,.05,60);cam.VP=M4.mul(cam.P,cam.V);cam.eye=eye;
+  const PW=getWeapon(DQ.pw),OW=getWeapon(DQ.ow);
+  const EP=EW(DQ.pw),EO=EW(DQ.ow);
+  const lights=[[[-3,2.6,1.4],V.sc(EP.c,2.2),.05],[[3,2.6,1.4],V.sc(EO.c,2.2),.05],[[0,4,3],[1.1,1.05,1],.02],[[-4.5,1.8,-2.5],V.sc([3,1.3,.4],.85+.15*Math.sin(t*9)),.25],[[4.5,1.8,-2.5],V.sc([3,1.3,.4],.85+.15*Math.sin(t*8+1)),.25],[[0,1.3,.6],[0,0,0],1]];
+  if(DQ.phase==='clash'&&DQ.clash){const c=(now-DQ.clash.t0)/1000;if(c>.32&&c<1)lights[5][1]=V.sc([6,4.5,2.5],Math.max(0,1-(c-.32)/.6))}
+  beginScene(w,h,eye,lights,dist+3,[1.1,.9,.75]);
+  const I=M4.id();
+  drawPBR(MS.floor,SC.floorM,M4.sc(1.3,1,1.3));drawPBR(MS.wall,SC.wallM,M4.chain(M4.tr(0,0,-4),M4.sc(1.4,1.1,1)));
+  for(const sx of[-3.6,3.6]){drawPBR(MS.box,SC.forgeM,M4.chain(M4.tr(sx,1.6,-2.6),M4.sc(.55,3.2,.55)));drawPBR(MS.box,SC.ironM,M4.chain(M4.tr(sx,1.85,-2.25),M4.sc(.1,.35,.1)))}
+  // 캐릭터 + 무기
+  const actors=[[DS.p,'p',PW,DQ.pw,EP],[DS.o,'o',OW,DQ.ow,EO]];const wmats=[];
+  for(const[a,side,R,wd,E]of actors){const cfg=DUEL_CH[side],K=CH[cfg.ch],clips=ANIM[cfg.an];
+    const Root=M4.chain(M4.tr(a.x,0,0),M4.ry(side==='p'?PI/2:-PI/2));const W=actorWorld(a,K,clips);
+    drawSkin(K,Root,W,cfg.tint);
+    const hi=K.idx.RightHand;if(hi!=null&&!(DQ.phase==='result'&&DQ.res&&!DQ.res.win&&side==='p'&&DQ.res.broken)){const Mw=M4.chain(Root,W[hi],gripMatrix(R));wmats.push([R,Mw,E]);
+      for(const b of R.batches)drawPBR(b.m,b.mat,Mw)}}
+  // 데칼·스프라이트
+  gl.enable(gl.BLEND);gl.depthMask(false);gl.useProgram(P_DEC.p);gl.uniformMatrix4fv(P_DEC.u.uVP,false,cam.VP);gl.uniform1i(P_DEC.u.uT,0);
+  gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);for(const a of[DS.p,DS.o])drawDecal(M4.chain(M4.tr(a.x,.004,0),M4.rx(-PI/2),M4.sc(.45,.3,1)),null,[0,0,0],.65,1);
+  gl.blendFunc(gl.ONE,gl.ONE);
+  drawDecal(M4.chain(M4.tr(-1.3,.006,.1),M4.rx(-PI/2),M4.sc(1.4,1,1)),null,V.sc(EP.c,.45),.6,2);drawDecal(M4.chain(M4.tr(1.3,.006,.1),M4.rx(-PI/2),M4.sc(1.4,1,1)),null,V.sc(EO.c,.45),.6,2);
+  drawDecal(M4.chain(M4.tr(0,.008,0),M4.rx(-PI/2),M4.rz(t*.2),M4.sc(1.6)),TEX.circle,[.5,.42,.35],.5,0);
+  sprN=0;
+  for(const[R,Mw,E]of wmats){spawnAuraFor(R,Mw,dt,.4);weaponFX(R,Mw,E,t,eye,.45)}
+  stepParts(frozen?0:dt);partsToSpr();
+  endScene(w,h,{shake:DQ.shake||0,fz:0,t});
+  return true}
+function EW(wd){if(!wd||!wd.type)return{c:[3,1.2,.3],l:[4,2.6,1.2],d:[.5,.2,.05]};
+  if(wd.type==='saber'){const c=lin(H.SABER_C[wd.lv]||'#fff');return{c,l:V.mix(c,[1,1,1],.6),d:V.sc(c,.3)}}
+  if(wd.type==='shinai'){const c=lin(H.SHINAI_P[wd.lv][1]);return{c,l:V.mix(c,[1,1,1],.6),d:V.sc(c,.3)}}
+  if(wd.type==='scythe'){const c=lin(H.SCYTHE_C[wd.lv]||'#9aa');return{c,l:V.mix(c,[1,1,1],.55),d:V.sc(c,.3)}}
+  const E=H.ELS[wd.el];return{c:lin(E.c),l:lin(E.l),d:lin(E.d)}}
+
 /* ---------------- 프레임 ---------------- */
 let FIXQ=0,FIXP=null;
 function drawDecal(M,tex,col,a,mode){const u=P_DEC.u;gl.uniformMatrix4fv(u.uM,false,M);gl.uniform4f(u.uCol,col[0],col[1],col[2],a);gl.uniform1i(u.uMode,mode);
   if(tex){gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tex)}gl.bindVertexArray(quadM.vao);gl.drawElements(gl.TRIANGLES,quadM.n,gl.UNSIGNED_INT,0)}
 function project(p){const c=M4.pt(cam.VP,p),w=cam.VP[3]*p[0]+cam.VP[7]*p[1]+cam.VP[11]*p[2]+cam.VP[15];return{x:(c[0]/w*.5+.5)*cv.clientWidth,y:(1-(c[1]/w*.5+.5))*cv.clientHeight}}
-function frame(now,dt,st){
-  if(!ACTIVE||lost)return;
-  const cw=cv.clientWidth,ch=cv.clientHeight;if(cw<2||ch<2)return;
+function prepFrame(now){if(!ACTIVE||lost)return null;
+  const cw=cv.clientWidth,ch=cv.clientHeight;if(cw<2||ch<2)return null;
   if(lastNow&&!FIXQ){const ft=now-lastNow;ftAvg=ftAvg*.95+ft*.05;if(ftAvg>30&&quality>.6){quality-=.1;ftAvg=20}else if(ftAvg<18&&quality<1){quality=Math.min(1,quality+.02)}}lastNow=now;
   DPR=Math.min(window.devicePixelRatio||1,cw<700?1.6:2)*quality;const w=Math.max(2,Math.round(cw*DPR)),h=Math.max(2,Math.round(ch*DPR));
-  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}ensureRT(w,h);
+  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h}ensureRT(w,h);return{w,h,cw,ch}}
+function setProgCommon(pr,eye,lights,fogS,tint,t){const u=pr.u;gl.useProgram(pr.p);gl.uniformMatrix4fv(u.uVP,false,cam.VP);gl.uniform3fv(u.uCam,eye);gl.uniform1f(u.uTime,t);gl.uniform1i(u.uAlb,0);gl.uniform1i(u.uEmT,1);gl.uniform1i(u.uNor,2);gl.uniform1i(u.uRgh,3);gl.uniform1i(u.uEnvM,4);
+  gl.uniform1i(u.uUseEnv,ENV?1:0);gl.uniform1f(u.uEnvLod,ENV?ENV.lod:0);gl.uniform1f(u.uEnvRot,.25);gl.uniform1f(u.uEnvK,.55);gl.uniform3fv(u.uEnvTint,ENV?tint:[1,1,1]);gl.uniform1f(u.uEnvI,1);gl.uniform1f(u.uFogS,fogS);
+  gl.uniform1i(u.uNL,lights.length);gl.uniform4fv(u.uLP,new Float32Array(lights.flatMap(l=>[l[0][0],l[0][1],l[0][2],l[2]])));gl.uniform3fv(u.uLC,new Float32Array(lights.flatMap(l=>l[1])))}
+function beginScene(w,h,eye,lights,fogS,tint){const t=performance.now()/1000;
+  gl.bindFramebuffer(gl.FRAMEBUFFER,RT.ms);gl.viewport(0,0,w,h);gl.clearColor(.01,.008,.012,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST);gl.depthMask(true);gl.disable(gl.BLEND);gl.disable(gl.CULL_FACE);
+  gl.activeTexture(gl.TEXTURE4);gl.bindTexture(gl.TEXTURE_2D,ENV?ENV.t:null);
+  if(P_SKIN)setProgCommon(P_SKIN,eye,lights,fogS,tint,t);setProgCommon(P_PBR,eye,lights,fogS,tint,t)}
+function endScene(w,h,o){
+  if(sprN){gl.useProgram(P_SPR.p);gl.uniformMatrix4fv(P_SPR.u.uVP,false,cam.VP);gl.uniform2f(P_SPR.u.uRes,w,h);gl.uniform2f(P_SPR.u.uPS,cam.P[0],cam.P[5]);
+    gl.bindVertexArray(sprVAO);gl.bindBuffer(gl.ARRAY_BUFFER,sprBuf);gl.bufferSubData(gl.ARRAY_BUFFER,0,sprData,0,sprN*SPR_F);gl.drawArraysInstanced(gl.TRIANGLE_STRIP,0,4,sprN)}
+  gl.depthMask(true);gl.disable(gl.BLEND);gl.disable(gl.DEPTH_TEST);
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER,RT.ms);gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,RT.scene.f);gl.blitFramebuffer(0,0,w,h,0,0,w,h,gl.COLOR_BUFFER_BIT,gl.NEAREST);
+  gl.bindVertexArray(emptyVAO);gl.useProgram(P_DOWN.p);gl.uniform1i(P_DOWN.u.uT,0);gl.activeTexture(gl.TEXTURE0);
+  let src=RT.scene;for(let i=0;i<RT.mips.length;i++){const d=RT.mips[i];gl.bindFramebuffer(gl.FRAMEBUFFER,d.f);gl.viewport(0,0,d.w,d.h);gl.bindTexture(gl.TEXTURE_2D,src.t);
+    gl.uniform2f(P_DOWN.u.uTx,1/src.w,1/src.h);gl.uniform1i(P_DOWN.u.uBright,i===0?1:0);gl.uniform1f(P_DOWN.u.uTh,1.0);gl.drawArrays(gl.TRIANGLES,0,3);src=d}
+  gl.useProgram(P_UP.p);gl.uniform1i(P_UP.u.uT,0);gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE);
+  for(let i=RT.mips.length-1;i>0;i--){const s=RT.mips[i],d=RT.mips[i-1];gl.bindFramebuffer(gl.FRAMEBUFFER,d.f);gl.viewport(0,0,d.w,d.h);gl.bindTexture(gl.TEXTURE_2D,s.t);gl.uniform2f(P_UP.u.uTx,1/s.w,1/s.h);gl.uniform1f(P_UP.u.uW,1);gl.drawArrays(gl.TRIANGLES,0,3)}
+  gl.disable(gl.BLEND);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,w,h);gl.useProgram(P_COMP.p);const cu=P_COMP.u;
+  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,RT.scene.t);gl.uniform1i(cu.uS,0);gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,RT.mips[0].t);gl.uniform1i(cu.uB,1);
+  gl.uniform1f(cu.uBloom,.16);gl.uniform1f(cu.uExp,1.05);gl.uniform1f(cu.uCA,Math.min(.012,(o.shake||0)*.0006));gl.uniform1f(cu.uFz,o.fz?.6+.4*Math.sin(o.t*14):0);gl.uniform1f(cu.uTime,o.t%10);gl.uniform1f(cu.uVig,.75);
+  gl.drawArrays(gl.TRIANGLES,0,3);gl.activeTexture(gl.TEXTURE0)}
+function weaponFX(R,Mw,E,t,eye,pv){if(!R||R.type==='blank')return;const lv=R.lv,cent=M4.pt(Mw,[0,R.ringY,0]),sc=V.len(M4.dir(Mw,[1,0,0]));
+  if(lv>=8||R.hidden&&lv>=10){const r=(.17+lv*.007)*sc;drawDecal(M4.chain(M4.tr(cent[0],cent[1],cent[2]),M4.rx(PI/2-.42),M4.rz(t*.7),M4.sc(r)),TEX.ring,V.sc(E.c,1.8),pv,0)}
+  if(R.saber&&R.saber.BL>0){const s=R.saber,b0=M4.pt(Mw,[0,.01,0]),b1=M4.pt(Mw,[0,.01+s.BL,0]),dd=V.sub(b1,b0),bc=lin(R.lv===18?hsv(t*120%360):s.col);
+    pushSpr(V.mix(b0,b1,.5),dd,.085*sc,0,V.sc(bc,2.2),1);pushSpr(V.mix(b0,b1,.5),dd,.032*sc,1,V.sc(V.mix(bc,[1,1,1],.7),4),1);
+    if(s.dbl){const c0=M4.pt(Mw,[0,-s.HL,0]),c1=M4.pt(Mw,[0,-s.HL-s.BL,0]),d2=V.sub(c1,c0);pushSpr(V.mix(c0,c1,.5),d2,.085*sc,0,V.sc(bc,2.2),1);pushSpr(V.mix(c0,c1,.5),d2,.032*sc,1,V.sc(V.mix(bc,[1,1,1],.7),4),1)}}}
+function spawnAuraFor(R,Mw,dt,p){const keep=WPN;WPN=R;try{spawnAura(dt,Mw,p)}finally{WPN=keep}}
+let MODE='forge';
+function frame(now,dt,st){
+  const fr=prepFrame(now);if(!fr)return;const{w,h,cw,ch}=fr;
   const FX=H.FX,W=H.curW(),t=now/1000,sdt=st.stopped?0:dt;
   // 무기 갱신
   const key=(W.type||'blank')+'|'+(W.el||'')+'|'+W.lv;
@@ -895,6 +1030,9 @@ window.Forge3D={
   init(canvas,hooks){H=hooks;try{if(!initGL(canvas))return false;buildScene();ACTIVE=true;return true}catch(e){console.error('3D 초기화 실패',e);ACTIVE=false;return false}},
   get active(){return ACTIVE&&!lost},L:L3,
   frame(now,dt,st){try{frame(now,dt,st)}catch(e){console.error('3D 렌더 오류',e);ACTIVE=false;if(H&&H.onLost)H.onLost()}},
+  duel(now,dt){try{return duelFrame(now,dt)}catch(e){console.error('3D 결투 오류',e);return false}},
+  duelReady:()=>duelReady(),preloadDuel(){try{preloadDuel()}catch(e){}},resetDuel(){DS.p=null;DS.o=null;parts.length=0},
+  setGrip(g){GRIP=g},canvas:()=>cv,
   hit(res){try{hit(res)}catch(e){}},
   setPose(p){FIXP=p},setQ(q){FIXQ=q;quality=q},stats:()=>({parts:parts.length,quality,ftAvg})
 };

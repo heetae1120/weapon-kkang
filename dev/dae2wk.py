@@ -13,7 +13,7 @@ def strip(t): return t.split('}')[-1]
 def floats(s): return np.array([float(x) for x in s.split()], np.float64)
 def ints(s): return np.array([int(x) for x in s.split()], np.int64)
 
-def main(dae, outdir, height=1.72):
+def main(dae, outdir, height=1.72, name='smith'):
     tree = ET.parse(dae); root = tree.getroot()
     for el in root.iter(): el.tag = strip(el.tag)
     ids = {el.get('id'): el for el in root.iter() if el.get('id')}
@@ -46,7 +46,18 @@ def main(dae, outdir, height=1.72):
     def keep_of(nm):
         while nm is not None and nm not in KEEP: nm = nodes[nm]['parent']
         return nm or 'Hips'
-    bones = [b for b in KEEP if b in nodes]
+    # 바인드 자세(INV_BIND 역행렬)로 뼈 월드 덮어쓰기 (애니메이션 포함 내보내기 대비)
+    for ic in root.iter('instance_controller'):
+        skin = ids[ic.get('url').lstrip('#')].find('skin')
+        bsm0 = floats(skin.find('bind_shape_matrix').text).reshape(4, 4)
+        jn = ib = None
+        for inp in skin.find('joints').findall('input'):
+            if inp.get('semantic') == 'JOINT': jn = src(inp.get('source'))
+            if inp.get('semantic') == 'INV_BIND_MATRIX': ib = src(inp.get('source'))
+        for k, j in enumerate(jn):
+            nm = re.sub(r'^mixamorig\d*[:_]', '', j)
+            if nm in nodes: nodes[nm]['world'] = np.linalg.inv(ib[k].reshape(4, 4))
+        bones = [b for b in KEEP if b in nodes]
     bidx = {b: i for i, b in enumerate(bones)}
     # 컨트롤러별 메쉬
     out_meshes = []; allP = []; allN = []; allU = []; allJ = []; allW = []; allI = []
@@ -160,8 +171,8 @@ def main(dae, outdir, height=1.72):
     IDX = inv.astype('<u4')
     os.makedirs(outdir, exist_ok=True)
     buf = b''.join([P.astype('<f4').tobytes(), N.astype('<f4').tobytes(), U.astype('<f4').tobytes(), J.astype('<u1').tobytes(), W.astype('<f4').tobytes(), IDX.tobytes()])
-    open(os.path.join(outdir, 'smith.bin'), 'wb').write(buf)
-    json.dump(dict(n=int(len(P)), ni=int(len(IDX)), bones=out_bones, meshes=out_meshes), open(os.path.join(outdir, 'smith.json'), 'w'))
+    open(os.path.join(outdir, name+'_bin.wasm'), 'wb').write(buf)
+    json.dump(dict(sc=float(sc), loy=float(lo[1]), n=int(len(P)), ni=int(len(IDX)), bones=out_bones, meshes=out_meshes), open(os.path.join(outdir, name+'.json'), 'w'))
     print('verts', len(P), 'bones', len(bones), 'meshes', [(m['tex'], m['count']) for m in out_meshes])
 
-if __name__ == '__main__': main(sys.argv[1], sys.argv[2])
+if __name__ == '__main__': main(sys.argv[1], sys.argv[2], float(sys.argv[3]) if len(sys.argv)>3 else 1.72, sys.argv[4] if len(sys.argv)>4 else 'smith')

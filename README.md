@@ -32,5 +32,5 @@ Node 22 이상: `npm run dev` → http://localhost:8788
 
 ## 사용한 외부 에셋
 
-- 대장장이 캐릭터: Adobe Mixamo "Peasant Man" (Mixamo 이용약관에 따라 게임 내 사용 가능)
+- 대장장이 캐릭터: Adobe Mixamo "Peasant Man", 결투 캐릭터: Mixamo "Paladin" + 검·방패 모션 (Mixamo 이용약관에 따라 게임 내 사용 가능)
 - 벽돌·돌바닥·금속·가죽·나무 질감, 지하실 조명(HDRI): Poly Haven (CC0)

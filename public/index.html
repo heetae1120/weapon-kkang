@@ -198,7 +198,9 @@ button{font:inherit}
 .pips i.on{background:var(--ember)}
 .mid{display:flex;flex-direction:column;align-items:center;gap:4px}
 #dRound{font-family:var(--display);font-size:18px;white-space:nowrap}
-#dcv{flex:1 1 auto;min-height:140px;width:100%;display:block}
+#dstage{position:relative;flex:1 1 auto;min-height:140px;display:flex;flex-direction:column;overflow:hidden;background:#0b0910}
+#dcv{position:relative;z-index:1;flex:1 1 auto;min-height:140px;width:100%;display:block}
+#dstage>#f3d{position:absolute;left:0;top:0;width:100%;height:100%!important}
 .qpanel{flex:none;height:clamp(260px,40vh,340px);display:flex;flex-direction:column;gap:8px;padding-block:10px 12px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-top:1px solid var(--line);background:#120e18}
 .bars{display:grid;gap:5px}
 .bar{display:grid;grid-template-columns:70px minmax(0,1fr) 46px;gap:8px;align-items:center;font-size:12px}
@@ -411,7 +413,7 @@ button{font:inherit}
     <div class="mid"><div id="dRound">결투</div><button class="btn ghost sm" id="forfeit" type="button">기권</button></div>
     <div class="side them"><div class="hn" id="dON"></div><div class="hw" id="dOW"></div><div class="pips" id="dOP"><i></i><i></i></div></div>
   </div>
-  <canvas id="dcv"></canvas>
+  <div id="dstage"><canvas id="dcv"></canvas></div>
   <div class="qpanel">
     <div class="bars">
       <div class="bar"><span class="bl">내 시간</span><div class="track"><div class="fill" id="tFill"></div></div><span class="bv" id="tVal"></span></div>
@@ -1541,6 +1543,7 @@ const dcv=$('#dcv'),dctx=dcv.getContext('2d');
 function startDuel(i){
   const rv=S.rivals[i];if(!rv)return;unlockAudio();const now=performance.now(),W=curW();
   D={rv,pid:W.id,pw:{...W},ow:{type:rv.type,el:rv.el,lv:rv.lv},ps:0,os:0,round:0,phase:'intro',ph0:now,parts:[],texts:[],shake:0,inv:0,flash:0,slash:null,q:null,clash:null,adv:advW(W,rv),vsHit:0,cardShown:false};
+  D.id=now;D.d3=!!(F3&&F3.active&&F3.duelReady());if(D.d3){F3.resetDuel();const f=$('#f3d');f.style.height='100%';$('#dstage').prepend(f)}
   $('#duel').hidden=false;document.body.classList.add('lock');$('#rcard').hidden=true;
   $('#qarea').innerHTML='';$('#seq').innerHTML='';$('#qmsg').textContent='결투 준비';
   $('#tFill').style.width='100%';$('#tFill').classList.remove('urgent');$('#tVal').textContent='';
@@ -1666,7 +1669,7 @@ function showResult(){
   $('#rWeap').textContent=r.win?`+${W.lv} ${wname(W)} 그대로 유지`:r.broken?`+${r.from} ${r.nm} 파괴 → 쇳덩이부터 다시`:r.reset?`+${r.from} → 쇳덩이로 되돌아감`:r.drop?`+${r.from} → +${W.lv} 강화 하락`:'+0이라 잃을 단계가 없었습니다';
   card.hidden=false;drawStatic($('#rcv'),W,{rot:.5});
 }
-function closeDuel(to){D=null;$('#duel').hidden=true;document.body.classList.remove('lock');ensureRivals(true);renderHeader();renderForge();setTab(to)}
+function closeDuel(to){const fst=document.querySelector('#forge .stage');if(fst&&$('#f3d').parentElement!==fst){$('#f3d').style.height='';fst.prepend($('#f3d'))}D=null;$('#duel').hidden=true;document.body.classList.remove('lock');ensureRivals(true);renderHeader();renderForge();setTab(to)}
 function forfeit(){if(!D||D.phase==='result')return;D.os=2;$('#qarea').innerHTML='';finish()}
 
 function lp(a,b,k){return{x:lerp(a.x,b.x,k),y:lerp(a.y,b.y,k),rot:lerp(a.rot,b.rot,k),a:lerp(a.a??1,b.a??1,k),s:lerp(a.s??1,b.s??1,k)}}
@@ -1734,12 +1737,13 @@ function drawDuel(now,dt){
   const t=(now-D.ph0)/1000;
   const inten=D.phase==='intro'?.9:D.phase==='clash'?1:D.phase==='result'?.45:D.phase==='qte'&&D.q?.18+clamp(1-D.q.rem/D.q.P.TL,0,1)*.4:.3;
   let sx=0,sy=0;if(D.shake>.3){sx=(Math.random()-.5)*D.shake*RM;sy=(Math.random()-.5)*D.shake*RM;D.shake*=Math.pow(.02,dt)}else D.shake=0;
+  const use3=D.d3&&F3&&F3.active&&F3.duel(now,dt);
+  if(use3)c.clearRect(0,0,w,h);
   c.save();c.translate(sx,sy);
-  drawDuelBG(c,w,h,now,inten);
-  if(D.phase==='result')drawRays(c,w,h,now,pal(D.res.win?D.pw:D.ow,now/1000).c);
+  if(!use3){drawDuelBG(c,w,h,now,inten);if(D.phase==='result')drawRays(c,w,h,now,pal(D.res.win?D.pw:D.ow,now/1000).c)}
   const P=duelPose(w,h,now),tt=now/1000;
-  if(P.p.a>.01)drawWeapon(c,D.pw,{x:P.p.x,y:P.p.y,size:P.size*(P.p.s||1),rot:P.p.rot,time:tt,alpha:P.p.a});
-  if(P.o.a>.01)drawWeapon(c,D.ow,{x:P.o.x,y:P.o.y,size:P.size*(P.o.s||1),rot:P.o.rot,time:tt+3,alpha:P.o.a,flip:true});
+  if(!use3&&P.p.a>.01)drawWeapon(c,D.pw,{x:P.p.x,y:P.p.y,size:P.size*(P.p.s||1),rot:P.p.rot,time:tt,alpha:P.p.a});
+  if(!use3&&P.o.a>.01)drawWeapon(c,D.ow,{x:P.o.x,y:P.o.y,size:P.size*(P.o.s||1),rot:P.o.rot,time:tt+3,alpha:P.o.a,flip:true});
   if(D.slash)drawSlash(c,w,h,now);
   stepParts(c,D.parts,dt);drawTexts(c,D.texts,now);
   c.restore();
@@ -1948,11 +1952,12 @@ function loop(now){
   try{if(B)drawBoxOv(now,dt);else if(D)duelTick(now,dt);else if(tab==='forge')drawForge(now,dt)}catch(e){console.error(e)}
   requestAnimationFrame(loop);
 }
-if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname))window.__dbg={curW:()=>curW(),FX,renderForge:()=>renderForge(),F3:()=>F3};
+if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname))window.__dbg={curW:()=>curW(),FX,renderForge:()=>renderForge(),F3:()=>F3};if(window.__dbg)window.__D=()=>D;
 function start(data){
   if(data&&data.S&&Array.isArray(data.S.inv))Object.assign(S,data.S);else load();
   curW();bind();
-  try{if(window.Forge3D&&!/[?&]2d\b/.test(location.search)&&Forge3D.init($('#f3d'),{ELS,METALS,FORMS,formOf,SABER_C,SHINAI_P,SCYTHE_C,FX,curW,isHidden,onLost:()=>{F3=null;$('#f3d').hidden=true}}))F3=Forge3D}catch(e){F3=null}
+  try{if(window.Forge3D&&!/[?&]2d\b/.test(location.search)&&Forge3D.init($('#f3d'),{ELS,METALS,FORMS,formOf,SABER_C,SHINAI_P,SCYTHE_C,FX,curW,isHidden,getDuel:()=>D,onLost:()=>{F3=null;$('#f3d').hidden=true}}))F3=Forge3D}catch(e){F3=null}
+  if(F3)setTimeout(()=>{try{F3.preloadDuel()}catch(e){}},2500);
   if(!F3)$('#f3d').hidden=true;
   renderHeader();renderForge();ensureRivals();boot();
   if(document.fonts&&document.fonts.load){document.fonts.load('40px "Black Han Sans"').catch(()=>{})}

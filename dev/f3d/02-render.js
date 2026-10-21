@@ -51,16 +51,20 @@ function loadPhoto(){const b=(H&&H.assetBase)||'assets/';for(const k of['wall','
   for(const k of['wall','floor','steel','leather','bark','planks'])PT[k+'_n']=loadImgTex(b+k+'_n.jpg',{def:[128,128,255,255]});
   for(const k of['wall','floor','steel','rust'])PT[k+'_r']=loadImgTex(b+k+'_r.jpg',{def:[128,128,128,255]});
   loadHDR(b+'env_hdr.wasm')}
-function loadSmith(){const b=(H&&H.assetBase)||'assets/';if(!P_SKIN)return;
-  Promise.all([fetch(b+'smith.json').then(r=>{if(!r.ok)throw 0;return r.json()}),fetch(b+'smith_bin.wasm').then(r=>r.arrayBuffer())]).then(([J,buf])=>{if(lost)return;
+const CH={},ANIM={};
+function loadChar(name,file){const b=(H&&H.assetBase)||'assets/';if(!P_SKIN||CH[name])return;CH[name]='loading';
+  Promise.all([fetch(b+file+'.json').then(r=>{if(!r.ok)throw 0;return r.json()}),fetch(b+file+'_bin.wasm').then(r=>{if(!r.ok)throw 0;return r.arrayBuffer()})]).then(([J,buf])=>{if(lost)return;
     const n=J.n,vao=gl.createVertexArray();gl.bindVertexArray(vao);let off=0;const bs=[];
     const at=(loc,sz,type,bytes)=>{const bb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,bb);gl.bufferData(gl.ARRAY_BUFFER,new Uint8Array(buf,off,n*bytes),gl.STATIC_DRAW);gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,sz,type,false,0,0);off+=n*bytes;bs.push(bb)};
     at(0,3,gl.FLOAT,12);at(1,3,gl.FLOAT,12);at(2,2,gl.FLOAT,8);at(3,4,gl.UNSIGNED_BYTE,4);at(4,4,gl.FLOAT,16);
-    let ib=null,ni=0;if(J.ni){ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array(buf,off,J.ni),gl.STATIC_DRAW);ni=J.ni}
+    let ib=null;if(J.ni){ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array(buf,off,J.ni),gl.STATIC_DRAW)}
     gl.bindVertexArray(null);
     const bones=J.bones.map(x=>({name:x.name,parent:x.parent,local:new Float32Array(x.local),inv:new Float32Array(x.invBind)}));const idx={};bones.forEach((x,i)=>idx[x.name]=i);
     const meshes=J.meshes.map(m=>({start:m.start,count:m.count,mat:mat({col:m.col.map(v=>Math.pow(v,2.2)),alb:m.tex?loadImgTex(b+m.tex,{srgb:1}):null,nor:m.nor?loadImgTex(b+m.nor,{def:[128,128,255,255]}):null,rgh:m.rgh?loadImgTex(b+m.rgh,{def:[128,128,128,255]}):null,norS:1,rou:m.rou??.6,met:m.met??0})}));
-    SMITH={vao,ib,bones,idx,meshes,J}}).catch(()=>{})}
+    CH[name]={vao,ib,bones,idx,meshes,J,sc:J.sc||1,loy:J.loy||0};if(name==='smith')SMITH=CH[name]}).catch(()=>{delete CH[name]})}
+function loadAnims(name,file){const b=(H&&H.assetBase)||'assets/';if(ANIM[name])return;ANIM[name]='loading';
+  fetch(b+file+'.json').then(r=>{if(!r.ok)throw 0;return r.json()}).then(J=>{const clips={};for(const[k,c]of Object.entries(J.clips)){const q={};for(const[bn,arr]of Object.entries(c.q))q[bn]=new Float32Array(arr);clips[k]={n:c.n,fps:c.fps||30,dur:(c.n-1)/(c.fps||30),q,hips:new Float32Array(c.hips||[])}}ANIM[name]=clips}).catch(()=>{delete ANIM[name]})}
+function loadSmith(){loadChar('smith','smith')}
 function makeTextures(){
   const r=rng(7);
   // 벽돌
