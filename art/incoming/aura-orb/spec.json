@@ -1,0 +1,60 @@
+{
+  "asset": "aura-orb",
+  "type": "prop",
+  "animations": [
+    {
+      "name": "orb_idle",
+      "frames": 121,
+      "fps": 30,
+      "loop": true,
+      "root_motion": false,
+      "impact_frame": null
+    }
+  ],
+  "origin": "base_center",
+  "notes": [
+    "Crystal and pedestal stay fixed while armillary rotates."
+  ],
+  "units": "meters",
+  "up_axis": "+Y",
+  "front_axis": "+Z",
+  "weapon_blade_axis": null,
+  "polygon_metric": "triangles",
+  "polygon_count": 996,
+  "polygon_limit": 15000,
+  "material_count": 1,
+  "textures": {
+    "basecolor": [
+      1024,
+      1024
+    ],
+    "normal": [
+      1024,
+      1024
+    ],
+    "roughness_metallic_packed": [
+      1024,
+      1024
+    ],
+    "emissive": [
+      1024,
+      1024
+    ]
+  },
+  "textures_embedded": true,
+  "bones": [],
+  "fps": 30,
+  "bounds_blender_z_up_m": [
+    [
+      -0.3295898735523224,
+      -0.3400998115539551,
+      0.0
+    ],
+    [
+      0.3295898735523224,
+      0.3400998115539551,
+      0.8159999847412109
+    ]
+  ],
+  "known_issues": []
+}
