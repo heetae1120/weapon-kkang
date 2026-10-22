@@ -1,0 +1,51 @@
+{
+  "asset": "iron-ingot-0",
+  "type": "prop",
+  "animations": [],
+  "origin": "base_center",
+  "notes": [
+    "Unenchanted iron with painted oxidation and hammered surface; no emissive material."
+  ],
+  "units": "meters",
+  "up_axis": "+Y",
+  "front_axis": "+Z",
+  "weapon_blade_axis": null,
+  "polygon_metric": "triangles",
+  "polygon_count": 352,
+  "polygon_limit": 15000,
+  "material_count": 1,
+  "textures": {
+    "basecolor": [
+      1024,
+      1024
+    ],
+    "normal": [
+      1024,
+      1024
+    ],
+    "roughness_metallic_packed": [
+      1024,
+      1024
+    ],
+    "emissive": [
+      1024,
+      1024
+    ]
+  },
+  "textures_embedded": true,
+  "bones": [],
+  "fps": 30,
+  "bounds_blender_z_up_m": [
+    [
+      -0.24948839843273163,
+      -0.1158788651227951,
+      0.0
+    ],
+    [
+      0.24037262797355652,
+      0.11351688206195831,
+      0.18913798034191132
+    ]
+  ],
+  "known_issues": []
+}

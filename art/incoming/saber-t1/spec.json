@@ -1,0 +1,56 @@
+{
+  "asset": "saber-t1",
+  "type": "weapon",
+  "weapon_type": "saber",
+  "tier": 1,
+  "element": "galaxy",
+  "target_length": 1.1,
+  "animations": [],
+  "origin": "grip_center",
+  "notes": [
+    "Four shape tiers cover +1–5 / +6–10 / +11–15 / +16–20.",
+    "Representative element baked into texture; not five separate elemental sculpts."
+  ],
+  "units": "meters",
+  "up_axis": "+Y",
+  "front_axis": "+Z",
+  "weapon_blade_axis": "+Y",
+  "polygon_metric": "triangles",
+  "polygon_count": 1284,
+  "polygon_limit": 5000,
+  "material_count": 1,
+  "textures": {
+    "basecolor": [
+      1024,
+      1024
+    ],
+    "normal": [
+      1024,
+      1024
+    ],
+    "roughness_metallic_packed": [
+      1024,
+      1024
+    ],
+    "emissive": [
+      1024,
+      1024
+    ]
+  },
+  "textures_embedded": true,
+  "bones": [],
+  "fps": 30,
+  "bounds_blender_z_up_m": [
+    [
+      -0.056184619665145874,
+      -0.056184619665145874,
+      -0.19969230890274048
+    ],
+    [
+      0.056184619665145874,
+      0.056184619665145874,
+      0.9003077149391174
+    ]
+  ],
+  "known_issues": []
+}

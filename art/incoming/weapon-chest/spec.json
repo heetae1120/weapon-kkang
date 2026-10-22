@@ -1,0 +1,61 @@
+{
+  "asset": "weapon-chest",
+  "type": "prop",
+  "animations": [
+    {
+      "name": "chest_open",
+      "frames": 31,
+      "fps": 30,
+      "loop": false,
+      "root_motion": false,
+      "impact_frame": null
+    }
+  ],
+  "origin": "base_center",
+  "notes": [
+    "LidPivot hinges on rear edge; clip opens 105 degrees.",
+    "Hammer and anvil badge is original."
+  ],
+  "units": "meters",
+  "up_axis": "+Y",
+  "front_axis": "+Z",
+  "weapon_blade_axis": null,
+  "polygon_metric": "triangles",
+  "polygon_count": 1948,
+  "polygon_limit": 15000,
+  "material_count": 1,
+  "textures": {
+    "basecolor": [
+      1024,
+      1024
+    ],
+    "normal": [
+      1024,
+      1024
+    ],
+    "roughness_metallic_packed": [
+      1024,
+      1024
+    ],
+    "emissive": [
+      1024,
+      1024
+    ]
+  },
+  "textures_embedded": true,
+  "bones": [],
+  "fps": 30,
+  "bounds_blender_z_up_m": [
+    [
+      -0.5724999904632568,
+      -0.43799999356269836,
+      0.0
+    ],
+    [
+      0.5724999904632568,
+      0.3946593701839447,
+      0.8006479740142822
+    ]
+  ],
+  "known_issues": []
+}

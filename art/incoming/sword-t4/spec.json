@@ -1,0 +1,56 @@
+{
+  "asset": "sword-t4",
+  "type": "weapon",
+  "weapon_type": "sword",
+  "tier": 4,
+  "element": "fire",
+  "target_length": 1.15,
+  "animations": [],
+  "origin": "grip_center",
+  "notes": [
+    "Four shape tiers cover +1–5 / +6–10 / +11–15 / +16–20.",
+    "Representative element baked into texture; not five separate elemental sculpts."
+  ],
+  "units": "meters",
+  "up_axis": "+Y",
+  "front_axis": "+Z",
+  "weapon_blade_axis": "+Y",
+  "polygon_metric": "triangles",
+  "polygon_count": 1300,
+  "polygon_limit": 5000,
+  "material_count": 1,
+  "textures": {
+    "basecolor": [
+      1024,
+      1024
+    ],
+    "normal": [
+      1024,
+      1024
+    ],
+    "roughness_metallic_packed": [
+      1024,
+      1024
+    ],
+    "emissive": [
+      1024,
+      1024
+    ]
+  },
+  "textures_embedded": true,
+  "bones": [],
+  "fps": 30,
+  "bounds_blender_z_up_m": [
+    [
+      -0.233872190117836,
+      -0.05524804815649986,
+      -0.20561367273330688
+    ],
+    [
+      0.233872190117836,
+      0.03920599818229675,
+      0.9443863034248352
+    ]
+  ],
+  "known_issues": []
+}

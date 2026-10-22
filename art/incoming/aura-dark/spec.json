@@ -1,0 +1,62 @@
+{
+  "asset": "aura-dark",
+  "type": "vfx_mesh",
+  "animations": [
+    {
+      "name": "aura_dark_idle",
+      "frames": 121,
+      "fps": 30,
+      "loop": true,
+      "root_motion": false,
+      "impact_frame": null
+    }
+  ],
+  "origin": "base_center",
+  "notes": [
+    "Mesh-based aura, no engine-specific particle dependency.",
+    "Emission is embedded. Bloom is optional runtime post-processing.",
+    "GroundRing, BackHalo and OrbitRoot are separate nodes for grade visibility."
+  ],
+  "units": "meters",
+  "up_axis": "+Y",
+  "front_axis": "+Z",
+  "weapon_blade_axis": null,
+  "polygon_metric": "triangles",
+  "polygon_count": 1216,
+  "polygon_limit": 15000,
+  "material_count": 1,
+  "textures": {
+    "basecolor": [
+      1024,
+      1024
+    ],
+    "normal": [
+      1024,
+      1024
+    ],
+    "roughness_metallic_packed": [
+      1024,
+      1024
+    ],
+    "emissive": [
+      1024,
+      1024
+    ]
+  },
+  "textures_embedded": true,
+  "bones": [],
+  "fps": 30,
+  "bounds_blender_z_up_m": [
+    [
+      -0.406000018119812,
+      -0.406000018119812,
+      0.0
+    ],
+    [
+      0.406000018119812,
+      0.406000018119812,
+      1.4051520824432373
+    ]
+  ],
+  "known_issues": []
+}
