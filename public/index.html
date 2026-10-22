@@ -2,12 +2,20 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
+<meta name="theme-color" content="#0d0b10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="무기 깡!">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
 <title>무기 깡!</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Nanum+Myeongjo:wght@700;800&family=Cinzel:wght@700;900&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap">
 </head>
 <body>
 <style>
@@ -339,8 +347,99 @@ button{font:inherit}
   .fz.live i,.bi{animation:none}
   .ot span{transition:none}
 }
+
+/* ================= WoW풍 판타지 UI 스킨 ================= */
+:root{--gold:#f2c14e;--gold-d:#9a6a1c;--gold-l:#ffe7a3;--crimson:#8e1a14;--panel:#15131c;--panel-2:#201c29;--line:#4a3a22;--display:"Nanum Myeongjo","Cinzel",serif;--ember:#f2b13a}
+body{background:radial-gradient(ellipse at 50% -10%,#2a1d14 0,#0d0b10 60%) fixed,var(--ink)}
+.logo{font-family:"Cinzel","Nanum Myeongjo",serif;font-weight:900;transform:none;letter-spacing:.02em;background:linear-gradient(180deg,#fff2c4,#f2c14e 45%,#9a6a1c);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none;filter:drop-shadow(0 2px 0 #2a1608) drop-shadow(0 0 10px rgba(242,193,78,.35))}
+.logo::after{display:none}
+.card,.boxcard,.pvpcard,.arena-head,.rival,.inv,.cx,.cxa,.au,.chr,.arm,.mbox,.rcard{border:1px solid #6b5122!important;box-shadow:inset 0 0 0 1px #1a120a,inset 0 1px 0 rgba(255,220,150,.12),0 2px 10px rgba(0,0,0,.5)}
+.card{background:linear-gradient(180deg,#1b1822,#121017)}
+.card h2,.boxname,.rv-name,.mname,.pname,#rTitle,#bTitle,.maxed{font-family:var(--display);font-weight:800;color:var(--gold-l);text-shadow:0 1px 0 #000,0 0 8px rgba(242,193,78,.25)}
+.tab{font-family:var(--display);font-weight:800;clip-path:none;border:1px solid #4a3a22;background:linear-gradient(180deg,#221c26,#141118);color:#b9a98a;border-radius:4px 4px 0 0}
+.tab.on{background:linear-gradient(180deg,#5a1410,#2a0806);color:var(--gold-l);border-color:var(--gold-d);box-shadow:inset 0 1px 0 rgba(255,210,140,.3)}
+.btn{border-radius:3px;font-weight:700;background:linear-gradient(180deg,#f7e3b0,#d7b06a);color:#2a1606;border:1px solid #7a5520}
+.btn.ghost{background:linear-gradient(180deg,#221c26,#15121a);color:#e8d9b8;border:1px solid #5a4526}
+.btn.hot{background:linear-gradient(180deg,#ffd77a,#e09a2a);color:#2a1606}
+.strike,.bigbtn,.duelbtn{font-family:var(--display);font-weight:800;clip-path:none;border-radius:6px;color:#fff3d6;text-shadow:0 1px 2px #000;background:linear-gradient(180deg,#c8321f 0,#8e1a14 55%,#5a0e0a);border:2px solid #e2b04a;box-shadow:inset 0 1px 0 rgba(255,210,160,.45),inset 0 -2px 0 rgba(0,0,0,.35),0 3px 10px rgba(0,0,0,.5)}
+.bigbtn.alt{background:linear-gradient(180deg,#3f6fd8,#1c3a8e 55%,#10245a)}
+.strike small{color:#ffe0a0}
+.seg{border-color:#5a4526;border-radius:4px}.seg button{font-family:var(--display);font-weight:800}.seg button.on{background:linear-gradient(180deg,#5a1410,#2a0806);color:var(--gold-l)}
+.chip.on{border-color:var(--gold);box-shadow:inset 0 -2px 0 var(--gold)}
+.fightseg{display:none}
+.mnav,.sheet{display:none}
+/* ================= 휴대폰 (아이폰 375~430 · 갤럭시 360~412) ================= */
+@media (max-width:700px){
+  html{-webkit-text-size-adjust:100%}
+  body{-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none}
+  button,canvas,.tab,.chip{touch-action:manipulation}
+  input,select{font-size:16px!important}
+  .wrap{padding-top:0;padding-bottom:calc(84px + env(safe-area-inset-bottom,0px));gap:10px;padding-left:max(12px,env(safe-area-inset-left,0px));padding-right:max(12px,env(safe-area-inset-right,0px))}
+  .top{flex-wrap:nowrap;gap:8px;position:sticky;top:0;z-index:20;margin:0 -12px;padding:calc(env(safe-area-inset-top,0px) + 8px) 12px 8px;background:#0d0b10;border-bottom:1px solid #3a2c18}
+  .logo{font-size:22px}.beta{display:none}
+  .stats{flex-wrap:nowrap;gap:10px;overflow:hidden}
+  .stat .sl{font-size:9px}.stat .sv{font-size:13px}
+  .stat:nth-child(1),.stat:nth-child(5),#mute,.acct{display:none}
+  nav.tabs{display:none}
+  .fightseg{display:inline-flex;margin-bottom:10px}
+  /* 하단 탭바 */
+  .mnav{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:40;padding:6px max(6px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(6px,env(safe-area-inset-left,0px));background:linear-gradient(180deg,#1d1720,#0d0b10);border-top:2px solid #6b5122;box-shadow:0 -4px 16px rgba(0,0,0,.6)}
+  .mnav button{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;color:#9c8f78;font:700 11px var(--body);padding:4px 0;min-height:52px;cursor:pointer}
+  .mnav svg{width:26px;height:26px;fill:currentColor}
+  .mnav button.on{color:var(--gold-l)}.mnav button.on svg{filter:drop-shadow(0 0 6px rgba(242,193,78,.6))}
+  .sheet{display:block;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.55)}
+  .sheet[hidden]{display:none!important}
+  .sheet-box{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(180deg,#221c26,#121017);border-top:2px solid #e2b04a;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;border-radius:14px 14px 0 0}
+  .sheet-i{font:800 17px var(--display);color:var(--gold-l);text-align:left;background:#1a1620;border:1px solid #4a3a22;padding:14px;border-radius:6px}
+  .sheet-acct{color:var(--muted);font-size:13px;padding:4px 2px}
+  /* 대장간: 큰 무대 + 하단에 붙는 망치질 버튼 */
+  .forge{gap:10px}
+  .stage{border-radius:8px}
+  #fcv,#f3d{height:min(54dvh,460px)!important}
+  .plate{left:10px;top:10px}.plv{font-size:38px}.pname{font-size:18px}
+  .ctrl{gap:10px}
+  .strike small,.tapnote{display:none}
+  .ctrl>.strike{position:sticky;bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:15;padding:14px;font-size:26px}
+  .card{padding:12px}
+  .odds{gap:5px}.orow{grid-template-columns:80px minmax(0,1fr) 52px}
+  .armrow{margin:0 -4px}
+  /* 결투장·상점·보관함 */
+  .rivals{grid-template-columns:minmax(0,1fr)}
+  .shop{grid-template-columns:minmax(0,1fr)}
+  #scv,#acv{height:190px}
+  .invgrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .inv canvas{height:110px}
+  .chargrid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px}
+  .chr{padding:6px}.chr b{font-size:13px}.chr span{display:none}
+  .aurarow{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .cx-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.cx canvas{height:140px}
+  .cxa-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rankwrap{overflow-x:auto}
+  /* 결투 화면 */
+  .hud{padding-top:calc(env(safe-area-inset-top,0px) + 6px)}
+  .qpanel{padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));height:clamp(250px,42dvh,340px)}
+  .qb{min-height:44px}
+  #boxov .bres{padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+  .modal .mbox{margin:auto 12px}
+}
+@media (max-width:370px){.stat:nth-child(4){display:none}.mnav button{font-size:10px}}
 </style>
 
+<nav class="mnav" id="mnav" aria-label="메뉴">
+  <button type="button" data-nav="forge"><svg viewBox="0 0 24 24"><path d="M3 9h11l3-3h3v6h-3l-2-2H11v3l2 2v3H6v-3l2-2v-3H3z"/></svg><span>대장간</span></button>
+  <button type="button" data-nav="fight"><svg viewBox="0 0 24 24"><path d="M4 3l9 9-2 2-9-9V3zM20 3h-2l-7 7 2 2 7-7zM6 15l3 3-3 3-2-1-1-2zm12 0l-3 3 3 3 2-1 1-2z"/></svg><span>결투</span></button>
+  <button type="button" data-nav="shop"><svg viewBox="0 0 24 24"><path d="M3 10q0-5 9-5t9 5v2H3zM3 13h18v7H3zM10 11h4v4h-4z"/></svg><span>상점</span></button>
+  <button type="button" data-nav="inv"><svg viewBox="0 0 24 24"><path d="M8 6V4h8v2h4l1 14H3L4 6zm2 0h4V5h-4zM9 10v2h6v-2z"/></svg><span>보관함</span></button>
+  <button type="button" data-nav="more"><svg viewBox="0 0 24 24"><path d="M5 10a2 2 0 110 4 2 2 0 010-4zm7 0a2 2 0 110 4 2 2 0 010-4zm7 0a2 2 0 110 4 2 2 0 010-4z"/></svg><span>더보기</span></button>
+</nav>
+<div class="sheet" id="moreSheet" hidden><div class="sheet-box">
+  <button type="button" class="sheet-i" data-go="rank">🏆 랭킹</button>
+  <button type="button" class="sheet-i" data-go="codex">📖 도감</button>
+  <button type="button" class="sheet-i" id="mMute">🔊 소리</button>
+  <button type="button" class="sheet-i" id="mCode">🔑 기기 이동 코드</button>
+  <div class="sheet-acct" id="mAcct"></div>
+  <button type="button" class="btn ghost" id="mClose">닫기</button>
+</div></div>
 <div class="wrap" id="app">
   <header class="top">
     <div class="brand"><h1 class="logo">무기 깡!</h1><span class="beta">BETA</span></div>
@@ -407,6 +506,7 @@ button{font:inherit}
   </section>
 
   <section id="pvp" hidden>
+    <div class="seg fightseg"><button type="button" data-f="arena">결투장</button><button type="button" data-f="pvp" class="on">실시간 PvP</button></div>
     <div class="pvpwrap">
       <div class="pvpcard">
         <div class="pvp-me"><img class="face big" id="pvF" alt=""><canvas id="pvW"></canvas><div><div class="sl">내 결투 준비</div><div class="mname" id="pvName"></div><div class="pmeta" id="pvMeta"></div></div></div>
@@ -420,6 +520,7 @@ button{font:inherit}
   </section>
 
   <section id="arena" hidden>
+    <div class="seg fightseg"><button type="button" data-f="arena" class="on">결투장</button><button type="button" data-f="pvp">실시간 PvP</button></div>
     <div style="display:flex;flex-direction:column;gap:14px">
       <div class="arena-head">
         <div class="mine"><canvas id="mcv"></canvas><div><div class="sl">장착 무기</div><div class="mname" id="aName"></div><div class="pmeta" id="aRisk"></div></div></div>
@@ -1651,7 +1752,7 @@ function renderArmory(force){const host=$('#armRow');if(!host)return;
   list.forEach(w=>{const b=document.createElement('button');b.type='button';b.className='arm'+(w.id===S.cur?' on':'')+(isHidden(w)?' h':'');b.title=`+${w.lv} ${wname(w)}`;
     b.innerHTML=`<canvas></canvas><b>+${w.lv}</b><span>${w.type?aname(w):'쇳덩이'}</span>`;
     b.onclick=()=>{if(w.id===S.cur)return;equip(w.id)};host.appendChild(b);drawStatic(b.querySelector('canvas'),w,{rot:.5,time:1.5})});
-  const on=host.querySelector('.on');if(on)try{on.scrollIntoView({block:'nearest',inline:'nearest'})}catch(e){}}
+  const on=host.querySelector('.on');if(on){const l=on.offsetLeft-host.offsetLeft,r=l+on.offsetWidth;if(l<host.scrollLeft||r>host.scrollLeft+host.clientWidth)host.scrollLeft=Math.max(0,l-8)}}
 function chips(host,items,cur,onPick,kind){
   host.innerHTML='';
   items.forEach(it=>{const b=document.createElement('button');b.type='button';b.className='chip'+(it.id===cur?' on':'')+(it.h?' h':'');b.setAttribute('aria-pressed',it.id===cur);
@@ -2210,7 +2311,7 @@ function renderHeader(){
   $('#mute').textContent=S.muted?'소리 끔':'소리 켬';
 }
 function setTab(t){
-  tab=t;document.querySelectorAll('.tab').forEach(b=>{const on=b.dataset.tab===t;b.classList.toggle('on',on);b.setAttribute('aria-selected',on)});
+  tab=t;const nv=t==='arena'||t==='pvp'?'fight':t==='rank'||t==='codex'?'more':t;document.querySelectorAll('#mnav button').forEach(b=>b.classList.toggle('on',b.dataset.nav===nv));document.querySelectorAll('.fightseg button').forEach(b=>b.classList.toggle('on',b.dataset.f===t));if(t==='arena'||t==='pvp')S.fightSub=t;$('#moreSheet').hidden=true;window.scrollTo(0,0);document.querySelectorAll('.tab').forEach(b=>{const on=b.dataset.tab===t;b.classList.toggle('on',on);b.setAttribute('aria-selected',on)});
   ['forge','arena','pvp','shop','inv','rank','codex'].forEach(id=>$('#'+id).hidden=id!==t);
   confirmId=null;
   requestAnimationFrame(()=>{if(t==='arena')renderArena();if(t==='pvp')renderPvp();if(t==='codex')renderCodex();if(t==='shop')renderShop();if(t==='inv')renderInv();if(t==='forge')renderForge();if(t==='rank')renderRank()});
@@ -2241,7 +2342,14 @@ function bind(){
   $('#mute').onclick=()=>{S.muted=!S.muted;unlockAudio();save();renderHeader()};
   $('#newBtn').onclick=newBlank;
   $('#reroll').onclick=()=>{ensureRivals(true);renderArena()};
-  $('#pvGo').onclick=pvpFind;$('#pvCancel').onclick=pvpCancel;
+  $('#pvGo').onclick=pvpFind;
+  document.querySelectorAll('#mnav button').forEach(b=>b.onclick=()=>{const n=b.dataset.nav;if(n==='more'){$('#mAcct').textContent=NET.me?`${NET.me.name} · ${NET.online?'온라인':'오프라인'}`:'오프라인 모드';$('#mMute').textContent=S.muted?'🔇 소리 꺼짐 (눌러서 켜기)':'🔊 소리 켜짐 (눌러서 끄기)';$('#mCode').hidden=!NET.token;$('#moreSheet').hidden=false;return}setTab(n==='fight'?(S.fightSub||'arena'):n)});
+  document.querySelectorAll('.fightseg button').forEach(b=>b.onclick=()=>setTab(b.dataset.f));
+  document.querySelectorAll('#moreSheet [data-go]').forEach(b=>b.onclick=()=>setTab(b.dataset.go));
+  $('#mMute').onclick=()=>{S.muted=!S.muted;unlockAudio();save();renderHeader();$('#mMute').textContent=S.muted?'🔇 소리 꺼짐 (눌러서 켜기)':'🔊 소리 켜짐 (눌러서 끄기)'};
+  $('#mCode').onclick=()=>{$('#moreSheet').hidden=true;showCode()};$('#mClose').onclick=()=>$('#moreSheet').hidden=true;
+  $('#moreSheet').addEventListener('click',e=>{if(e.target.id==='moreSheet')$('#moreSheet').hidden=true});
+  if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});$('#pvCancel').onclick=pvpCancel;
   $('#forfeit').onclick=forfeit;
   $('#rArena').onclick=()=>closeDuel(D&&D.pvp?'pvp':'arena');
   $('#rForge').onclick=()=>closeDuel('forge');
