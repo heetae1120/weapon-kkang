@@ -826,7 +826,7 @@ const auraRank=key=>{const o=auraObj(key);return o?o.g*10+(o.id==='rainbow'?5:0)
 
 /* ---------- 상태 ---------- */
 const KEY='ganghwa-duel-v2';
-const S={char:'paladin',inv:[],cur:null,earn:0,wins:0,losses:0,best:0,log:[],rivals:[],codex:{type:'sword',el:'fire'},muted:false,boxes:0,hidCount:0,auras:{},aura:null,auraBoxes:0,pack:0};
+const S={char:'paladin',inv:[],cur:null,earn:0,wins:0,losses:0,best:0,log:[],rivals:[],codex:{type:'sword',el:'fire'},muted:false,boxes:0,hidCount:0,auras:{},aura:null,auraBoxes:0,pack:1};
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}queueSave()}
 
 /* ---------- 서버 ---------- */
@@ -859,7 +859,7 @@ async function flushSave(keepalive){
 function setNet(s){const n=$('#net');n.className='net '+(s==='on'?'on':s==='off'?'off':'');n.textContent=s==='on'?'온라인':s==='off'?'오프라인 모드':s==='retry'?'저장 재시도 중':'연결 중'}
 function applyServer(d){
   const st=d.state||{};
-  if(Array.isArray(st.inv)&&st.inv.length){S.inv=st.inv;S.cur=st.cur;S.log=st.log||[];if(st.codex)S.codex=st.codex;S.muted=!!st.muted;if(st.pack!=null)S.pack=st.pack?1:0;S.boxes=st.boxes||0;S.hidCount=st.hidCount||0;if(st.char)S.char=st.char;S.auras=st.auras&&typeof st.auras==='object'?st.auras:{};S.aura=auraObj(st.aura)?st.aura:null;S.auraBoxes=st.auraBoxes||0}
+  if(Array.isArray(st.inv)&&st.inv.length){S.inv=st.inv;S.cur=st.cur;S.log=st.log||[];if(st.codex)S.codex=st.codex;S.muted=!!st.muted;S.pack=st.pack===2?2:1;S.boxes=st.boxes||0;S.hidCount=st.hidCount||0;if(st.char)S.char=st.char;S.auras=st.auras&&typeof st.auras==='object'?st.auras:{};S.aura=auraObj(st.aura)?st.aura:null;S.auraBoxes=st.auraBoxes||0}
   S.earn=d.earn;S.wins=d.wins;S.losses=d.losses;S.best=Math.max(d.best||0,...S.inv.map(w=>w.lv));
   NET.me={id:d.id,name:d.name};
   $('#myName').textContent=d.name;$('#codeBtn').hidden=false;
@@ -2115,7 +2115,10 @@ function drawDuel(now,dt){
   stepParts(c,D.parts,dt);drawTexts(c,D.texts,now);
   c.restore();
   if(D.phase==='intro')drawIntro(c,w,h,t);
-  if(now<D.inv){c.save();if(!use3){c.globalCompositeOperation='difference';c.fillStyle='#fff';c.fillRect(0,0,w,h);c.globalCompositeOperation='source-over'}c.strokeStyle='#000';const{x:cx,y:cy}=D.phase==='clash'?clashPt():{x:w/2,y:h*.42};for(let k=0;k<46;k++){const a=hash(k*2.3+Math.floor(now/40))*Math.PI*2;c.lineWidth=1+hash(k)*5;c.beginPath();c.moveTo(cx+Math.cos(a)*30,cy+Math.sin(a)*30);c.lineTo(cx+Math.cos(a)*w*1.5,cy+Math.sin(a)*w*1.5);c.stroke()}c.restore()}
+  if(now<D.inv){c.save();if(!use3){c.globalCompositeOperation='difference';c.fillStyle='#fff';c.fillRect(0,0,w,h);c.globalCompositeOperation='source-over'}c.strokeStyle='#000';
+    // 3D 결투에서는 집중선이 캐릭터 동작을 가리지 않게 가운데를 비우고 옅게 깐다
+    const n3=use3?34:46,r0=use3?Math.min(w,h)*.26:30;if(use3)c.globalAlpha=.5;
+    const{x:cx,y:cy}=D.phase==='clash'?clashPt():{x:w/2,y:h*.42};for(let k=0;k<n3;k++){const a=hash(k*2.3+Math.floor(now/40))*Math.PI*2;c.lineWidth=(1+hash(k)*5)*(use3?.7:1);c.beginPath();c.moveTo(cx+Math.cos(a)*r0,cy+Math.sin(a)*r0);c.lineTo(cx+Math.cos(a)*w*1.5,cy+Math.sin(a)*w*1.5);c.stroke()}c.restore()}
   if(D.flash>0){c.fillStyle=`rgba(255,255,255,${D.flash})`;c.fillRect(0,0,w,h);D.flash=Math.max(0,D.flash-dt*3)}
 }
 function duelTick(now,dt){
@@ -2334,7 +2337,7 @@ function renderWeaponCodex(){
   const hidSel=isHidden({type:S.codex.type});
   chips($('#cxType'),TYPES.concat(HTYPES.map(x=>({...x,h:1}))),S.codex.type,id=>{S.codex.type=id;save();renderCodex()},'type');
   const eh=$('#cxEl');eh.hidden=hidSel;if(!hidSel)chips(eh,EL_IDS.map(id=>({id})),S.codex.el,id=>{S.codex.el=id;save();renderCodex()},'el');
-  $('#cxNote').textContent=hidSel?'히든 무기(광선검·죽도·낫)는 상점 랜덤 상자에서 각각 3% 확률로 나오며, 결투에서 모든 속성에 우위입니다. 강화 단계마다 외형과 이름이 모두 다릅니다.':'+0 쇳덩이가 +1이 되는 순간 종류와 속성이 무작위로 정해집니다. 단계마다 금속, 날 모양, 날밑, 구멍·가시·톱날 장식과 이름이 모두 바뀝니다. 속성 상성은 화염 → 빙결 → 뇌전 → 암흑 → 신성 → 화염 순으로 앞이 뒤에 강합니다.';
+  $('#cxNote').textContent=hidSel?'히든 무기(광선검·죽도·낫)는 상점 랜덤 상자에서 각각 3% 확률로 나오며, 결투에서 모든 속성에 우위입니다. 강화 단계마다 외형과 이름이 모두 다릅니다.':('+0 쇳덩이가 +1이 되는 순간 종류와 속성이 무작위로 정해집니다. '+(S.pack!==2?'새 에셋 모델은 +1~5 / +6~10 / +11~15 / +16~20 네 구간마다 외형이 바뀌고, 속성은 색과 빛으로 구분됩니다. 머리말 "모델" 버튼으로 단계마다 외형이 다른 예전 모델로 되돌릴 수 있습니다. ':'단계마다 금속, 날 모양, 날밑, 구멍·가시·톱날 장식과 이름이 모두 바뀝니다. ')+'이름은 단계마다 바뀝니다. 속성 상성은 화염 → 빙결 → 뇌전 → 암흑 → 신성 → 화염 순으로 앞이 뒤에 강합니다.');
   const g=$('#cxGrid');g.innerHTML='';
   for(let lv=1;lv<=20;lv++){
     const w={type:S.codex.type,el:hidSel?null:S.codex.el,lv};
@@ -2345,20 +2348,20 @@ function renderWeaponCodex(){
 }
 
 /* ---------- 공통 ---------- */
-const packLabel=()=>S.pack?'🗿 무기 모델: 새 에셋 (눌러서 기본으로)':'🗿 무기 모델: 기본 (눌러서 새 에셋으로)';
+const packLabel=()=>S.pack!==2?'🗿 무기 모델: 새 에셋 (눌러서 예전 모델로)':'🗿 무기 모델: 예전 모델 (눌러서 새 에셋으로)';
 function togglePack(){
-  S.pack=S.pack?0:1;save();
+  S.pack=S.pack===2?1:2;save();
   if(F3&&F3.active&&F3.clearCache)F3.clearCache();
   FX.appear=performance.now();
   renderHeader();renderForge();if(tab==='codex')renderCodex();if(tab==='inv')renderInv();if(tab==='arena')renderArena();
-  toast(S.pack?'Codex 납품 모델로 바꿨어요 (단계 구간 4종 · 속성은 색으로)':'기본 모델로 되돌렸어요 (20단계 × 속성별 외형)');
+  toast(S.pack!==2?'새 에셋 모델로 바꿨어요 (단계 구간 4종 · 속성은 색으로)':'예전 모델로 되돌렸어요 (20단계 × 속성별 외형)');
 }
 function renderHeader(){
   const e=$('#hEarn');e.textContent=(S.earn>=0?'+':'−')+fmt(Math.abs(S.earn))+' G';e.className='sv '+(S.earn>0?'pos':S.earn<0?'neg':'');
   $('#hWL').textContent=`${S.wins}승 ${S.losses}패`;$('#hBest').textContent='+'+S.best;$('#hHid').textContent=S.hidCount;
   $('#invCnt').textContent=S.inv.length;
   $('#mute').textContent=S.muted?'소리 끔':'소리 켬';
-  const pb=$('#packBtn');if(pb)pb.textContent=S.pack?'모델: 새 에셋':'모델: 기본';
+  const pb=$('#packBtn');if(pb)pb.textContent=S.pack!==2?'모델: 새 에셋':'모델: 예전';
 }
 function setTab(t){
   tab=t;const nv=t==='arena'||t==='pvp'?'fight':t==='rank'||t==='codex'?'more':t;document.querySelectorAll('#mnav button').forEach(b=>b.classList.toggle('on',b.dataset.nav===nv));document.querySelectorAll('.fightseg button').forEach(b=>b.classList.toggle('on',b.dataset.f===t));if(t==='arena'||t==='pvp')S.fightSub=t;$('#moreSheet').hidden=true;window.scrollTo(0,0);document.querySelectorAll('.tab').forEach(b=>{const on=b.dataset.tab===t;b.classList.toggle('on',on);b.setAttribute('aria-selected',on)});
@@ -2432,7 +2435,7 @@ if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname))window.__dbg={curW:()=>c
 function start(data){
   if(data&&data.S&&Array.isArray(data.S.inv))Object.assign(S,data.S);else load();
   curW();bind();
-  try{if(window.Forge3D&&!/[?&]2d\b/.test(location.search)&&Forge3D.init($('#f3d'),{ELS,METALS,FORMS,formOf,SABER_C,SHINAI_P,SCYTHE_C,FX,curW,isHidden,CLASH,curAura:()=>auraObj(S.aura),sigil:id=>sigilCanvas(id,512),usePack:()=>S.pack!==0,getDuel:()=>D,onLost:()=>{F3=null;$('#f3d').hidden=true}}))F3=Forge3D}catch(e){F3=null}
+  try{if(window.Forge3D&&!/[?&]2d\b/.test(location.search)&&Forge3D.init($('#f3d'),{ELS,METALS,FORMS,formOf,SABER_C,SHINAI_P,SCYTHE_C,FX,curW,isHidden,CLASH,curAura:()=>auraObj(S.aura),sigil:id=>sigilCanvas(id,512),usePack:()=>S.pack!==2,getDuel:()=>D,onLost:()=>{F3=null;$('#f3d').hidden=true}}))F3=Forge3D}catch(e){F3=null}
   if(F3)setTimeout(()=>{try{F3.preloadDuel([S.char||'paladin','guard'])}catch(e){}},2500);
   if(!F3)$('#f3d').hidden=true;
   renderHeader();renderForge();ensureRivals();boot();

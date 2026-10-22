@@ -27,6 +27,8 @@ function duelReady(DQ){const c=DQ?duelCfg(DQ):{p:{ch:'paladin'},o:{ch:'paladin'}
   return charReady(c.p.ch)&&charReady(c.o.ch)&&animOk('ual')&&wOk&&(!DS.dbg||!DS.dbg.an||animDone(DS.dbg.an))}
 function preloadDuel(list,wtypes){loadAnims('ual','ual_anim');if(DS.dbg&&DS.dbg.an)loadAnims(DS.dbg.an,DS.dbg.an+'_anim');
   const D=H.getDuel&&H.getDuel();for(const ty of(wtypes||(D?[D.pw&&D.pw.type,D.ow&&D.ow.type]:[])))if(ty)wmLoad(ty);
+  // 장착 오오라 메시도 미리 받아 둔다(첫 결투에서 뒤늦게 튀어나오지 않게)
+  if(D&&(!H.usePack||H.usePack()))for(const AU of[D.pa,D.oa]){const n=auraMeshName(AU);if(n&&!PACK[n])loadPack(n)}
   for(const k of(list||['paladin']))if(CHAR_IDS.includes(k))loadChar(k,k)}
 function newActor(side){return{side,sg:side==='p'?1:-1,x:side==='p'?-2.6:2.6,cur:{name:'idle',t0:0,rate:1,loop:true,off:0,root:false},prev:null,bt0:0,bdur:.2,
   wp:null,trail:[],trailOn:false,aura:.5,auraAcc:0,ghostT:0,ghostU:0,lean:0,hidden:false,wmc:null}}
@@ -229,6 +231,22 @@ function drawAuraDecals(a,t,eye){const A=a._auraDec;if(!A||a.hidden)return;if(A.
     drawDecal(M4.basis(V.sc(rt,s),V.sc(up,s),fw,V.madd(ch,fw,-.35)),TEX.halo,V.sc(E.c,.5*k),Math.min(1,g*.25),0)}}
 /* 잔상 */
 function ghostSnap(a,strong){const g=a._last;if(!g)return;DS.ghosts.push({...g,t0:DS.clock,life:strong?260:340,k:strong?1:.7});if(DS.ghosts.length>14)DS.ghosts.shift()}
+/* ---- Codex 납품 오오라 메시 (몸형 8종) ----
+   기존 파티클·고리 연출은 그대로 두고, 그 위에 메시를 가산 합성으로 덧그린다.
+   깊이 기록을 끄므로 캐릭터를 가리지 않고 빛만 더해진다. 팩이 없으면 아무것도 하지 않는다. */
+const AURA_PACK={flame:'aura-fire',frost:'aura-ice',storm:'aura-thunder',shadow:'aura-dark',
+  holy:'aura-holy',sakura:'aura-sakura',galaxy:'aura-galaxy',rainbow:'aura-rainbow'};
+function auraMeshName(AU){return AU&&!AU.gr&&AU.id?AURA_PACK[AU.id]||null:null}
+function drawAuraMesh(a,AU,t){
+  if(H.usePack&&!H.usePack())return;
+  const nm=auraMeshName(AU);if(!nm||a.hidden)return;
+  const K=packReady(nm);if(!K){loadPack(nm);return}
+  const g=AU.g,inten=a.aura*(.32+g*.24);if(inten<=.06)return;
+  const E=auraE(AU,t),k=Math.min(1.2,inten)*(.26+g*.1),pul=.9+.1*Math.sin(t*5+a.sg);
+  const M=M4.chain(M4.tr(a.x,.02,0),M4.ry(t*.55*a.sg),M4.sc(1.2));
+  gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE);gl.depthMask(false);
+  drawPack(K,M,t,{col:V.sc(E.c,.14*k),emi:V.sc(E.c,.62*k*pul)});
+  gl.depthMask(true);gl.disable(gl.BLEND)}
 function drawGhosts(){if(!DS.ghosts.length)return;const u=P_SKIN.u;gl.useProgram(P_SKIN.p);gl.enable(gl.BLEND);gl.depthMask(false);gl.blendFunc(gl.CONSTANT_ALPHA,gl.ONE);
   for(let i=DS.ghosts.length-1;i>=0;i--){const g=DS.ghosts[i],age=(DS.clock-g.t0)/g.life;if(age>=1){DS.ghosts.splice(i,1);continue}
     gl.blendColor(0,0,0,(1-age)*.15*g.k);gl.uniformMatrix4fv(u.uB,false,g.mats);gl.bindVertexArray(g.K.vao);
@@ -300,6 +318,7 @@ function duelFrame(now,dt){
     a._last={K,mats,Mw,R,E:auraCol(E,wd,t)};
     if(a.ghostOn||DS.clock<a.ghostU){a.ghostT-=dt;if(a.ghostT<=0){a.ghostT=.045;ghostSnap(a,false)}}
     bodyAura(a,K,W,Root,AU,frozen?0:dt,t);recTrail(a,R,Mw)}
+  for(const[a,side,R,wd,E,AU]of actors)if(AU)drawAuraMesh(a,AU,t);
   if(P_SKIN)drawGhosts();
   // 데칼·스프라이트
   gl.enable(gl.BLEND);gl.depthMask(false);gl.useProgram(P_DEC.p);gl.uniformMatrix4fv(P_DEC.u.uVP,false,cam.VP);gl.uniform1i(P_DEC.u.uT,0);
@@ -317,7 +336,11 @@ function duelFrame(now,dt){
   if(MP&&MP.fx&&!(window.__F3X&&window.__F3X.nofx))MP.fx(frozen?0:dt,t);
   stepParts(frozen?0:dt);partsToSpr();
   if(DS.C){const p=project(DS.C);DS.cpx=p}
-  endScene(w,h,{shake:DQ.shake||0,fz:0,t,inv:frozen&&DQ.phase==='clash'});
+  // 반전 번쩍임: 히트스톱이 시작된 순간부터 70ms만 번쩍하고 빠진다.
+  // 예전에는 히트스톱 내내(최대 130ms) 흑백 반전이 깔려서 그 사이 동작·무기·오오라가 전혀 안 보였다.
+  if(frozen&&DQ.phase==='clash'){if(!DS.invOn){DS.invOn=1;DS.invT0=now}}else DS.invOn=0;
+  let inv=0;if(DS.invOn){const k=Math.max(0,1-(now-DS.invT0)/70);inv=.8*k*k}
+  endScene(w,h,{shake:DQ.shake||0,fz:0,t,inv});
   return true}
 function EW(wd){if(!wd||!wd.type)return{c:[3,1.2,.3],l:[4,2.6,1.2],d:[.5,.2,.05]};
   if(wd.type==='saber'){const c=lin(H.SABER_C[wd.lv]||'#fff');return{c,l:V.mix(c,[1,1,1],.6),d:V.sc(c,.3)}}
