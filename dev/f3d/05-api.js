@@ -81,7 +81,8 @@ function frame(now,dt,st){
     gl.uniform1i(su.uNL,lights.length);gl.uniform4fv(su.uLP,new Float32Array(lights.flatMap(l=>[l[0][0],l[0][1],l[0][2],l[2]])));gl.uniform3fv(su.uLC,new Float32Array(lights.flatMap(l=>l[1])));gl.useProgram(P_PBR.p)}
   const sm=SMITH&&P_SKIN?drawSmithSkinned(now,t,st.a,st.pow,st.fz,Mw,wVis):drawSmith(now,t,st.a,st.pow,st.fz,Mw,wVis);
   if(wVis&&Mw){
-    if(blank){WPN.mats.ingot.emi=V.sc([3,.9,.15],.55+.25*Math.sin(t*3)+heat*.6)}
+    if(blank){if(WPN.mats&&WPN.mats.ingot)WPN.mats.ingot.emi=V.sc([3,.9,.15],.55+.25*Math.sin(t*3)+heat*.6);
+      else if(WPN.pack)for(const b of WPN.batches)b.mat.emTCol=V.sc([2.6,.8,.14],.6+.3*Math.sin(t*3)+heat*.8)}
     for(const b of WPN.batches)drawPBR(b.m,b.mat,Mw);
     if(WPN.dual){const k=smooth(0,1,pose.p),M2=M4.chain(Mw,M4.tr(lerp(.07,0,k),0,lerp(0,-.04,k)),M4.rz(lerp(0,.8,k)));for(const b of WPN.batches)drawPBR(b.m,b.mat,M2)}
     if(WPN.wings&&pose.p>.04){const k=smooth(0,1,pose.p),fl2=1+Math.sin(t*2.2)*.05;drawPBR(WPN.wings.m,WPN.wings.mat,M4.chain(Mw,M4.tr(0,WPN.wingY,0),M4.sc(k*fl2,k,k)))}
@@ -133,7 +134,8 @@ function thumbRT(w,h){if(TB&&TB.w===w&&TB.h===h)return TB;if(TB){gl.deleteFrameb
   const d=gl.createRenderbuffer();gl.bindRenderbuffer(gl.RENDERBUFFER,d);gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT24,w,h);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,d);
   TB={f,c,d,w,h,buf:new Float32Array(w*h*4)};return TB}
 function thumb(wd,W,Hh,rot){W=Math.max(8,Math.min(512,W|0));Hh=Math.max(8,Math.min(512,Hh|0));rot=rot||0;
-  const key=(wd.type||'blank')+'|'+(wd.el||'')+'|'+(wd.lv|0)+'|'+W+'x'+Hh+'|'+rot.toFixed(2);if(TCACHE.has(key))return TCACHE.get(key);
+  const usingPack=H.usePack&&H.usePack(),pn=usingPack?(packWeaponName(wd.type,wd.lv|0)||(wd.type?null:'iron-ingot-0')):null;
+  const key=(pn&&packReady(pn)?pn:(wd.type||'blank')+'|'+(wd.lv|0))+'|'+(wd.el||'')+'|'+W+'x'+Hh+'|'+rot.toFixed(2);if(TCACHE.has(key))return TCACHE.get(key);
   const SS=2,w=W*SS,h=Hh*SS,R=buildWeapon(wd),keep={...cam};
   try{const T=thumbRT(w,h);gl.bindFramebuffer(gl.FRAMEBUFFER,T.f);gl.viewport(0,0,w,h);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);gl.depthMask(true);gl.disable(gl.BLEND);gl.disable(gl.CULL_FACE);
@@ -158,6 +160,7 @@ function thumb(wd,W,Hh,rot){W=Math.max(8,Math.min(512,W|0));Hh=Math.max(8,Math.m
   for(let y=0;y<h;y++){const sy=(h-1-y)*w*4,dy=y*w*4;for(let x=0;x<w;x++){const i=sy+x*4,o=dy+x*4,a=B[i+3];if(a<=0)continue;const k=1/Math.max(a,1e-3),r=B[i]*k,g=B[i+1]*k,bb=B[i+2]*k,m=Math.max(r,g,bb);if(m>1.6){const f=Math.min(1,(m-1.6)/2);GD[o]=ac(r);GD[o+1]=ac(g);GD[o+2]=ac(bb);GD[o+3]=255*f;any=1}}}
   if(any){gx.putImageData(gi,0,0);ox.filter='blur('+Math.max(2,W/40)+'px)';ox.globalCompositeOperation='lighter';ox.drawImage(gl2,0,0,W,Hh);ox.filter='none';ox.globalCompositeOperation='source-over'}
   ox.drawImage(big,0,0,W,Hh);if(any){ox.globalCompositeOperation='lighter';ox.globalAlpha=.6;ox.filter='blur(1px)';ox.drawImage(gl2,0,0,W,Hh);ox.filter='none';ox.globalAlpha=1;ox.globalCompositeOperation='source-over'}
+  if(pn&&packReady(pn)&&!packTexReady())return out;// 텍스처 도착 전이면 캐시하지 않는다
   if(TCACHE.size>400)TCACHE.delete(TCACHE.keys().next().value);TCACHE.set(key,out);return out}
 /* ---------------- 상점 보물상자 (사진 질감 나무·쇠) : 이미지로 구워서 사용 ---------------- */
 function rRect(w,h,r,n=5){const o=[],c=[[w/2-r,h/2-r,0],[-w/2+r,h/2-r,PI/2],[-w/2+r,-h/2+r,PI],[w/2-r,-h/2+r,PI*1.5]];for(const[cx,cy,a0]of c)for(let i=0;i<=n;i++){const a=a0+i/n*PI/2;o.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r])}return o}
@@ -221,8 +224,43 @@ function renderChest(open,W,Hh,glowCol){const SS=2,w=W*SS,h=Hh*SS,keep={...cam};
   const ac=x=>{x*=1.05;const v=(x*(2.51*x+.03))/(x*(2.43*x+.59)+.14);return Math.pow(Math.min(1,Math.max(0,v)),1/2.2)*255};
   for(let y=0;y<h;y++){const sy=(h-1-y)*w*4,dy=y*w*4;for(let x=0;x<w;x++){const i=sy+x*4,o2=dy+x*4,a=B[i+3];if(a<=0)continue;const k=1/Math.max(a,1e-3);D[o2]=ac(B[i]*k);D[o2+1]=ac(B[i+1]*k);D[o2+2]=ac(B[i+2]*k);D[o2+3]=Math.min(255,a*255)}}
   bx.putImageData(img,0,0);const out=document.createElement('canvas');out.width=W;out.height=Hh;const ox=out.getContext('2d');ox.imageSmoothingQuality='high';ox.drawImage(big,0,0,W,Hh);return out}
+/* 팩 에셋 썸네일 (비교·검증용) */
+function packThumb(name,W,Hh,rot,tm,view){const K=packReady(name);if(!K){loadPack(name);return null}
+  W=Math.max(8,Math.min(512,W|0));Hh=Math.max(8,Math.min(512,Hh|0));rot=rot||0;
+  const SS=2,w=W*SS,h=Hh*SS,keep={...cam};
+  try{const T=thumbRT(w,h);gl.bindFramebuffer(gl.FRAMEBUFFER,T.f);gl.viewport(0,0,w,h);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);gl.depthMask(true);gl.disable(gl.BLEND);gl.disable(gl.CULL_FACE);
+    const B=K.bounds,ctr=[(B[0][0]+B[1][0])/2,(B[0][1]+B[1][1])/2,(B[0][2]+B[1][2])/2];
+    const sz=Math.max(B[1][0]-B[0][0],B[1][1]-B[0][1],B[1][2]-B[0][2]);
+    const V2=view||{},asp=w/h,fov=(V2.fov||20)*PI/180,tn=Math.tan(fov/2);
+    const szv=V2.size!=null?V2.size:sz,dist=szv*(V2.fit||.62)/tn*1.12;
+    if(V2.ty!=null)ctr[1]=B[0][1]+(B[1][1]-B[0][1])*V2.ty;if(V2.cy!=null)ctr[1]=V2.cy;
+    const ya=V2.yaw!=null?V2.yaw:.5;
+    const eye=[Math.sin(ya)*dist*(V2.side!=null?V2.side:.5),ctr[1]+szv*(V2.hi!=null?V2.hi:.12),Math.cos(ya)*dist];
+    cam.V=M4.look(eye,ctr,[0,1,0]);cam.P=M4.persp(fov,asp,dist*.1,dist*4);cam.VP=M4.mul(cam.P,cam.V);cam.eye=eye;
+    const lights=[[[sz*1.6,sz*2.2,sz*3],[3.4,3.2,3],.0005],[[-sz*2,sz*.8,sz*2],[1,1.1,1.5],.0005],[[0,sz*1.5,-sz*2.5],[1.7,1.6,1.4],.0005],[[0,-sz,sz*1.5],[.5,.45,.4],.0005]];
+    setProgCommon(P_PBR,eye,lights,9999,[1.1,1,.95],tm||0);
+    drawPack(K,M4.chain(M4.rz(-rot),M4.ry(.3)),tm||0,null);
+    gl.readPixels(0,0,w,h,gl.RGBA,gl.FLOAT,T.buf);gl.bindFramebuffer(gl.FRAMEBUFFER,null)}
+  finally{Object.assign(cam,keep)}
+  const Bf=TB.buf,big=document.createElement('canvas');big.width=w;big.height=h;const bx=big.getContext('2d'),img=bx.createImageData(w,h),D=img.data;
+  const ac=x=>{x*=1.08;const v=(x*(2.51*x+.03))/(x*(2.43*x+.59)+.14);return Math.pow(Math.min(1,Math.max(0,v)),1/2.2)*255};
+  for(let y=0;y<h;y++){const sy=(h-1-y)*w*4,dy=y*w*4;for(let x=0;x<w;x++){const i=sy+x*4,o=dy+x*4,a=Bf[i+3];if(a<=0){D[o+3]=0;continue}const k=1/Math.max(a,1e-3);D[o]=ac(Bf[i]*k);D[o+1]=ac(Bf[i+1]*k);D[o+2]=ac(Bf[i+2]*k);D[o+3]=Math.min(255,a*255)}}
+  bx.putImageData(img,0,0);const out=document.createElement('canvas');out.width=W;out.height=Hh;const ox=out.getContext('2d');ox.imageSmoothingQuality='high';ox.drawImage(big,0,0,W,Hh);return out}
+/* 팩 애니메이션을 캔버스 몇 장으로 구워 둔다 (상점 상자·구체는 2D 캔버스에 올리므로
+   매 프레임 readPixels를 하면 느리다. 프레임을 미리 구워 두고 그리기만 한다) */
+const PFRAMES={},PFWIP={};
+function packFrames(name,W,Hh,rot,n,dur,view){
+  const key=name+'|'+W+'x'+Hh+'|'+n+'|'+JSON.stringify(view||0);if(PFRAMES[key])return PFRAMES[key];
+  if(!packReady(name)){loadPack(name);return null}
+  if(!packTexReady())return null;// 텍스처가 아직이면 흰 모델이 구워진다
+  // 한 번에 다 구우면 휴대폰에서 끊기므로 프레임마다 조금씩 굽는다
+  const wip=PFWIP[key]||(PFWIP[key]=[]);
+  for(let k=0;k<2&&wip.length<n;k++){const im=packThumb(name,W,Hh,rot,dur*wip.length/n,view);if(!im)return null;wip.push(im)}
+  if(wip.length<n)return null;
+  wip.dur=dur;PFRAMES[key]=wip;delete PFWIP[key];return wip}
 window.Forge3D={
-  init(canvas,hooks){H=hooks;try{if(!initGL(canvas))return false;buildScene();ACTIVE=true;return true}catch(e){console.error('3D 초기화 실패',e);ACTIVE=false;return false}},
+  init(canvas,hooks){H=hooks;try{if(!initGL(canvas))return false;buildScene();ACTIVE=true;if(!H.usePack||H.usePack())preloadPacks();return true}catch(e){console.error('3D 초기화 실패',e);ACTIVE=false;return false}},
   get active(){return ACTIVE&&!lost},L:L3,
   frame(now,dt,st){try{frame(now,dt,st)}catch(e){console.error('3D 렌더 오류',e);ACTIVE=false;if(H&&H.onLost)H.onLost()}},
   duel(now,dt){try{return duelFrame(now,dt)}catch(e){console.error('3D 결투 오류',e);return false}},
@@ -230,7 +268,11 @@ window.Forge3D={
   canvas:()=>cv,
   hit(res){try{hit(res)}catch(e){}},
   chest(open,W,H,c){return renderChest(open,W,H,c)},
+  packThumb(n,W,H,rot,t,v){try{return packThumb(n,W,H,rot,t,v)}catch(e){console.error('팩 썸네일',e);return null}},
+  packFrames(n,W,H,rot,c,d,v){try{return packFrames(n,W,H,rot,c,d,v)}catch(e){return null}},
+  packReady:n=>!!packReady(n),loadPack:n=>loadPack(n),
   thumb(w,W,H,rot){try{return thumb(w,W,H,rot)}catch(e){console.error('썸네일 오류',e);return null}},archName:(t,e)=>(ARCH_NAME[t]||{})[e]||null,
+  clearCache(){TCACHE.clear();WCACHE.clear();WKEY='';freeWeapon(WPN);WPN=null},
   setPose(p){FIXP=p},setQ(q){FIXQ=q;quality=q},stats:()=>({parts:parts.length,quality,ftAvg})
 };
 })();

@@ -170,7 +170,7 @@ void main(){vec4 w=uM*vec4(aP,1.);vW=w.xyz;vN=normalize(uNM*aN);vU=aU;gl_Positio
 const PBR_FS=`#version 300 es
 precision highp float;in vec3 vW;in vec3 vN;in vec2 vU;out vec4 o;
 uniform vec3 uCam,uCol,uEmi,uEdgeCol,uEmTCol,uEnvTint;uniform float uMet,uRou,uEdge,uEmGrad,uEnvI,uTime,uAlpha,uFogK,uFogS;uniform vec2 uRep;
-uniform sampler2D uAlb,uEmT,uNor,uRgh,uEnvM;uniform int uUseAlb,uUseEm,uUseNor,uUseRgh,uUseEnv,uNL;uniform float uNorS,uEnvLod,uEnvRot,uEnvK;uniform vec4 uLP[7];uniform vec3 uLC[7];
+uniform sampler2D uAlb,uEmT,uNor,uRgh,uEnvM;uniform int uUseAlb,uUseEm,uUseNor,uUseRgh,uUseEnv,uNL,uORM,uEmRGB;uniform float uNorS,uEnvLod,uEnvRot,uEnvK;uniform vec4 uLP[7];uniform vec3 uLC[7];
 const float PI=3.14159265;
 vec3 envMap(vec3 d,float lod){float u=atan(d.z,d.x)/6.2831853+.5+uEnvRot;float v=acos(clamp(d.y,-1.,1.))/3.14159265;return textureLod(uEnvM,vec2(u,v),lod).rgb;}
 mat3 cotan(vec3 N,vec3 p,vec2 uv){vec3 dp1=dFdx(p),dp2=dFdy(p);vec2 du1=dFdx(uv),du2=dFdy(uv);vec3 a=cross(dp2,N),b=cross(N,dp1);vec3 T=a*du1.x+b*du2.x,B=a*du1.y+b*du2.y;float k=inversesqrt(max(max(dot(T,T),dot(B,B)),1e-20));return mat3(T*k,B*k,N);}
@@ -186,8 +186,9 @@ vec3 envBRDF(vec3 F0,float r,float NoV){const vec4 c0=vec4(-1.,-.0275,-.572,.022
 void main(){vec3 N=normalize(vN);vec3 V=normalize(uCam-vW);vec2 tu=vU*uRep;
   if(uUseNor==1){vec3 tn=texture(uNor,tu).xyz*2.-1.;tn.xy*=uNorS;N=normalize(cotan(N,vW,tu)*tn);}
   vec3 alb=uCol;if(uUseAlb==1)alb*=texture(uAlb,tu).rgb;
-  float rr=uRou;if(uUseRgh==1)rr*=.35+texture(uRgh,tu).r*1.3;
-  float rou=clamp(rr,.045,1.),met=uMet;vec3 F0=mix(vec3(.04),alb,met);float NoV=max(dot(N,V),1e-3);
+  float rr=uRou,mm=uMet;
+  if(uUseRgh==1){if(uORM==1){vec3 orm=texture(uRgh,tu).rgb;rr*=orm.g;mm*=orm.b;}else rr*=.35+texture(uRgh,tu).r*1.3;}
+  float rou=clamp(rr,.045,1.),met=clamp(mm,0.,1.);vec3 F0=mix(vec3(.04),alb,met);float NoV=max(dot(N,V),1e-3);
   vec3 Lo=vec3(0);
   for(int i=0;i<7;i++){if(i>=uNL)break;vec3 Ld=uLP[i].xyz-vW;float dist=length(Ld);vec3 L=Ld/dist;float att=1./(1.+dist*dist*uLP[i].w);
     vec3 Hh=normalize(L+V);float NoL=max(dot(N,L),0.),NoH=max(dot(N,Hh),0.),VoH=max(dot(V,Hh),0.);
@@ -196,7 +197,7 @@ void main(){vec3 N=normalize(vN);vec3 V=normalize(uCam-vW);vec2 tu=vU*uRep;
     Lo+=(kd*alb/PI+spec)*uLC[i]*NoL*att;}
   vec3 R=reflect(-V,N);vec3 col=Lo+env(R,rou)*envBRDF(F0,rou,NoV)+(uUseEnv==1?envMap(N,uEnvLod-1.)*uEnvK*uEnvTint*uEnvI*.8:env(N,1.))*alb*(1.-met)*.9;
   vec3 em=uEmi*mix(1.,smoothstep(.0,1.,vU.y)*1.6,uEmGrad);
-  if(uUseEm==1){float m=texture(uEmT,vU).r;em+=uEmTCol*m*(.75+.25*sin(uTime*3.+vU.y*20.));}
+  if(uUseEm==1){if(uEmRGB==1)em+=uEmTCol*texture(uEmT,tu).rgb;else{float m=texture(uEmT,vU).r;em+=uEmTCol*m*(.75+.25*sin(uTime*3.+vU.y*20.));}}
   float e=abs(vU.x*2.-1.);em+=uEdgeCol*uEdge*smoothstep(.8,1.,e)*(.85+.15*sin(uTime*6.+vU.y*30.));
   col+=em;
   float fd=length(vW-uCam);col*=mix(1.,.35,smoothstep(uFogS,uFogS+4.,fd)*uFogK);
@@ -312,6 +313,42 @@ function loadChar(name,file){const b=(H&&H.assetBase)||'assets/';if(!P_SKIN||CH[
     CH[name]={vao,ib,bones,idx,meshes,J,sc:J.sc||1,loy:J.loy||0};if(name==='smith')SMITH=CH[name]}).catch(()=>{delete CH[name]})}
 function loadAnims(name,file){const b=(H&&H.assetBase)||'assets/';if(ANIM[name])return;ANIM[name]='loading';
   fetch(b+file+'.json').then(r=>{if(!r.ok)throw 0;return r.json()}).then(J=>{const clips={};for(const[k,c]of Object.entries(J.clips)){const src=c.d||c.q;if(!src)continue;const q={};for(const[bn,arr]of Object.entries(src))q[bn]=new Float32Array(arr);clips[k]={n:c.n,fps:c.fps||30,dur:(c.n-1)/(c.fps||30),q,hips:new Float32Array(c.hips||[]),loop:!!c.loop}}clips.__hsc=J.hsc;clips.__hrest=J.hrest;clips.__world=!!J.world;ANIM[name]=clips}).catch(()=>{delete ANIM[name]})}
+/* ---- Codex 납품 에셋 팩 (GLB -> dev/glb2wk.py로 변환) ----
+   정점(위치·법선·UV)과 인덱스, 공유 PBR 텍스처 1세트를 쓴다. 파트마다 애니메이션 피벗을 가질 수 있다. */
+const PACK={},PACKT={};
+function packTex(){if(PACKT.ready)return PACKT;const b=((H&&H.assetBase)||'assets/')+'pack/';
+  PACKT.alb=loadImgTex(b+'tex_basecolor.jpg',{srgb:1});PACKT.nor=loadImgTex(b+'tex_normal.jpg',{def:[128,128,255,255]});
+  PACKT.orm=loadImgTex(b+'tex_orm.jpg',{def:[255,128,0,255]});PACKT.emi=loadImgTex(b+'tex_emissive.jpg',{def:[0,0,0,255]});
+  PACKT.ready=1;return PACKT}
+function loadPack(name){if(PACK[name])return PACK[name]==='loading'?null:PACK[name];PACK[name]='loading';const b=((H&&H.assetBase)||'assets/')+'pack/';
+  Promise.all([fetch(b+name+'.json').then(r=>{if(!r.ok)throw 0;return r.json()}),fetch(b+name+'_m.wasm').then(r=>{if(!r.ok)throw 0;return r.arrayBuffer()})]).then(([J,buf])=>{if(lost)return;
+    const n=J.n,vao=gl.createVertexArray();gl.bindVertexArray(vao);let off=0;const bs=[];
+    const at=(loc,sz,bytes)=>{const bb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,bb);gl.bufferData(gl.ARRAY_BUFFER,new Uint8Array(buf,off,n*bytes),gl.STATIC_DRAW);gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,sz,gl.FLOAT,false,0,0);off+=n*bytes;bs.push(bb)};
+    at(0,3,12);at(1,3,12);at(2,2,8);
+    const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array(buf,off,J.ni),gl.STATIC_DRAW);bs.push(ib);
+    gl.bindVertexArray(null);const T=packTex();
+    if(typeof TCACHE!=='undefined')TCACHE.clear();if(typeof WCACHE!=='undefined')WCACHE.clear();WKEY='';
+    PACK[name]={vao,ib,bs,J,parts:J.parts,bounds:J.bounds,
+      mat:mat({col:[1,1,1],alb:T.alb,nor:T.nor,rgh:T.orm,orm:1,norS:.4,met:1,rou:1,emT:T.emi,emTCol:[1.6,1.6,1.6],emRGB:1,rep:[1,1]})}})
+    .catch(()=>{delete PACK[name]});return null}
+function packTexReady(){const T=PACKT;return !!(T.ready&&T.alb&&T.alb.ready&&T.nor&&T.nor.ready&&T.orm&&T.orm.ready&&T.emi&&T.emi.ready)}
+function packReady(name){return PACK[name]&&PACK[name]!=='loading'?PACK[name]:null}
+/* 팩 전체 미리 받기 (무기 7종×4단계 + 쇳덩이). 도착하면 캐시를 비워 다시 그리게 한다. */
+const PACK_ALL=[];
+for(const t of['sword','dagger','spear','axe','saber','shinai','scythe'])for(let i=1;i<=4;i++)PACK_ALL.push(t+'-t'+i);
+PACK_ALL.push('iron-ingot-0','weapon-chest','aura-orb');
+function preloadPacks(){for(const n of PACK_ALL)if(!PACK[n])loadPack(n)}
+/* 팩 에셋 그리기. M=월드 변환, t=시간(초), o={emi,col,rate} */
+function drawPack(K,M,t,o){o=o||{};const m=K.mat,c0=m.col,e0=m.emTCol;
+  if(o.col)m.col=o.col;if(o.emi)m.emTCol=o.emi;
+  gl.bindVertexArray(K.vao);
+  for(const p of K.parts){let Mp=M;
+    if(p.anim&&p.anim.q&&p.anim.q.length){const A=p.anim,n=A.q.length;let x=(t||0)*A.fps*(o.rate||1);
+      x=A.loop?((x%n)+n)%n:clamp(x,0,n-1);const i=Math.floor(x),j=Math.min(n-1,i+1),f=x-i;
+      const q=qSlerp(A.q[i],A.q[j],f),P=p.pivot||[0,0,0];
+      Mp=M4.chain(M,M4.tr(P[0],P[1],P[2]),qToM(q),M4.tr(-P[0],-P[1],-P[2]))}
+    setMat(P_PBR.u,m,Mp);gl.drawElements(gl.TRIANGLES,p.count,gl.UNSIGNED_INT,p.start*4)}
+  m.col=c0;m.emTCol=e0}
 function loadSmith(){loadChar('smith','smith');loadAnims('ual','ual_anim')}
 function makeTextures(){
   const r=rng(7);
@@ -371,7 +408,7 @@ function partsToSpr(){for(const q of parts){const t=q.age/q.life,s=lerp(q.s0,q.s
   const d=q.st?V.sc(q.v,q.st):q.dir;pushSpr(q.p,d,s,q.sh,c,Math.max(0,a))}}
 
 /* ---------------- 무기 (절차적 판타지 무기) ---------------- */
-function mat(o){return Object.assign({nor:null,rgh:null,norS:1,col:[.5,.5,.5],met:0,rou:.5,emi:[0,0,0],emGrad:0,edge:0,edgeCol:[0,0,0],emT:null,emTCol:[0,0,0],alb:null,rep:[1,1],envI:1,alpha:1,fog:1},o)}
+function mat(o){return Object.assign({orm:0,emRGB:0,nor:null,rgh:null,norS:1,col:[.5,.5,.5],met:0,rou:.5,emi:[0,0,0],emGrad:0,edge:0,edgeCol:[0,0,0],emT:null,emTCol:[0,0,0],alb:null,rep:[1,1],envI:1,alpha:1,fog:1},o)}
 const TRIM={fire:'#e0a050',ice:'#d6e8f4',thunder:'#ecc84e',dark:'#5a4a70',holy:'#f4d890'};
 const CORD={fire:'#8e1f2a',ice:'#1f3f7a',thunder:'#2c2a70',dark:'#1a1020',holy:'#efe9da'};
 const bump=(t,c,w)=>Math.max(0,1-Math.abs(t-c)/w);
@@ -483,8 +520,48 @@ function wingMat(el,lv){const k=1+(lv-10)*.13,c=lin(H.ELS[el].c);
   return{holy:mat({col:lin('#f6e3b0'),met:1,rou:.22,emi:V.sc(lin('#ffd98a'),.55*k),emGrad:1}),fire:mat({col:lin('#5a160a'),met:.6,rou:.3,emi:V.sc(c,2*k),emGrad:1}),
     ice:mat({col:lin('#d4f0ff'),met:.35,rou:.06,emi:V.sc(c,.8*k),emGrad:1}),thunder:mat({col:lin('#e8c860'),met:1,rou:.2,emi:V.sc(c,1.2*k),emGrad:1}),
     dark:mat({col:lin('#1a1322'),met:.9,rou:.16,emi:V.sc(c,1.4*k),emGrad:1})}[el]}
+/* ---- Codex 에셋 팩 무기 ----
+   28개 메쉬(7종×4단계)를 쓰고, 속성은 팔레트 색조와 발광으로 표현한다.
+   팩이 아직 안 받아졌거나 꺼져 있으면 null을 돌려주고 기존 절차 생성으로 넘어간다. */
+const PACK_TYPES={sword:1,dagger:1,spear:1,axe:1,saber:1,shinai:1,scythe:1};
+const packTier=lv=>lv<=5?1:lv<=10?2:lv<=15?3:4;
+function packWeaponName(type,lv){return PACK_TYPES[type]?type+'-t'+packTier(Math.max(1,lv)):null}
+// 속성별 색조 (팔레트 기본은 강철+청동이라, 날은 속성색 쪽으로 물들이고 발광도 속성색)
+function packTint(el,lv,hidden,type){
+  if(hidden){const c=type==='saber'?lin(H.SABER_C[lv]||'#fff'):type==='shinai'?lin(H.SHINAI_P[lv][1]):lin(H.SCYTHE_C[lv]||'#9aa');
+    return{col:V.mix([1,1,1],c,.5),emi:V.sc(c,1.4+lv*.12)}}
+  const E=H.ELS[el]||H.ELS.fire,c=lin(E.c),l=lin(E.l),k=(packTier(lv)-1)/3;// 단계 구간 단위로 묶어 썸네일 재사용
+  // 팔레트 기본이 짙은 강철이라 약하게 섞으면 속성이 안 보인다. 밝은 속성색으로 세게 곱하고 발광을 올린다.
+  const tint=V.sc(V.mix(c,l,.45),1.5+k*.7);
+  return{col:V.mix([.55,.55,.55],tint,.85),emi:V.sc(c,1.2+k*3.4)}
+}
+function buildPackWeapon(w){
+  const type=w.type,lv=Math.max(1,w.lv||1),nm=packWeaponName(type,lv);if(!nm)return null;
+  const K=packReady(nm);if(!K){loadPack(nm);return null}
+  const hidden=type==='saber'||type==='shinai'||type==='scythe';
+  const B=K.bounds,top=B[1][1],bot=B[0][1],xr=Math.max(Math.abs(B[0][0]),Math.abs(B[1][0]),Math.abs(B[0][2]),Math.abs(B[1][2]));
+  const T=packTint(w.el,lv,hidden,type);
+  const m=Object.assign({},K.mat,{col:T.col,emTCol:T.emi});
+  const R={type,lv,el:w.el,hidden,pack:nm,
+    batches:K.parts.map(p=>({m:{vao:K.vao,n:p.count,off:p.start},mat:m})),
+    mats:{},top,bot,gripY:0,hitY:top*.42,wingY:0,ringY:top*.45,
+    aura:{y0:Math.max(.04,top*.08),y1:top*.95,w:Math.max(.02,xr*.5)},
+    bladeW:Math.max(.02,xr*.45),xr,
+    offH:{spear:.3,axe:.26,scythe:.32,shinai:.12,sword:0,dagger:0,saber:0}[type]||0};
+  R.len=R.top-R.bot;R.mid=(R.top+R.bot)/2;
+  return R}
 /* 무기 생성 */
 function buildWeapon(w){
+  if(H.usePack&&H.usePack()&&w&&w.type&&w.type!=='blank'){const P=buildPackWeapon(w);if(P)return P}
+  if(H.usePack&&H.usePack()&&w&&(!w.type||w.type==='blank')){const K=packReady('iron-ingot-0');
+    if(K){const B=K.bounds,top=B[1][1],bot=B[0][1];
+      const R={type:'blank',lv:0,el:w&&w.el||'fire',hidden:false,pack:'iron-ingot-0',
+        batches:K.parts.map(p=>({m:{vao:K.vao,n:p.count,off:p.start},mat:Object.assign({},K.mat,{emTCol:[2.2,.7,.12]})})),
+        mats:{},top,bot,gripY:0,hitY:(top+bot)/2,wingY:0,ringY:0,aura:null,bladeW:.04,offH:0};
+      R.len=R.top-R.bot;R.mid=(R.top+R.bot)/2;return R}
+    loadPack('iron-ingot-0')}
+  return buildWeapon0(w)}
+function buildWeapon0(w){
   const type=w.type||'blank',lv=w.lv||0,el=w.el||'fire';const wb=Batches();let R={type,lv,el,hidden:type==='saber'||type==='shinai'||type==='scythe'};
   if(type==='blank'){
     const o=[];for(let i=0;i<24;i++){const a=i/24*TAU,cx=Math.cos(a)>0?.13:-.13,cy=Math.sin(a)>0?.012:-.012;o.push([cx+Math.cos(a)*.05,cy+Math.sin(a)*.026])}
@@ -585,7 +662,8 @@ function buildWeapon(w){
   if(type==='scythe'&&lv>=16){R.wings={m:mesh(wingGeo('dark',lv)),mat:wingMat('dark',lv)}}
   R.len=R.top-R.bot;R.mid=(R.top+R.bot)/2;
   return R}
-function freeWeapon(R){if(!R)return;R.batches.forEach(b=>freeMesh(b.m));if(R.wings)freeMesh(R.wings.m)}
+function freeWeapon(R){if(!R)return;if(R.pack)return;// 팩 무기는 공유 VAO라 지우면 안 됨
+  R.batches.forEach(b=>freeMesh(b.m));if(R.wings)freeMesh(R.wings.m)}
 /* ---------------- 속성별 무기 원형 (종류 × 속성 = 20가지 형태) ----------------
    신성은 기존 형태(성검·성단검·성창·성부)를 그대로 쓰고, 나머지 속성은 여기서 만든다.
    각 빌더는 wb(배치)에 메쉬를 넣고 R에 top/bot/gripY/hitY/aura 등을 채운다. 단계가 오르면 금속·장식·발광이 늘어난다. */
@@ -835,7 +913,7 @@ function buildScene(){
   SC.bandM=mat({col:lin('#b01e2a'),rou:.6});SC.boot=mat({col:lin('#1a1412'),rou:.5,met:.1});SC.eye=mat({col:lin('#120a08'),rou:.3});SC.eyeFz=mat({col:[0,0,0],emi:[8,1,.3]});
   SC.hamHead=mat({col:lin('#8a8f99'),alb:PT.rust_d,rgh:PT.rust_r,rep:[1,1],met:.85,rou:.45});SC.hamFace=mat({col:lin('#c8ced8'),met:1,rou:.15});SC.gold=mat({col:lin('#d9b25a'),met:1,rou:.25});
 }
-function drawPBR(m,mt,M){const u=P_PBR.u;setMat(u,mt,M);gl.bindVertexArray(m.vao);gl.drawElements(gl.TRIANGLES,m.n,gl.UNSIGNED_INT,0)}
+function drawPBR(m,mt,M){const u=P_PBR.u;setMat(u,mt,M);gl.bindVertexArray(m.vao);gl.drawElements(gl.TRIANGLES,m.n,gl.UNSIGNED_INT,(m.off||0)*4)}
 function setMat(u,mt,M){
   gl.uniformMatrix4fv(u.uM,false,M);gl.uniformMatrix3fv(u.uNM,false,M4.nm3(M));gl.uniform3fv(u.uCol,mt.col);gl.uniform1f(u.uMet,mt.met);gl.uniform1f(u.uRou,mt.rou);
   gl.uniform3fv(u.uEmi,mt.emi);gl.uniform1f(u.uEmGrad,mt.emGrad);gl.uniform1f(u.uEdge,mt.edge);gl.uniform3fv(u.uEdgeCol,mt.edgeCol);gl.uniform1f(u.uAlpha,mt.alpha);gl.uniform1f(u.uFogK,mt.fog);
@@ -844,6 +922,7 @@ function setMat(u,mt,M){
   if(mt.rgh){gl.activeTexture(gl.TEXTURE3);gl.bindTexture(gl.TEXTURE_2D,mt.rgh);gl.uniform1i(u.uUseRgh,1)}else gl.uniform1i(u.uUseRgh,0);
   if(mt.alb||mt.nor||mt.rgh)gl.uniform2fv(u.uRep,mt.rep);
   if(mt.emT){gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,mt.emT);gl.uniform1i(u.uUseEm,1);gl.uniform3fv(u.uEmTCol,mt.emTCol)}else gl.uniform1i(u.uUseEm,0);
+  gl.uniform1i(u.uORM,mt.orm?1:0);gl.uniform1i(u.uEmRGB,mt.emRGB?1:0);
 }
 function seg(m,mt,a,b,r){const d=V.sub(b,a),l=V.len(d)||1e-5,y=V.sc(d,1/l);let x=V.norm(V.cross(y,Math.abs(y[1])<.95?[0,1,0]:[1,0,0]));const z=V.cross(x,y);drawPBR(MS.cyl,mt,M4.basis(V.sc(x,r),d,V.sc(z,r),a))}
 function ball(mt,p,r,sx=1,sy=1,sz=1){drawPBR(MS.sph,mt,M4.chain(M4.tr(p[0],p[1],p[2]),M4.sc(r*sx,r*sy,r*sz)))}
@@ -1475,7 +1554,8 @@ function frame(now,dt,st){
     gl.uniform1i(su.uNL,lights.length);gl.uniform4fv(su.uLP,new Float32Array(lights.flatMap(l=>[l[0][0],l[0][1],l[0][2],l[2]])));gl.uniform3fv(su.uLC,new Float32Array(lights.flatMap(l=>l[1])));gl.useProgram(P_PBR.p)}
   const sm=SMITH&&P_SKIN?drawSmithSkinned(now,t,st.a,st.pow,st.fz,Mw,wVis):drawSmith(now,t,st.a,st.pow,st.fz,Mw,wVis);
   if(wVis&&Mw){
-    if(blank){WPN.mats.ingot.emi=V.sc([3,.9,.15],.55+.25*Math.sin(t*3)+heat*.6)}
+    if(blank){if(WPN.mats&&WPN.mats.ingot)WPN.mats.ingot.emi=V.sc([3,.9,.15],.55+.25*Math.sin(t*3)+heat*.6);
+      else if(WPN.pack)for(const b of WPN.batches)b.mat.emTCol=V.sc([2.6,.8,.14],.6+.3*Math.sin(t*3)+heat*.8)}
     for(const b of WPN.batches)drawPBR(b.m,b.mat,Mw);
     if(WPN.dual){const k=smooth(0,1,pose.p),M2=M4.chain(Mw,M4.tr(lerp(.07,0,k),0,lerp(0,-.04,k)),M4.rz(lerp(0,.8,k)));for(const b of WPN.batches)drawPBR(b.m,b.mat,M2)}
     if(WPN.wings&&pose.p>.04){const k=smooth(0,1,pose.p),fl2=1+Math.sin(t*2.2)*.05;drawPBR(WPN.wings.m,WPN.wings.mat,M4.chain(Mw,M4.tr(0,WPN.wingY,0),M4.sc(k*fl2,k,k)))}
@@ -1527,7 +1607,8 @@ function thumbRT(w,h){if(TB&&TB.w===w&&TB.h===h)return TB;if(TB){gl.deleteFrameb
   const d=gl.createRenderbuffer();gl.bindRenderbuffer(gl.RENDERBUFFER,d);gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT24,w,h);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,d);
   TB={f,c,d,w,h,buf:new Float32Array(w*h*4)};return TB}
 function thumb(wd,W,Hh,rot){W=Math.max(8,Math.min(512,W|0));Hh=Math.max(8,Math.min(512,Hh|0));rot=rot||0;
-  const key=(wd.type||'blank')+'|'+(wd.el||'')+'|'+(wd.lv|0)+'|'+W+'x'+Hh+'|'+rot.toFixed(2);if(TCACHE.has(key))return TCACHE.get(key);
+  const usingPack=H.usePack&&H.usePack(),pn=usingPack?(packWeaponName(wd.type,wd.lv|0)||(wd.type?null:'iron-ingot-0')):null;
+  const key=(pn&&packReady(pn)?pn:(wd.type||'blank')+'|'+(wd.lv|0))+'|'+(wd.el||'')+'|'+W+'x'+Hh+'|'+rot.toFixed(2);if(TCACHE.has(key))return TCACHE.get(key);
   const SS=2,w=W*SS,h=Hh*SS,R=buildWeapon(wd),keep={...cam};
   try{const T=thumbRT(w,h);gl.bindFramebuffer(gl.FRAMEBUFFER,T.f);gl.viewport(0,0,w,h);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);gl.depthMask(true);gl.disable(gl.BLEND);gl.disable(gl.CULL_FACE);
@@ -1552,6 +1633,7 @@ function thumb(wd,W,Hh,rot){W=Math.max(8,Math.min(512,W|0));Hh=Math.max(8,Math.m
   for(let y=0;y<h;y++){const sy=(h-1-y)*w*4,dy=y*w*4;for(let x=0;x<w;x++){const i=sy+x*4,o=dy+x*4,a=B[i+3];if(a<=0)continue;const k=1/Math.max(a,1e-3),r=B[i]*k,g=B[i+1]*k,bb=B[i+2]*k,m=Math.max(r,g,bb);if(m>1.6){const f=Math.min(1,(m-1.6)/2);GD[o]=ac(r);GD[o+1]=ac(g);GD[o+2]=ac(bb);GD[o+3]=255*f;any=1}}}
   if(any){gx.putImageData(gi,0,0);ox.filter='blur('+Math.max(2,W/40)+'px)';ox.globalCompositeOperation='lighter';ox.drawImage(gl2,0,0,W,Hh);ox.filter='none';ox.globalCompositeOperation='source-over'}
   ox.drawImage(big,0,0,W,Hh);if(any){ox.globalCompositeOperation='lighter';ox.globalAlpha=.6;ox.filter='blur(1px)';ox.drawImage(gl2,0,0,W,Hh);ox.filter='none';ox.globalAlpha=1;ox.globalCompositeOperation='source-over'}
+  if(pn&&packReady(pn)&&!packTexReady())return out;// 텍스처 도착 전이면 캐시하지 않는다
   if(TCACHE.size>400)TCACHE.delete(TCACHE.keys().next().value);TCACHE.set(key,out);return out}
 /* ---------------- 상점 보물상자 (사진 질감 나무·쇠) : 이미지로 구워서 사용 ---------------- */
 function rRect(w,h,r,n=5){const o=[],c=[[w/2-r,h/2-r,0],[-w/2+r,h/2-r,PI/2],[-w/2+r,-h/2+r,PI],[w/2-r,-h/2+r,PI*1.5]];for(const[cx,cy,a0]of c)for(let i=0;i<=n;i++){const a=a0+i/n*PI/2;o.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r])}return o}
@@ -1615,8 +1697,43 @@ function renderChest(open,W,Hh,glowCol){const SS=2,w=W*SS,h=Hh*SS,keep={...cam};
   const ac=x=>{x*=1.05;const v=(x*(2.51*x+.03))/(x*(2.43*x+.59)+.14);return Math.pow(Math.min(1,Math.max(0,v)),1/2.2)*255};
   for(let y=0;y<h;y++){const sy=(h-1-y)*w*4,dy=y*w*4;for(let x=0;x<w;x++){const i=sy+x*4,o2=dy+x*4,a=B[i+3];if(a<=0)continue;const k=1/Math.max(a,1e-3);D[o2]=ac(B[i]*k);D[o2+1]=ac(B[i+1]*k);D[o2+2]=ac(B[i+2]*k);D[o2+3]=Math.min(255,a*255)}}
   bx.putImageData(img,0,0);const out=document.createElement('canvas');out.width=W;out.height=Hh;const ox=out.getContext('2d');ox.imageSmoothingQuality='high';ox.drawImage(big,0,0,W,Hh);return out}
+/* 팩 에셋 썸네일 (비교·검증용) */
+function packThumb(name,W,Hh,rot,tm,view){const K=packReady(name);if(!K){loadPack(name);return null}
+  W=Math.max(8,Math.min(512,W|0));Hh=Math.max(8,Math.min(512,Hh|0));rot=rot||0;
+  const SS=2,w=W*SS,h=Hh*SS,keep={...cam};
+  try{const T=thumbRT(w,h);gl.bindFramebuffer(gl.FRAMEBUFFER,T.f);gl.viewport(0,0,w,h);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);gl.depthMask(true);gl.disable(gl.BLEND);gl.disable(gl.CULL_FACE);
+    const B=K.bounds,ctr=[(B[0][0]+B[1][0])/2,(B[0][1]+B[1][1])/2,(B[0][2]+B[1][2])/2];
+    const sz=Math.max(B[1][0]-B[0][0],B[1][1]-B[0][1],B[1][2]-B[0][2]);
+    const V2=view||{},asp=w/h,fov=(V2.fov||20)*PI/180,tn=Math.tan(fov/2);
+    const szv=V2.size!=null?V2.size:sz,dist=szv*(V2.fit||.62)/tn*1.12;
+    if(V2.ty!=null)ctr[1]=B[0][1]+(B[1][1]-B[0][1])*V2.ty;if(V2.cy!=null)ctr[1]=V2.cy;
+    const ya=V2.yaw!=null?V2.yaw:.5;
+    const eye=[Math.sin(ya)*dist*(V2.side!=null?V2.side:.5),ctr[1]+szv*(V2.hi!=null?V2.hi:.12),Math.cos(ya)*dist];
+    cam.V=M4.look(eye,ctr,[0,1,0]);cam.P=M4.persp(fov,asp,dist*.1,dist*4);cam.VP=M4.mul(cam.P,cam.V);cam.eye=eye;
+    const lights=[[[sz*1.6,sz*2.2,sz*3],[3.4,3.2,3],.0005],[[-sz*2,sz*.8,sz*2],[1,1.1,1.5],.0005],[[0,sz*1.5,-sz*2.5],[1.7,1.6,1.4],.0005],[[0,-sz,sz*1.5],[.5,.45,.4],.0005]];
+    setProgCommon(P_PBR,eye,lights,9999,[1.1,1,.95],tm||0);
+    drawPack(K,M4.chain(M4.rz(-rot),M4.ry(.3)),tm||0,null);
+    gl.readPixels(0,0,w,h,gl.RGBA,gl.FLOAT,T.buf);gl.bindFramebuffer(gl.FRAMEBUFFER,null)}
+  finally{Object.assign(cam,keep)}
+  const Bf=TB.buf,big=document.createElement('canvas');big.width=w;big.height=h;const bx=big.getContext('2d'),img=bx.createImageData(w,h),D=img.data;
+  const ac=x=>{x*=1.08;const v=(x*(2.51*x+.03))/(x*(2.43*x+.59)+.14);return Math.pow(Math.min(1,Math.max(0,v)),1/2.2)*255};
+  for(let y=0;y<h;y++){const sy=(h-1-y)*w*4,dy=y*w*4;for(let x=0;x<w;x++){const i=sy+x*4,o=dy+x*4,a=Bf[i+3];if(a<=0){D[o+3]=0;continue}const k=1/Math.max(a,1e-3);D[o]=ac(Bf[i]*k);D[o+1]=ac(Bf[i+1]*k);D[o+2]=ac(Bf[i+2]*k);D[o+3]=Math.min(255,a*255)}}
+  bx.putImageData(img,0,0);const out=document.createElement('canvas');out.width=W;out.height=Hh;const ox=out.getContext('2d');ox.imageSmoothingQuality='high';ox.drawImage(big,0,0,W,Hh);return out}
+/* 팩 애니메이션을 캔버스 몇 장으로 구워 둔다 (상점 상자·구체는 2D 캔버스에 올리므로
+   매 프레임 readPixels를 하면 느리다. 프레임을 미리 구워 두고 그리기만 한다) */
+const PFRAMES={},PFWIP={};
+function packFrames(name,W,Hh,rot,n,dur,view){
+  const key=name+'|'+W+'x'+Hh+'|'+n+'|'+JSON.stringify(view||0);if(PFRAMES[key])return PFRAMES[key];
+  if(!packReady(name)){loadPack(name);return null}
+  if(!packTexReady())return null;// 텍스처가 아직이면 흰 모델이 구워진다
+  // 한 번에 다 구우면 휴대폰에서 끊기므로 프레임마다 조금씩 굽는다
+  const wip=PFWIP[key]||(PFWIP[key]=[]);
+  for(let k=0;k<2&&wip.length<n;k++){const im=packThumb(name,W,Hh,rot,dur*wip.length/n,view);if(!im)return null;wip.push(im)}
+  if(wip.length<n)return null;
+  wip.dur=dur;PFRAMES[key]=wip;delete PFWIP[key];return wip}
 window.Forge3D={
-  init(canvas,hooks){H=hooks;try{if(!initGL(canvas))return false;buildScene();ACTIVE=true;return true}catch(e){console.error('3D 초기화 실패',e);ACTIVE=false;return false}},
+  init(canvas,hooks){H=hooks;try{if(!initGL(canvas))return false;buildScene();ACTIVE=true;if(!H.usePack||H.usePack())preloadPacks();return true}catch(e){console.error('3D 초기화 실패',e);ACTIVE=false;return false}},
   get active(){return ACTIVE&&!lost},L:L3,
   frame(now,dt,st){try{frame(now,dt,st)}catch(e){console.error('3D 렌더 오류',e);ACTIVE=false;if(H&&H.onLost)H.onLost()}},
   duel(now,dt){try{return duelFrame(now,dt)}catch(e){console.error('3D 결투 오류',e);return false}},
@@ -1624,7 +1741,11 @@ window.Forge3D={
   canvas:()=>cv,
   hit(res){try{hit(res)}catch(e){}},
   chest(open,W,H,c){return renderChest(open,W,H,c)},
+  packThumb(n,W,H,rot,t,v){try{return packThumb(n,W,H,rot,t,v)}catch(e){console.error('팩 썸네일',e);return null}},
+  packFrames(n,W,H,rot,c,d,v){try{return packFrames(n,W,H,rot,c,d,v)}catch(e){return null}},
+  packReady:n=>!!packReady(n),loadPack:n=>loadPack(n),
   thumb(w,W,H,rot){try{return thumb(w,W,H,rot)}catch(e){console.error('썸네일 오류',e);return null}},archName:(t,e)=>(ARCH_NAME[t]||{})[e]||null,
+  clearCache(){TCACHE.clear();WCACHE.clear();WKEY='';freeWeapon(WPN);WPN=null},
   setPose(p){FIXP=p},setQ(q){FIXQ=q;quality=q},stats:()=>({parts:parts.length,quality,ftAvg})
 };
 })();

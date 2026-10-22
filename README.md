@@ -35,3 +35,18 @@ Node 22 이상: `npm run dev` → http://localhost:8788
 - 대장장이 캐릭터: Adobe Mixamo "Peasant Man", 결투 캐릭터: Mixamo "Paladin", "Castle Guard", "Orc"(Mixamo 기본 몬스터), "Erika Archer", "Ninja", "Kachujin" + 검·방패 모션 (Mixamo 이용약관에 따라 게임 내 사용 가능)
 - 결투·대장장이 몸동작: Quaternius "Universal Animation Library" 1·2 (CC0, `dev/ual2anim.py`로 변환)
 - 벽돌·돌바닥·금속·가죽·나무 질감, 지하실 조명(HDRI): Poly Haven (CC0)
+
+## Codex 납품 3D 에셋 (에셋 팩)
+
+`art/incoming/`(PR 브랜치 `art/rpg-assets-v2`)의 GLB를 `dev/glb2wk.py`로 변환해 `public/assets/pack/`에 넣습니다.
+
+```
+python3 dev/glb2wk.py art/incoming public/assets/pack
+```
+
+GLB 39개가 같은 텍스처 4장을 각자 품고 있어 원본은 99MB입니다. 변환하면 지오메트리만 남기고
+텍스처를 한 번만 공유해 약 4MB가 됩니다. 원본 GLB는 용량 때문에 main에 넣지 않고 PR 브랜치에 둡니다.
+
+- 상자·구체는 애니메이션 프레임을 미리 구워 2D 캔버스에 올립니다.
+- 무기는 머리말의 "모델" 버튼(휴대폰은 더보기 → 무기 모델)으로 기본/새 에셋을 전환합니다.
+- 팩이 없거나 늦게 오면 기존 절차 생성 모델로 자동 복귀합니다.

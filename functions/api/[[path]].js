@@ -143,7 +143,8 @@ function cleanState(st) {
     hidCount: Math.max(0, Math.floor(Number(st.hidCount) || 0)),
     auras: cleanAuras(st.auras),
     aura: cleanAura(st.aura),
-    auraBoxes: Math.max(0, Math.floor(Number(st.auraBoxes) || 0))
+    auraBoxes: Math.max(0, Math.floor(Number(st.auraBoxes) || 0)),
+    pack: st.pack ? 1 : 0
   };
 }
 

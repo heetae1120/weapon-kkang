@@ -1,6 +1,6 @@
 
 /* ---------------- 무기 (절차적 판타지 무기) ---------------- */
-function mat(o){return Object.assign({nor:null,rgh:null,norS:1,col:[.5,.5,.5],met:0,rou:.5,emi:[0,0,0],emGrad:0,edge:0,edgeCol:[0,0,0],emT:null,emTCol:[0,0,0],alb:null,rep:[1,1],envI:1,alpha:1,fog:1},o)}
+function mat(o){return Object.assign({orm:0,emRGB:0,nor:null,rgh:null,norS:1,col:[.5,.5,.5],met:0,rou:.5,emi:[0,0,0],emGrad:0,edge:0,edgeCol:[0,0,0],emT:null,emTCol:[0,0,0],alb:null,rep:[1,1],envI:1,alpha:1,fog:1},o)}
 const TRIM={fire:'#e0a050',ice:'#d6e8f4',thunder:'#ecc84e',dark:'#5a4a70',holy:'#f4d890'};
 const CORD={fire:'#8e1f2a',ice:'#1f3f7a',thunder:'#2c2a70',dark:'#1a1020',holy:'#efe9da'};
 const bump=(t,c,w)=>Math.max(0,1-Math.abs(t-c)/w);
@@ -112,8 +112,48 @@ function wingMat(el,lv){const k=1+(lv-10)*.13,c=lin(H.ELS[el].c);
   return{holy:mat({col:lin('#f6e3b0'),met:1,rou:.22,emi:V.sc(lin('#ffd98a'),.55*k),emGrad:1}),fire:mat({col:lin('#5a160a'),met:.6,rou:.3,emi:V.sc(c,2*k),emGrad:1}),
     ice:mat({col:lin('#d4f0ff'),met:.35,rou:.06,emi:V.sc(c,.8*k),emGrad:1}),thunder:mat({col:lin('#e8c860'),met:1,rou:.2,emi:V.sc(c,1.2*k),emGrad:1}),
     dark:mat({col:lin('#1a1322'),met:.9,rou:.16,emi:V.sc(c,1.4*k),emGrad:1})}[el]}
+/* ---- Codex 에셋 팩 무기 ----
+   28개 메쉬(7종×4단계)를 쓰고, 속성은 팔레트 색조와 발광으로 표현한다.
+   팩이 아직 안 받아졌거나 꺼져 있으면 null을 돌려주고 기존 절차 생성으로 넘어간다. */
+const PACK_TYPES={sword:1,dagger:1,spear:1,axe:1,saber:1,shinai:1,scythe:1};
+const packTier=lv=>lv<=5?1:lv<=10?2:lv<=15?3:4;
+function packWeaponName(type,lv){return PACK_TYPES[type]?type+'-t'+packTier(Math.max(1,lv)):null}
+// 속성별 색조 (팔레트 기본은 강철+청동이라, 날은 속성색 쪽으로 물들이고 발광도 속성색)
+function packTint(el,lv,hidden,type){
+  if(hidden){const c=type==='saber'?lin(H.SABER_C[lv]||'#fff'):type==='shinai'?lin(H.SHINAI_P[lv][1]):lin(H.SCYTHE_C[lv]||'#9aa');
+    return{col:V.mix([1,1,1],c,.5),emi:V.sc(c,1.4+lv*.12)}}
+  const E=H.ELS[el]||H.ELS.fire,c=lin(E.c),l=lin(E.l),k=(packTier(lv)-1)/3;// 단계 구간 단위로 묶어 썸네일 재사용
+  // 팔레트 기본이 짙은 강철이라 약하게 섞으면 속성이 안 보인다. 밝은 속성색으로 세게 곱하고 발광을 올린다.
+  const tint=V.sc(V.mix(c,l,.45),1.5+k*.7);
+  return{col:V.mix([.55,.55,.55],tint,.85),emi:V.sc(c,1.2+k*3.4)}
+}
+function buildPackWeapon(w){
+  const type=w.type,lv=Math.max(1,w.lv||1),nm=packWeaponName(type,lv);if(!nm)return null;
+  const K=packReady(nm);if(!K){loadPack(nm);return null}
+  const hidden=type==='saber'||type==='shinai'||type==='scythe';
+  const B=K.bounds,top=B[1][1],bot=B[0][1],xr=Math.max(Math.abs(B[0][0]),Math.abs(B[1][0]),Math.abs(B[0][2]),Math.abs(B[1][2]));
+  const T=packTint(w.el,lv,hidden,type);
+  const m=Object.assign({},K.mat,{col:T.col,emTCol:T.emi});
+  const R={type,lv,el:w.el,hidden,pack:nm,
+    batches:K.parts.map(p=>({m:{vao:K.vao,n:p.count,off:p.start},mat:m})),
+    mats:{},top,bot,gripY:0,hitY:top*.42,wingY:0,ringY:top*.45,
+    aura:{y0:Math.max(.04,top*.08),y1:top*.95,w:Math.max(.02,xr*.5)},
+    bladeW:Math.max(.02,xr*.45),xr,
+    offH:{spear:.3,axe:.26,scythe:.32,shinai:.12,sword:0,dagger:0,saber:0}[type]||0};
+  R.len=R.top-R.bot;R.mid=(R.top+R.bot)/2;
+  return R}
 /* 무기 생성 */
 function buildWeapon(w){
+  if(H.usePack&&H.usePack()&&w&&w.type&&w.type!=='blank'){const P=buildPackWeapon(w);if(P)return P}
+  if(H.usePack&&H.usePack()&&w&&(!w.type||w.type==='blank')){const K=packReady('iron-ingot-0');
+    if(K){const B=K.bounds,top=B[1][1],bot=B[0][1];
+      const R={type:'blank',lv:0,el:w&&w.el||'fire',hidden:false,pack:'iron-ingot-0',
+        batches:K.parts.map(p=>({m:{vao:K.vao,n:p.count,off:p.start},mat:Object.assign({},K.mat,{emTCol:[2.2,.7,.12]})})),
+        mats:{},top,bot,gripY:0,hitY:(top+bot)/2,wingY:0,ringY:0,aura:null,bladeW:.04,offH:0};
+      R.len=R.top-R.bot;R.mid=(R.top+R.bot)/2;return R}
+    loadPack('iron-ingot-0')}
+  return buildWeapon0(w)}
+function buildWeapon0(w){
   const type=w.type||'blank',lv=w.lv||0,el=w.el||'fire';const wb=Batches();let R={type,lv,el,hidden:type==='saber'||type==='shinai'||type==='scythe'};
   if(type==='blank'){
     const o=[];for(let i=0;i<24;i++){const a=i/24*TAU,cx=Math.cos(a)>0?.13:-.13,cy=Math.sin(a)>0?.012:-.012;o.push([cx+Math.cos(a)*.05,cy+Math.sin(a)*.026])}
@@ -214,4 +254,5 @@ function buildWeapon(w){
   if(type==='scythe'&&lv>=16){R.wings={m:mesh(wingGeo('dark',lv)),mat:wingMat('dark',lv)}}
   R.len=R.top-R.bot;R.mid=(R.top+R.bot)/2;
   return R}
-function freeWeapon(R){if(!R)return;R.batches.forEach(b=>freeMesh(b.m));if(R.wings)freeMesh(R.wings.m)}
+function freeWeapon(R){if(!R)return;if(R.pack)return;// 팩 무기는 공유 VAO라 지우면 안 됨
+  R.batches.forEach(b=>freeMesh(b.m));if(R.wings)freeMesh(R.wings.m)}

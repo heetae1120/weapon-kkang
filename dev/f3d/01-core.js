@@ -170,7 +170,7 @@ void main(){vec4 w=uM*vec4(aP,1.);vW=w.xyz;vN=normalize(uNM*aN);vU=aU;gl_Positio
 const PBR_FS=`#version 300 es
 precision highp float;in vec3 vW;in vec3 vN;in vec2 vU;out vec4 o;
 uniform vec3 uCam,uCol,uEmi,uEdgeCol,uEmTCol,uEnvTint;uniform float uMet,uRou,uEdge,uEmGrad,uEnvI,uTime,uAlpha,uFogK,uFogS;uniform vec2 uRep;
-uniform sampler2D uAlb,uEmT,uNor,uRgh,uEnvM;uniform int uUseAlb,uUseEm,uUseNor,uUseRgh,uUseEnv,uNL;uniform float uNorS,uEnvLod,uEnvRot,uEnvK;uniform vec4 uLP[7];uniform vec3 uLC[7];
+uniform sampler2D uAlb,uEmT,uNor,uRgh,uEnvM;uniform int uUseAlb,uUseEm,uUseNor,uUseRgh,uUseEnv,uNL,uORM,uEmRGB;uniform float uNorS,uEnvLod,uEnvRot,uEnvK;uniform vec4 uLP[7];uniform vec3 uLC[7];
 const float PI=3.14159265;
 vec3 envMap(vec3 d,float lod){float u=atan(d.z,d.x)/6.2831853+.5+uEnvRot;float v=acos(clamp(d.y,-1.,1.))/3.14159265;return textureLod(uEnvM,vec2(u,v),lod).rgb;}
 mat3 cotan(vec3 N,vec3 p,vec2 uv){vec3 dp1=dFdx(p),dp2=dFdy(p);vec2 du1=dFdx(uv),du2=dFdy(uv);vec3 a=cross(dp2,N),b=cross(N,dp1);vec3 T=a*du1.x+b*du2.x,B=a*du1.y+b*du2.y;float k=inversesqrt(max(max(dot(T,T),dot(B,B)),1e-20));return mat3(T*k,B*k,N);}
@@ -186,8 +186,9 @@ vec3 envBRDF(vec3 F0,float r,float NoV){const vec4 c0=vec4(-1.,-.0275,-.572,.022
 void main(){vec3 N=normalize(vN);vec3 V=normalize(uCam-vW);vec2 tu=vU*uRep;
   if(uUseNor==1){vec3 tn=texture(uNor,tu).xyz*2.-1.;tn.xy*=uNorS;N=normalize(cotan(N,vW,tu)*tn);}
   vec3 alb=uCol;if(uUseAlb==1)alb*=texture(uAlb,tu).rgb;
-  float rr=uRou;if(uUseRgh==1)rr*=.35+texture(uRgh,tu).r*1.3;
-  float rou=clamp(rr,.045,1.),met=uMet;vec3 F0=mix(vec3(.04),alb,met);float NoV=max(dot(N,V),1e-3);
+  float rr=uRou,mm=uMet;
+  if(uUseRgh==1){if(uORM==1){vec3 orm=texture(uRgh,tu).rgb;rr*=orm.g;mm*=orm.b;}else rr*=.35+texture(uRgh,tu).r*1.3;}
+  float rou=clamp(rr,.045,1.),met=clamp(mm,0.,1.);vec3 F0=mix(vec3(.04),alb,met);float NoV=max(dot(N,V),1e-3);
   vec3 Lo=vec3(0);
   for(int i=0;i<7;i++){if(i>=uNL)break;vec3 Ld=uLP[i].xyz-vW;float dist=length(Ld);vec3 L=Ld/dist;float att=1./(1.+dist*dist*uLP[i].w);
     vec3 Hh=normalize(L+V);float NoL=max(dot(N,L),0.),NoH=max(dot(N,Hh),0.),VoH=max(dot(V,Hh),0.);
@@ -196,7 +197,7 @@ void main(){vec3 N=normalize(vN);vec3 V=normalize(uCam-vW);vec2 tu=vU*uRep;
     Lo+=(kd*alb/PI+spec)*uLC[i]*NoL*att;}
   vec3 R=reflect(-V,N);vec3 col=Lo+env(R,rou)*envBRDF(F0,rou,NoV)+(uUseEnv==1?envMap(N,uEnvLod-1.)*uEnvK*uEnvTint*uEnvI*.8:env(N,1.))*alb*(1.-met)*.9;
   vec3 em=uEmi*mix(1.,smoothstep(.0,1.,vU.y)*1.6,uEmGrad);
-  if(uUseEm==1){float m=texture(uEmT,vU).r;em+=uEmTCol*m*(.75+.25*sin(uTime*3.+vU.y*20.));}
+  if(uUseEm==1){if(uEmRGB==1)em+=uEmTCol*texture(uEmT,tu).rgb;else{float m=texture(uEmT,vU).r;em+=uEmTCol*m*(.75+.25*sin(uTime*3.+vU.y*20.));}}
   float e=abs(vU.x*2.-1.);em+=uEdgeCol*uEdge*smoothstep(.8,1.,e)*(.85+.15*sin(uTime*6.+vU.y*30.));
   col+=em;
   float fd=length(vW-uCam);col*=mix(1.,.35,smoothstep(uFogS,uFogS+4.,fd)*uFogK);

@@ -64,6 +64,42 @@ function loadChar(name,file){const b=(H&&H.assetBase)||'assets/';if(!P_SKIN||CH[
     CH[name]={vao,ib,bones,idx,meshes,J,sc:J.sc||1,loy:J.loy||0};if(name==='smith')SMITH=CH[name]}).catch(()=>{delete CH[name]})}
 function loadAnims(name,file){const b=(H&&H.assetBase)||'assets/';if(ANIM[name])return;ANIM[name]='loading';
   fetch(b+file+'.json').then(r=>{if(!r.ok)throw 0;return r.json()}).then(J=>{const clips={};for(const[k,c]of Object.entries(J.clips)){const src=c.d||c.q;if(!src)continue;const q={};for(const[bn,arr]of Object.entries(src))q[bn]=new Float32Array(arr);clips[k]={n:c.n,fps:c.fps||30,dur:(c.n-1)/(c.fps||30),q,hips:new Float32Array(c.hips||[]),loop:!!c.loop}}clips.__hsc=J.hsc;clips.__hrest=J.hrest;clips.__world=!!J.world;ANIM[name]=clips}).catch(()=>{delete ANIM[name]})}
+/* ---- Codex 납품 에셋 팩 (GLB -> dev/glb2wk.py로 변환) ----
+   정점(위치·법선·UV)과 인덱스, 공유 PBR 텍스처 1세트를 쓴다. 파트마다 애니메이션 피벗을 가질 수 있다. */
+const PACK={},PACKT={};
+function packTex(){if(PACKT.ready)return PACKT;const b=((H&&H.assetBase)||'assets/')+'pack/';
+  PACKT.alb=loadImgTex(b+'tex_basecolor.jpg',{srgb:1});PACKT.nor=loadImgTex(b+'tex_normal.jpg',{def:[128,128,255,255]});
+  PACKT.orm=loadImgTex(b+'tex_orm.jpg',{def:[255,128,0,255]});PACKT.emi=loadImgTex(b+'tex_emissive.jpg',{def:[0,0,0,255]});
+  PACKT.ready=1;return PACKT}
+function loadPack(name){if(PACK[name])return PACK[name]==='loading'?null:PACK[name];PACK[name]='loading';const b=((H&&H.assetBase)||'assets/')+'pack/';
+  Promise.all([fetch(b+name+'.json').then(r=>{if(!r.ok)throw 0;return r.json()}),fetch(b+name+'_m.wasm').then(r=>{if(!r.ok)throw 0;return r.arrayBuffer()})]).then(([J,buf])=>{if(lost)return;
+    const n=J.n,vao=gl.createVertexArray();gl.bindVertexArray(vao);let off=0;const bs=[];
+    const at=(loc,sz,bytes)=>{const bb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,bb);gl.bufferData(gl.ARRAY_BUFFER,new Uint8Array(buf,off,n*bytes),gl.STATIC_DRAW);gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,sz,gl.FLOAT,false,0,0);off+=n*bytes;bs.push(bb)};
+    at(0,3,12);at(1,3,12);at(2,2,8);
+    const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint32Array(buf,off,J.ni),gl.STATIC_DRAW);bs.push(ib);
+    gl.bindVertexArray(null);const T=packTex();
+    if(typeof TCACHE!=='undefined')TCACHE.clear();if(typeof WCACHE!=='undefined')WCACHE.clear();WKEY='';
+    PACK[name]={vao,ib,bs,J,parts:J.parts,bounds:J.bounds,
+      mat:mat({col:[1,1,1],alb:T.alb,nor:T.nor,rgh:T.orm,orm:1,norS:.4,met:1,rou:1,emT:T.emi,emTCol:[1.6,1.6,1.6],emRGB:1,rep:[1,1]})}})
+    .catch(()=>{delete PACK[name]});return null}
+function packTexReady(){const T=PACKT;return !!(T.ready&&T.alb&&T.alb.ready&&T.nor&&T.nor.ready&&T.orm&&T.orm.ready&&T.emi&&T.emi.ready)}
+function packReady(name){return PACK[name]&&PACK[name]!=='loading'?PACK[name]:null}
+/* 팩 전체 미리 받기 (무기 7종×4단계 + 쇳덩이). 도착하면 캐시를 비워 다시 그리게 한다. */
+const PACK_ALL=[];
+for(const t of['sword','dagger','spear','axe','saber','shinai','scythe'])for(let i=1;i<=4;i++)PACK_ALL.push(t+'-t'+i);
+PACK_ALL.push('iron-ingot-0','weapon-chest','aura-orb');
+function preloadPacks(){for(const n of PACK_ALL)if(!PACK[n])loadPack(n)}
+/* 팩 에셋 그리기. M=월드 변환, t=시간(초), o={emi,col,rate} */
+function drawPack(K,M,t,o){o=o||{};const m=K.mat,c0=m.col,e0=m.emTCol;
+  if(o.col)m.col=o.col;if(o.emi)m.emTCol=o.emi;
+  gl.bindVertexArray(K.vao);
+  for(const p of K.parts){let Mp=M;
+    if(p.anim&&p.anim.q&&p.anim.q.length){const A=p.anim,n=A.q.length;let x=(t||0)*A.fps*(o.rate||1);
+      x=A.loop?((x%n)+n)%n:clamp(x,0,n-1);const i=Math.floor(x),j=Math.min(n-1,i+1),f=x-i;
+      const q=qSlerp(A.q[i],A.q[j],f),P=p.pivot||[0,0,0];
+      Mp=M4.chain(M,M4.tr(P[0],P[1],P[2]),qToM(q),M4.tr(-P[0],-P[1],-P[2]))}
+    setMat(P_PBR.u,m,Mp);gl.drawElements(gl.TRIANGLES,p.count,gl.UNSIGNED_INT,p.start*4)}
+  m.col=c0;m.emTCol=e0}
 function loadSmith(){loadChar('smith','smith');loadAnims('ual','ual_anim')}
 function makeTextures(){
   const r=rng(7);

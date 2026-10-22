@@ -45,7 +45,7 @@ function buildScene(){
   SC.bandM=mat({col:lin('#b01e2a'),rou:.6});SC.boot=mat({col:lin('#1a1412'),rou:.5,met:.1});SC.eye=mat({col:lin('#120a08'),rou:.3});SC.eyeFz=mat({col:[0,0,0],emi:[8,1,.3]});
   SC.hamHead=mat({col:lin('#8a8f99'),alb:PT.rust_d,rgh:PT.rust_r,rep:[1,1],met:.85,rou:.45});SC.hamFace=mat({col:lin('#c8ced8'),met:1,rou:.15});SC.gold=mat({col:lin('#d9b25a'),met:1,rou:.25});
 }
-function drawPBR(m,mt,M){const u=P_PBR.u;setMat(u,mt,M);gl.bindVertexArray(m.vao);gl.drawElements(gl.TRIANGLES,m.n,gl.UNSIGNED_INT,0)}
+function drawPBR(m,mt,M){const u=P_PBR.u;setMat(u,mt,M);gl.bindVertexArray(m.vao);gl.drawElements(gl.TRIANGLES,m.n,gl.UNSIGNED_INT,(m.off||0)*4)}
 function setMat(u,mt,M){
   gl.uniformMatrix4fv(u.uM,false,M);gl.uniformMatrix3fv(u.uNM,false,M4.nm3(M));gl.uniform3fv(u.uCol,mt.col);gl.uniform1f(u.uMet,mt.met);gl.uniform1f(u.uRou,mt.rou);
   gl.uniform3fv(u.uEmi,mt.emi);gl.uniform1f(u.uEmGrad,mt.emGrad);gl.uniform1f(u.uEdge,mt.edge);gl.uniform3fv(u.uEdgeCol,mt.edgeCol);gl.uniform1f(u.uAlpha,mt.alpha);gl.uniform1f(u.uFogK,mt.fog);
@@ -54,6 +54,7 @@ function setMat(u,mt,M){
   if(mt.rgh){gl.activeTexture(gl.TEXTURE3);gl.bindTexture(gl.TEXTURE_2D,mt.rgh);gl.uniform1i(u.uUseRgh,1)}else gl.uniform1i(u.uUseRgh,0);
   if(mt.alb||mt.nor||mt.rgh)gl.uniform2fv(u.uRep,mt.rep);
   if(mt.emT){gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,mt.emT);gl.uniform1i(u.uUseEm,1);gl.uniform3fv(u.uEmTCol,mt.emTCol)}else gl.uniform1i(u.uUseEm,0);
+  gl.uniform1i(u.uORM,mt.orm?1:0);gl.uniform1i(u.uEmRGB,mt.emRGB?1:0);
 }
 function seg(m,mt,a,b,r){const d=V.sub(b,a),l=V.len(d)||1e-5,y=V.sc(d,1/l);let x=V.norm(V.cross(y,Math.abs(y[1])<.95?[0,1,0]:[1,0,0]));const z=V.cross(x,y);drawPBR(MS.cyl,mt,M4.basis(V.sc(x,r),d,V.sc(z,r),a))}
 function ball(mt,p,r,sx=1,sy=1,sz=1){drawPBR(MS.sph,mt,M4.chain(M4.tr(p[0],p[1],p[2]),M4.sc(r*sx,r*sy,r*sz)))}
