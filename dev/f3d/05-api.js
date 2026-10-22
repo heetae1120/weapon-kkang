@@ -271,6 +271,11 @@ window.Forge3D={
   packThumb(n,W,H,rot,t,v){try{return packThumb(n,W,H,rot,t,v)}catch(e){console.error('팩 썸네일',e);return null}},
   packFrames(n,W,H,rot,c,d,v){try{return packFrames(n,W,H,rot,c,d,v)}catch(e){return null}},
   packReady:n=>!!packReady(n),loadPack:n=>loadPack(n),
+  // 무기별 공격 추첨 가중치(spec.json 유래) — index.html이 공격 번호를 뽑을 때 쓴다
+  wmPool(ty){const S=wmSet(ty);return S&&S.__meta?S.__meta.pool:null},
+  wmClip(ty,ix){const P=this.wmPool(ty);return P&&P[ix]?P[ix].clip:null},
+  // 검증용: 지금 재생 중인 클립과 클립 내부 시각
+  wmState(){const f=a=>a?{clip:a.cur.name,wm:!!a.cur.w,at:a.cur.at,set:a.wmc?Object.keys(a.wmc).filter(k=>k[0]!=='_'):null}:null;return{p:f(DS.p),o:f(DS.o)}},
   thumb(w,W,H,rot){try{return thumb(w,W,H,rot)}catch(e){console.error('썸네일 오류',e);return null}},archName:(t,e)=>(ARCH_NAME[t]||{})[e]||null,
   clearCache(){TCACHE.clear();WCACHE.clear();WKEY='';freeWeapon(WPN);WPN=null},
   setPose(p){FIXP=p},setQ(q){FIXQ=q;quality=q},stats:()=>({parts:parts.length,quality,ftAvg})

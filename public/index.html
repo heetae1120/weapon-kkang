@@ -1856,7 +1856,8 @@ function startDuel(i){const rv=S.rivals[i];if(rv)startDuelRv(rv)}
 function startDuelRv(rv,pvp){
   unlockAudio();const now=performance.now(),W=curW();
   D={rv,pid:W.id,pw:{...W},ow:{type:rv.type,el:rv.el,lv:rv.lv},ps:0,os:0,round:0,phase:'intro',ph0:now,parts:[],texts:[],shake:0,inv:0,flash:0,slash:null,q:null,clash:null,adv:advW(W,rv),vsHit:0,cardShown:false};
-  D.pvp=pvp||null;D.map=pvp?MAP_LIST[(pvp.seed>>>0)%MAP_LIST.length]:pick(MAP_LIST);D.id=now;D.pch=S.char||'paladin';D.och=rv.ch||'guard';D.pa=auraObj(S.aura);D.oa=auraObj(rv.au);D.d3=!!(F3&&F3.active);if(D.d3)F3.preloadDuel([D.pch,D.och]);if(D.d3){F3.resetDuel();const f=$('#f3d');f.style.height='100%';$('#dstage').prepend(f)}
+  D.pvp=pvp||null;D.seed=(pvp?pvp.seed:Math.floor(Math.random()*2147483647))>>>0;
+  D.map=pvp?MAP_LIST[(pvp.seed>>>0)%MAP_LIST.length]:pick(MAP_LIST);D.id=now;D.pch=S.char||'paladin';D.och=rv.ch||'guard';D.pa=auraObj(S.aura);D.oa=auraObj(rv.au);D.d3=!!(F3&&F3.active);if(D.d3)F3.preloadDuel([D.pch,D.och]);if(D.d3){F3.resetDuel();const f=$('#f3d');f.style.height='100%';$('#dstage').prepend(f)}
   $('#duel').hidden=false;document.body.classList.add('lock');$('#rcard').hidden=true;
   $('#qarea').innerHTML='';$('#seq').innerHTML='';$('#qmsg').textContent='결투 준비';
   $('#tFill').style.width='100%';$('#tFill').classList.remove('urgent');$('#tVal').textContent='';
@@ -1877,6 +1878,22 @@ function setPhase(p){
   D.phase=p;D.ph0=performance.now();if(D.pvp&&p==='ready'){D.pvp.startAt=0;D.pvp.sub=null;D.pvp.subOk=false}
   if(p==='ready'){D.round++;D.goShown=false;hud();const{w,h}=dsz();popText(D.texts,`${D.round}라운드`,w/2,h*.42,{size:Math.min(64,w*.12),band:'#c4561a',dur:700});$('#qmsg').textContent='준비';$('#seq').innerHTML='';$('#qarea').innerHTML=''}
 }
+/* ---- 무기별 공격 추첨 ----
+   일반 3종 가중치 30, 필살기 10 (spec.json의 attack_pool). 가중치는 확률이 아니라 선택 가중치다.
+   직전 라운드에 나온 공격은 후보에서 빼고 남은 가중치로 다시 고른다(avoid_immediate_repeat).
+   번호는 결투 시드·라운드·'대전 내 고정 진영'으로만 정해진다. 화면에서의 좌우(p/o)는 사람마다
+   뒤바뀌므로 쓰지 않는다. PvP는 서버가 준 side('a'/'b')를 그대로 쓰고 AI 결투는 'a'/'b'로 고정한다.
+   그래서 같은 캐릭터는 어느 화면에서 보든 같은 공격이 나온다. */
+const ATK_W=[30,30,30,10];
+const SIDE_SALT={a:0x9e3779b1,b:0x85ebca6b};
+const mySide=()=>D&&D.pvp?D.pvp.side:'a',oppSide=()=>mySide()==='a'?'b':'a';
+function atkWeights(ty){const p=F3&&F3.wmPool&&F3.wmPool(ty);return p&&p.length?p.map(x=>x.w):ATK_W}
+function atkIdx(ty,side,round){
+  if(!ty||ty==='blank'||round<1)return -1;
+  const w=atkWeights(ty),prev=round>1?atkIdx(ty,side,round-1):-1;
+  const cand=w.map((_,i)=>i).filter(i=>i!==prev);if(!cand.length)return 0;
+  const r=seededRand((D.seed>>>0)^Math.imul(round,2654435761)^(SIDE_SALT[side]||SIDE_SALT.a))()*cand.reduce((a,i)=>a+w[i],0);
+  let acc=0;for(const i of cand){acc+=w[i];if(r<acc)return i}return cand[cand.length-1]}
 function seededRand(seed){let a=seed>>>0||1;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296}}
 function startQTE(){
   const M=D.pw.lv,O=D.ow.lv,pv=D.pvp,P=pv?qteParams(clamp(pv.qlv,0,20)):qteParams(clamp(O-D.adv*2,0,20));
@@ -1963,7 +1980,9 @@ function endRound(wn,force){
   q.btns.forEach(b=>b.disabled=true);$('#qarea').classList.add('fade');
   const short=D.rv.name.split(' ').pop();
   $('#qmsg').textContent=wn==='p'?'선공 성공!':wn==='o'?`${short}에게 선수를 빼앗겼다`:'시간 초과 · 서로 막아냈다';
-  D.clash={w:wn,t0:now,ev:{},fin:(wn==='p'&&D.ps>=1)||(wn==='o'&&D.os>=1)};D.phase='clash';D.ph0=now;
+  D.clash={w:wn,t0:now,ev:{},fin:(wn==='p'&&D.ps>=1)||(wn==='o'&&D.os>=1),
+    pa:atkIdx(D.pw&&D.pw.type,mySide(),D.round),oa:atkIdx(D.ow&&D.ow.type,oppSide(),D.round)};
+  D.phase='clash';D.ph0=now;
 }
 // 칼 맞대기 타임라인(초): 돌진→부딪힘(imp)→맞대기→밀쳐냄(brk)→베임(cut)→복귀(back)→끝(end)
 const CLASH={imp:.3,brk:1.3,cut:1.62,back:2.05,end:2.5};
@@ -2409,7 +2428,7 @@ function loop(now){
   pumpThumbs();try{if(B)drawBoxOv(now,dt);else if(D)duelTick(now,dt);else if(tab==='forge')drawForge(now,dt);else if(tab==='shop')drawShopAnim(now);else if(tab==='codex')drawCodexAuras(now)}catch(e){console.error(e)}
   requestAnimationFrame(loop);
 }
-if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname))window.__dbg={curW:()=>curW(),FX,renderForge:()=>renderForge(),F3:()=>F3,S,startDuel:i=>startDuel(i),startQTE:()=>startQTE(),endRound:w=>endRound(w),get D(){return D}};if(window.__dbg)window.__D=()=>D;
+if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname))window.__dbg={curW:()=>curW(),FX,renderForge:()=>renderForge(),F3:()=>F3,S,startDuel:i=>startDuel(i),startQTE:()=>startQTE(),endRound:w=>endRound(w),atkIdx:(t,sd,r)=>atkIdx(t,sd,r),get D(){return D}};if(window.__dbg)window.__D=()=>D;
 function start(data){
   if(data&&data.S&&Array.isArray(data.S.inv))Object.assign(S,data.S);else load();
   curW();bind();
