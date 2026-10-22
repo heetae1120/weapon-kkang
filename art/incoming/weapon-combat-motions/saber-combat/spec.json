@@ -1,0 +1,247 @@
+{
+  "asset": "saber-combat",
+  "type": "character_animation_pack",
+  "units": "meters",
+  "up_axis": "+Y",
+  "front_axis": "+Z",
+  "origin": "feet_center",
+  "height_m": 1.7,
+  "bind_pose": "T-pose, palms down, thumbs forward; closed sculpted training mittens",
+  "polygon_metric": "triangles",
+  "polygon_count": 7224,
+  "character_polygon_count": 5672,
+  "demo_weapon_polygon_count": 1552,
+  "material_count": 2,
+  "textures": {
+    "basecolor": [
+      1024,
+      1024
+    ],
+    "normal": [
+      1024,
+      1024
+    ],
+    "roughness_metallic_packed": [
+      1024,
+      1024
+    ],
+    "emissive": [
+      1024,
+      1024
+    ]
+  },
+  "textures_embedded": true,
+  "bones": [
+    "mixamorig:Hips",
+    "mixamorig:Spine",
+    "mixamorig:Spine1",
+    "mixamorig:Spine2",
+    "mixamorig:Neck",
+    "mixamorig:Head",
+    "mixamorig:LeftShoulder",
+    "mixamorig:LeftArm",
+    "mixamorig:LeftForeArm",
+    "mixamorig:LeftHand",
+    "mixamorig:LeftUpLeg",
+    "mixamorig:LeftLeg",
+    "mixamorig:LeftFoot",
+    "mixamorig:LeftToeBase",
+    "mixamorig:RightShoulder",
+    "mixamorig:RightArm",
+    "mixamorig:RightForeArm",
+    "mixamorig:RightHand",
+    "mixamorig:RightUpLeg",
+    "mixamorig:RightLeg",
+    "mixamorig:RightFoot",
+    "mixamorig:RightToeBase"
+  ],
+  "max_weights_per_vertex": 1,
+  "fps": 30,
+  "root_motion": false,
+  "weapon_type": "saber",
+  "two_handed": false,
+  "animations": [
+    {
+      "name": "saber_idle",
+      "frames": 91,
+      "loop": true,
+      "impact_frame": null,
+      "reference": null,
+      "duration_seconds": 3.0
+    },
+    {
+      "name": "saber_diagonal",
+      "frames": 37,
+      "impact_frame": 16,
+      "loop": false,
+      "reference": null,
+      "duration_seconds": 1.2,
+      "impact_seconds": 0.5,
+      "events": [
+        {
+          "frame": 16,
+          "type": "impact",
+          "direction": [
+            0,
+            0,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "saber_sweep",
+      "frames": 41,
+      "impact_frame": 18,
+      "loop": false,
+      "reference": null,
+      "duration_seconds": 1.3333333333333333,
+      "impact_seconds": 0.5666666666666667,
+      "events": [
+        {
+          "frame": 18,
+          "type": "impact",
+          "direction": [
+            0,
+            0,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "saber_thrust",
+      "frames": 35,
+      "impact_frame": 16,
+      "loop": false,
+      "reference": null,
+      "duration_seconds": 1.1333333333333333,
+      "impact_seconds": 0.5,
+      "events": [
+        {
+          "frame": 16,
+          "type": "impact",
+          "direction": [
+            0,
+            0,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "saber_crescent_finisher",
+      "frames": 67,
+      "impact_frame": 27,
+      "loop": false,
+      "reference": "BLEACH / Getsuga Tensho: overhead cut and projected crescent",
+      "duration_seconds": 2.2,
+      "impact_seconds": 0.8666666666666667,
+      "events": [
+        {
+          "frame": 27,
+          "type": "impact",
+          "direction": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "frame": 27,
+          "type": "crescent_wave",
+          "direction": [
+            0,
+            0,
+            1
+          ],
+          "runtime_only": true
+        }
+      ]
+    }
+  ],
+  "attack_pool": [
+    {
+      "clip": "saber_diagonal",
+      "weight": 30
+    },
+    {
+      "clip": "saber_sweep",
+      "weight": 30
+    },
+    {
+      "clip": "saber_thrust",
+      "weight": 30
+    },
+    {
+      "clip": "saber_crescent_finisher",
+      "weight": 10
+    }
+  ],
+  "random_selection": {
+    "avoid_immediate_repeat": true,
+    "select_once_per_attack": true,
+    "game_integration_owner": "Claude"
+  },
+  "grip": {
+    "right_bone": "mixamorig:RightHand",
+    "left_bone": null,
+    "left_distance_along_blade_m": null,
+    "socket_matrix_blender_column_major": [
+      -1.6391277313232422e-07,
+      -1.0,
+      -1.0617077350616455e-07,
+      0.0,
+      -1.2759119272232056e-07,
+      -1.3224780559539795e-07,
+      1.0,
+      0.0,
+      -1.0000001192092896,
+      9.685754776000977e-08,
+      -1.1827796697616577e-07,
+      0.0,
+      -1.3783574104309082e-07,
+      0.04599995166063309,
+      1.7229467630386353e-08,
+      1.0
+    ],
+    "demo_weapon": "separate rigid-skinned mesh; remove both demo meshes when retargeting"
+  },
+  "qa": [
+    {
+      "clip": "saber_idle",
+      "max_reach_excess_m": 0,
+      "analytic_grip_error_m": 0,
+      "authoring_reach_correction_m": 0
+    },
+    {
+      "clip": "saber_diagonal",
+      "max_reach_excess_m": 0,
+      "analytic_grip_error_m": 2.9802322387695312e-08,
+      "authoring_reach_correction_m": 0.04108358469352236
+    },
+    {
+      "clip": "saber_sweep",
+      "max_reach_excess_m": 0,
+      "analytic_grip_error_m": 1.1920928955078125e-07,
+      "authoring_reach_correction_m": 0
+    },
+    {
+      "clip": "saber_thrust",
+      "max_reach_excess_m": 0,
+      "analytic_grip_error_m": 2.9802322387695312e-08,
+      "authoring_reach_correction_m": 0
+    },
+    {
+      "clip": "saber_crescent_finisher",
+      "max_reach_excess_m": 0,
+      "analytic_grip_error_m": 2.9802322387695312e-08,
+      "authoring_reach_correction_m": 0
+    }
+  ],
+  "known_issues": [
+    "Training mannequin has sculpted mitten hands; no individual finger animation.",
+    "Dash, slash trails, energy waves, lightning and hitstop are runtime effects; GLB contains skeletal motion only.",
+    "Retarget and game playback are Claude integration work; proportions differing from this rig require grip correction."
+  ]
+}

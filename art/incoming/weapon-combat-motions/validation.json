@@ -1,0 +1,58 @@
+[
+  {
+    "asset": "axe-combat",
+    "triangles": 6904,
+    "clips": 5,
+    "embedded_images": 4,
+    "bytes": 3463756,
+    "passed": true
+  },
+  {
+    "asset": "dagger-combat",
+    "triangles": 6972,
+    "clips": 5,
+    "embedded_images": 4,
+    "bytes": 3481356,
+    "passed": true
+  },
+  {
+    "asset": "saber-combat",
+    "triangles": 7224,
+    "clips": 5,
+    "embedded_images": 4,
+    "bytes": 3492364,
+    "passed": true
+  },
+  {
+    "asset": "scythe-combat",
+    "triangles": 6968,
+    "clips": 5,
+    "embedded_images": 4,
+    "bytes": 3470408,
+    "passed": true
+  },
+  {
+    "asset": "shinai-combat",
+    "triangles": 7060,
+    "clips": 5,
+    "embedded_images": 4,
+    "bytes": 3485308,
+    "passed": true
+  },
+  {
+    "asset": "spear-combat",
+    "triangles": 6920,
+    "clips": 5,
+    "embedded_images": 4,
+    "bytes": 3465960,
+    "passed": true
+  },
+  {
+    "asset": "sword-combat",
+    "triangles": 6972,
+    "clips": 5,
+    "embedded_images": 4,
+    "bytes": 3467040,
+    "passed": true
+  }
+]
