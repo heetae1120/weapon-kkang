@@ -1,0 +1,247 @@
+{
+  "asset": "spear-combat",
+  "type": "character_animation_pack",
+  "units": "meters",
+  "up_axis": "+Y",
+  "front_axis": "+Z",
+  "origin": "feet_center",
+  "height_m": 1.7,
+  "bind_pose": "T-pose, palms down, thumbs forward; closed sculpted training mittens",
+  "polygon_metric": "triangles",
+  "polygon_count": 6920,
+  "character_polygon_count": 5672,
+  "demo_weapon_polygon_count": 1248,
+  "material_count": 2,
+  "textures": {
+    "basecolor": [
+      1024,
+      1024
+    ],
+    "normal": [
+      1024,
+      1024
+    ],
+    "roughness_metallic_packed": [
+      1024,
+      1024
+    ],
+    "emissive": [
+      1024,
+      1024
+    ]
+  },
+  "textures_embedded": true,
+  "bones": [
+    "mixamorig:Hips",
+    "mixamorig:Spine",
+    "mixamorig:Spine1",
+    "mixamorig:Spine2",
+    "mixamorig:Neck",
+    "mixamorig:Head",
+    "mixamorig:LeftShoulder",
+    "mixamorig:LeftArm",
+    "mixamorig:LeftForeArm",
+    "mixamorig:LeftHand",
+    "mixamorig:LeftUpLeg",
+    "mixamorig:LeftLeg",
+    "mixamorig:LeftFoot",
+    "mixamorig:LeftToeBase",
+    "mixamorig:RightShoulder",
+    "mixamorig:RightArm",
+    "mixamorig:RightForeArm",
+    "mixamorig:RightHand",
+    "mixamorig:RightUpLeg",
+    "mixamorig:RightLeg",
+    "mixamorig:RightFoot",
+    "mixamorig:RightToeBase"
+  ],
+  "max_weights_per_vertex": 1,
+  "fps": 30,
+  "root_motion": false,
+  "weapon_type": "spear",
+  "two_handed": true,
+  "animations": [
+    {
+      "name": "spear_idle",
+      "frames": 91,
+      "loop": true,
+      "impact_frame": null,
+      "reference": null,
+      "duration_seconds": 3.0
+    },
+    {
+      "name": "spear_rising",
+      "frames": 39,
+      "impact_frame": 17,
+      "loop": false,
+      "reference": null,
+      "duration_seconds": 1.2666666666666666,
+      "impact_seconds": 0.5333333333333333,
+      "events": [
+        {
+          "frame": 17,
+          "type": "impact",
+          "direction": [
+            0,
+            0,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "spear_sweep",
+      "frames": 41,
+      "impact_frame": 18,
+      "loop": false,
+      "reference": null,
+      "duration_seconds": 1.3333333333333333,
+      "impact_seconds": 0.5666666666666667,
+      "events": [
+        {
+          "frame": 18,
+          "type": "impact",
+          "direction": [
+            0,
+            0,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "spear_thrust",
+      "frames": 35,
+      "impact_frame": 16,
+      "loop": false,
+      "reference": null,
+      "duration_seconds": 1.1333333333333333,
+      "impact_seconds": 0.5,
+      "events": [
+        {
+          "frame": 16,
+          "type": "impact",
+          "direction": [
+            0,
+            0,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "spear_flash_finisher",
+      "frames": 65,
+      "impact_frame": 26,
+      "loop": false,
+      "reference": "Thunderclap and Flash timing adapted to a two-handed spear lunge",
+      "duration_seconds": 2.1333333333333333,
+      "impact_seconds": 0.8333333333333334,
+      "events": [
+        {
+          "frame": 26,
+          "type": "impact",
+          "direction": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "frame": 26,
+          "type": "flash_dash",
+          "direction": [
+            0,
+            0,
+            1
+          ],
+          "runtime_only": true
+        }
+      ]
+    }
+  ],
+  "attack_pool": [
+    {
+      "clip": "spear_rising",
+      "weight": 30
+    },
+    {
+      "clip": "spear_sweep",
+      "weight": 30
+    },
+    {
+      "clip": "spear_thrust",
+      "weight": 30
+    },
+    {
+      "clip": "spear_flash_finisher",
+      "weight": 10
+    }
+  ],
+  "random_selection": {
+    "avoid_immediate_repeat": true,
+    "select_once_per_attack": true,
+    "game_integration_owner": "Claude"
+  },
+  "grip": {
+    "right_bone": "mixamorig:RightHand",
+    "left_bone": "mixamorig:LeftHand",
+    "left_distance_along_blade_m": 0.2,
+    "socket_matrix_blender_column_major": [
+      7.450580596923828e-09,
+      -1.0000001192092896,
+      -5.168840289115906e-08,
+      0.0,
+      4.1676685214042664e-08,
+      2.468004822731018e-08,
+      1.0,
+      0.0,
+      -1.0,
+      2.2351741790771484e-08,
+      6.938353180885315e-08,
+      0.0,
+      1.862645149230957e-08,
+      0.046000003814697266,
+      7.450580596923828e-08,
+      1.0
+    ],
+    "demo_weapon": "separate rigid-skinned mesh; remove both demo meshes when retargeting"
+  },
+  "qa": [
+    {
+      "clip": "spear_idle",
+      "max_reach_excess_m": 0,
+      "analytic_grip_error_m": 1.4901161193847656e-08,
+      "authoring_reach_correction_m": 0.07934768344168534
+    },
+    {
+      "clip": "spear_rising",
+      "max_reach_excess_m": 0,
+      "analytic_grip_error_m": 1.5359765386647212e-08,
+      "authoring_reach_correction_m": 0.20415601049724774
+    },
+    {
+      "clip": "spear_sweep",
+      "max_reach_excess_m": 0,
+      "analytic_grip_error_m": 1.1920928955078125e-07,
+      "authoring_reach_correction_m": 0.23605200847823787
+    },
+    {
+      "clip": "spear_thrust",
+      "max_reach_excess_m": 0,
+      "analytic_grip_error_m": 2.1073424255447017e-08,
+      "authoring_reach_correction_m": 0.18924454416399303
+    },
+    {
+      "clip": "spear_flash_finisher",
+      "max_reach_excess_m": 0,
+      "analytic_grip_error_m": 5.960464477539063e-08,
+      "authoring_reach_correction_m": 0.07934768344168534
+    }
+  ],
+  "known_issues": [
+    "Training mannequin has sculpted mitten hands; no individual finger animation.",
+    "Dash, slash trails, energy waves, lightning and hitstop are runtime effects; GLB contains skeletal motion only.",
+    "Retarget and game playback are Claude integration work; proportions differing from this rig require grip correction."
+  ]
+}

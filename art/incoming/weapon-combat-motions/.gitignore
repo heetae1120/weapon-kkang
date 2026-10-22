@@ -1,0 +1,5 @@
+*.log
+*.blend1
+__pycache__/
+*/motion-frames/
+stage1.jpg

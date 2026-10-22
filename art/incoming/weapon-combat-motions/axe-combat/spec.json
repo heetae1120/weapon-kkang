@@ -1,0 +1,247 @@
+{
+  "asset": "axe-combat",
+  "type": "character_animation_pack",
+  "units": "meters",
+  "up_axis": "+Y",
+  "front_axis": "+Z",
+  "origin": "feet_center",
+  "height_m": 1.7,
+  "bind_pose": "T-pose, palms down, thumbs forward; closed sculpted training mittens",
+  "polygon_metric": "triangles",
+  "polygon_count": 6904,
+  "character_polygon_count": 5672,
+  "demo_weapon_polygon_count": 1232,
+  "material_count": 2,
+  "textures": {
+    "basecolor": [
+      1024,
+      1024
+    ],
+    "normal": [
+      1024,
+      1024
+    ],
+    "roughness_metallic_packed": [
+      1024,
+      1024
+    ],
+    "emissive": [
+      1024,
+      1024
+    ]
+  },
+  "textures_embedded": true,
+  "bones": [
+    "mixamorig:Hips",
+    "mixamorig:Spine",
+    "mixamorig:Spine1",
+    "mixamorig:Spine2",
+    "mixamorig:Neck",
+    "mixamorig:Head",
+    "mixamorig:LeftShoulder",
+    "mixamorig:LeftArm",
+    "mixamorig:LeftForeArm",
+    "mixamorig:LeftHand",
+    "mixamorig:LeftUpLeg",
+    "mixamorig:LeftLeg",
+    "mixamorig:LeftFoot",
+    "mixamorig:LeftToeBase",
+    "mixamorig:RightShoulder",
+    "mixamorig:RightArm",
+    "mixamorig:RightForeArm",
+    "mixamorig:RightHand",
+    "mixamorig:RightUpLeg",
+    "mixamorig:RightLeg",
+    "mixamorig:RightFoot",
+    "mixamorig:RightToeBase"
+  ],
+  "max_weights_per_vertex": 1,
+  "fps": 30,
+  "root_motion": false,
+  "weapon_type": "axe",
+  "two_handed": true,
+  "animations": [
+    {
+      "name": "axe_idle",
+      "frames": 91,
+      "loop": true,
+      "impact_frame": null,
+      "reference": null,
+      "duration_seconds": 3.0
+    },
+    {
+      "name": "axe_diagonal",
+      "frames": 37,
+      "impact_frame": 16,
+      "loop": false,
+      "reference": null,
+      "duration_seconds": 1.2,
+      "impact_seconds": 0.5,
+      "events": [
+        {
+          "frame": 16,
+          "type": "impact",
+          "direction": [
+            0,
+            0,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "axe_sweep",
+      "frames": 41,
+      "impact_frame": 18,
+      "loop": false,
+      "reference": null,
+      "duration_seconds": 1.3333333333333333,
+      "impact_seconds": 0.5666666666666667,
+      "events": [
+        {
+          "frame": 18,
+          "type": "impact",
+          "direction": [
+            0,
+            0,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "axe_rising",
+      "frames": 43,
+      "impact_frame": 18,
+      "loop": false,
+      "reference": null,
+      "duration_seconds": 1.4,
+      "impact_seconds": 0.5666666666666667,
+      "events": [
+        {
+          "frame": 18,
+          "type": "impact",
+          "direction": [
+            0,
+            0,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "axe_crescent_finisher",
+      "frames": 73,
+      "impact_frame": 29,
+      "loop": false,
+      "reference": "Getsuga Tensho overhead crescent adapted to axe",
+      "duration_seconds": 2.4,
+      "impact_seconds": 0.9333333333333333,
+      "events": [
+        {
+          "frame": 29,
+          "type": "impact",
+          "direction": [
+            0,
+            0,
+            1
+          ]
+        },
+        {
+          "frame": 29,
+          "type": "crescent_wave",
+          "direction": [
+            0,
+            0,
+            1
+          ],
+          "runtime_only": true
+        }
+      ]
+    }
+  ],
+  "attack_pool": [
+    {
+      "clip": "axe_diagonal",
+      "weight": 30
+    },
+    {
+      "clip": "axe_sweep",
+      "weight": 30
+    },
+    {
+      "clip": "axe_rising",
+      "weight": 30
+    },
+    {
+      "clip": "axe_crescent_finisher",
+      "weight": 10
+    }
+  ],
+  "random_selection": {
+    "avoid_immediate_repeat": true,
+    "select_once_per_attack": true,
+    "game_integration_owner": "Claude"
+  },
+  "grip": {
+    "right_bone": "mixamorig:RightHand",
+    "left_bone": "mixamorig:LeftHand",
+    "left_distance_along_blade_m": -0.095,
+    "socket_matrix_blender_column_major": [
+      -1.19674950838089e-07,
+      -0.9999999403953552,
+      6.705522537231445e-08,
+      0.0,
+      -2.60770320892334e-08,
+      8.195638656616211e-08,
+      0.9999998807907104,
+      0.0,
+      -1.0,
+      1.4435499906539917e-07,
+      -1.862645149230957e-08,
+      0.0,
+      -8.591450750827789e-08,
+      0.04599998518824577,
+      -2.1420419216156006e-08,
+      1.0
+    ],
+    "demo_weapon": "separate rigid-skinned mesh; remove both demo meshes when retargeting"
+  },
+  "qa": [
+    {
+      "clip": "axe_idle",
+      "max_reach_excess_m": 0,
+      "analytic_grip_error_m": 0,
+      "authoring_reach_correction_m": 0.01179287223366912
+    },
+    {
+      "clip": "axe_diagonal",
+      "max_reach_excess_m": 0,
+      "analytic_grip_error_m": 1.666000468656264e-08,
+      "authoring_reach_correction_m": 0.04108358469352236
+    },
+    {
+      "clip": "axe_sweep",
+      "max_reach_excess_m": 0,
+      "analytic_grip_error_m": 1.1920928955078125e-07,
+      "authoring_reach_correction_m": 0.03388938732909602
+    },
+    {
+      "clip": "axe_rising",
+      "max_reach_excess_m": 0,
+      "analytic_grip_error_m": 6.143906154658885e-08,
+      "authoring_reach_correction_m": 0.04115118224518396
+    },
+    {
+      "clip": "axe_crescent_finisher",
+      "max_reach_excess_m": 0,
+      "analytic_grip_error_m": 1.1920928955078125e-07,
+      "authoring_reach_correction_m": 0.014522629900131803
+    }
+  ],
+  "known_issues": [
+    "Training mannequin has sculpted mitten hands; no individual finger animation.",
+    "Dash, slash trails, energy waves, lightning and hitstop are runtime effects; GLB contains skeletal motion only.",
+    "Retarget and game playback are Claude integration work; proportions differing from this rig require grip correction."
+  ]
+}

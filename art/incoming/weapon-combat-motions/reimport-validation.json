@@ -1,0 +1,423 @@
+[
+  {
+    "asset": "axe-combat",
+    "clips": [
+      {
+        "clip": "axe_idle",
+        "joint_gap_m": 3.2313538256587746e-07,
+        "foot_drift_m": 0.0,
+        "max_world_rotation_step_degrees": 0,
+        "max_step_bone_and_frame": null,
+        "max_non_strike_step_degrees": 0
+      },
+      {
+        "clip": "axe_diagonal",
+        "joint_gap_m": 3.7968731839182695e-07,
+        "foot_drift_m": 3.345302391148157e-07,
+        "max_world_rotation_step_degrees": 67.4771190370918,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          14
+        ],
+        "max_non_strike_step_degrees": 20.386198804425874
+      },
+      {
+        "clip": "axe_sweep",
+        "joint_gap_m": 4.298797767386334e-07,
+        "foot_drift_m": 2.981163415870451e-07,
+        "max_world_rotation_step_degrees": 73.18669273035889,
+        "max_step_bone_and_frame": [
+          "mixamorig:LeftHand",
+          16
+        ],
+        "max_non_strike_step_degrees": 20.33286697983912
+      },
+      {
+        "clip": "axe_rising",
+        "joint_gap_m": 3.601799000880665e-07,
+        "foot_drift_m": 2.104706599090328e-07,
+        "max_world_rotation_step_degrees": 49.406439738664865,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          16
+        ],
+        "max_non_strike_step_degrees": 22.581307197999372
+      },
+      {
+        "clip": "axe_crescent_finisher",
+        "joint_gap_m": 3.956224972666284e-07,
+        "foot_drift_m": 4.108642244029712e-07,
+        "max_world_rotation_step_degrees": 95.51688973107004,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightArm",
+          26
+        ],
+        "max_non_strike_step_degrees": 21.033405332061477
+      }
+    ],
+    "passed": true
+  },
+  {
+    "asset": "dagger-combat",
+    "clips": [
+      {
+        "clip": "dagger_idle",
+        "joint_gap_m": 3.2098083538618706e-07,
+        "foot_drift_m": 0.0,
+        "max_world_rotation_step_degrees": 0.08846931922527276,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightForeArm",
+          22
+        ],
+        "max_non_strike_step_degrees": 0.08846931922527276
+      },
+      {
+        "clip": "dagger_diagonal",
+        "joint_gap_m": 3.4045158799874374e-07,
+        "foot_drift_m": 4.1201104410584245e-07,
+        "max_world_rotation_step_degrees": 67.47714635784847,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          14
+        ],
+        "max_non_strike_step_degrees": 20.480696179140292
+      },
+      {
+        "clip": "dagger_sweep",
+        "joint_gap_m": 3.2816403427042423e-07,
+        "foot_drift_m": 3.579381748874281e-07,
+        "max_world_rotation_step_degrees": 73.18669956054806,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          16
+        ],
+        "max_non_strike_step_degrees": 24.963272491791496
+      },
+      {
+        "clip": "dagger_thrust",
+        "joint_gap_m": 3.268079787412481e-07,
+        "foot_drift_m": 3.69010642082685e-07,
+        "max_world_rotation_step_degrees": 37.83714430360627,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightArm",
+          14
+        ],
+        "max_non_strike_step_degrees": 16.310957898401302
+      },
+      {
+        "clip": "dagger_flash_finisher",
+        "joint_gap_m": 3.345302391148157e-07,
+        "foot_drift_m": 3.3369951958296733e-07,
+        "max_world_rotation_step_degrees": 83.15872110725331,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          23
+        ],
+        "max_non_strike_step_degrees": 25.05692804569071
+      }
+    ],
+    "passed": true
+  },
+  {
+    "asset": "saber-combat",
+    "clips": [
+      {
+        "clip": "saber_idle",
+        "joint_gap_m": 3.332000937312528e-07,
+        "foot_drift_m": 0.0,
+        "max_world_rotation_step_degrees": 0.055952909680744456,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightForeArm",
+          15
+        ],
+        "max_non_strike_step_degrees": 0.055952909680744456
+      },
+      {
+        "clip": "saber_diagonal",
+        "joint_gap_m": 3.397987559733206e-07,
+        "foot_drift_m": 3.214129002410619e-07,
+        "max_world_rotation_step_degrees": 67.47710537671345,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          14
+        ],
+        "max_non_strike_step_degrees": 19.904207722623706
+      },
+      {
+        "clip": "saber_sweep",
+        "joint_gap_m": 3.488272401904948e-07,
+        "foot_drift_m": 2.3156807225823482e-07,
+        "max_world_rotation_step_degrees": 73.18669273035889,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          16
+        ],
+        "max_non_strike_step_degrees": 21.423866756343596
+      },
+      {
+        "clip": "saber_thrust",
+        "joint_gap_m": 3.397987559733206e-07,
+        "foot_drift_m": 3.892170753064447e-07,
+        "max_world_rotation_step_degrees": 37.83716479417379,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightArm",
+          14
+        ],
+        "max_non_strike_step_degrees": 11.91973024325714
+      },
+      {
+        "clip": "saber_crescent_finisher",
+        "joint_gap_m": 3.332000937312528e-07,
+        "foot_drift_m": 2.9988008435812754e-07,
+        "max_world_rotation_step_degrees": 68.23556373309752,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          25
+        ],
+        "max_non_strike_step_degrees": 16.36968898752695
+      }
+    ],
+    "passed": true
+  },
+  {
+    "asset": "scythe-combat",
+    "clips": [
+      {
+        "clip": "scythe_idle",
+        "joint_gap_m": 3.864259266820532e-07,
+        "foot_drift_m": 0.0,
+        "max_world_rotation_step_degrees": 0.03956468118525214,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightForeArm",
+          16
+        ],
+        "max_non_strike_step_degrees": 0.03956468118525214
+      },
+      {
+        "clip": "scythe_diagonal",
+        "joint_gap_m": 3.72994400458425e-07,
+        "foot_drift_m": 3.4739205917342803e-07,
+        "max_world_rotation_step_degrees": 67.4770712257676,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          14
+        ],
+        "max_non_strike_step_degrees": 19.911794355244297
+      },
+      {
+        "clip": "scythe_sweep",
+        "joint_gap_m": 3.5864021923060487e-07,
+        "foot_drift_m": 2.6656007498500226e-07,
+        "max_world_rotation_step_degrees": 73.18671322092639,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          16
+        ],
+        "max_non_strike_step_degrees": 33.12067328546986
+      },
+      {
+        "clip": "scythe_rising",
+        "joint_gap_m": 3.469923443256324e-07,
+        "foot_drift_m": 3.0108090268338844e-07,
+        "max_world_rotation_step_degrees": 50.45846987085984,
+        "max_step_bone_and_frame": [
+          "mixamorig:LeftArm",
+          36
+        ],
+        "max_non_strike_step_degrees": 50.45846987085984
+      },
+      {
+        "clip": "scythe_crescent_finisher",
+        "joint_gap_m": 3.72826933956051e-07,
+        "foot_drift_m": 2.9124051758188106e-07,
+        "max_world_rotation_step_degrees": 112.80437172793911,
+        "max_step_bone_and_frame": [
+          "mixamorig:LeftForeArm",
+          27
+        ],
+        "max_non_strike_step_degrees": 21.071092608354316
+      }
+    ],
+    "passed": true
+  },
+  {
+    "asset": "shinai-combat",
+    "clips": [
+      {
+        "clip": "shinai_idle",
+        "joint_gap_m": 2.436009455363723e-07,
+        "foot_drift_m": 0.0,
+        "max_world_rotation_step_degrees": 0,
+        "max_step_bone_and_frame": null,
+        "max_non_strike_step_degrees": 0
+      },
+      {
+        "clip": "shinai_diagonal",
+        "joint_gap_m": 2.684342447325315e-07,
+        "foot_drift_m": 4.5976783694450593e-07,
+        "max_world_rotation_step_degrees": 67.4771190370918,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          14
+        ],
+        "max_non_strike_step_degrees": 19.660788318340913
+      },
+      {
+        "clip": "shinai_sweep",
+        "joint_gap_m": 2.467706078541159e-07,
+        "foot_drift_m": 3.759406748873849e-07,
+        "max_world_rotation_step_degrees": 73.18671322092639,
+        "max_step_bone_and_frame": [
+          "mixamorig:LeftHand",
+          16
+        ],
+        "max_non_strike_step_degrees": 16.487576345054077
+      },
+      {
+        "clip": "shinai_thrust",
+        "joint_gap_m": 2.497889789080651e-07,
+        "foot_drift_m": 3.4434258962545823e-07,
+        "max_world_rotation_step_degrees": 37.837188699835885,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightArm",
+          14
+        ],
+        "max_non_strike_step_degrees": 9.075028170933114
+      },
+      {
+        "clip": "shinai_flash_finisher",
+        "joint_gap_m": 2.5506679368948475e-07,
+        "foot_drift_m": 3.810737089080936e-07,
+        "max_world_rotation_step_degrees": 83.15872110725331,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          23
+        ],
+        "max_non_strike_step_degrees": 16.835572775718934
+      }
+    ],
+    "passed": true
+  },
+  {
+    "asset": "spear-combat",
+    "clips": [
+      {
+        "clip": "spear_idle",
+        "joint_gap_m": 3.816559456248789e-07,
+        "foot_drift_m": 0.0,
+        "max_world_rotation_step_degrees": 0.03956468118525214,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightForeArm",
+          22
+        ],
+        "max_non_strike_step_degrees": 0.03956468118525214
+      },
+      {
+        "clip": "spear_rising",
+        "joint_gap_m": 3.799065585131038e-07,
+        "foot_drift_m": 3.7237998842000363e-07,
+        "max_world_rotation_step_degrees": 41.48753207533042,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          15
+        ],
+        "max_non_strike_step_degrees": 26.4623385051638
+      },
+      {
+        "clip": "spear_sweep",
+        "joint_gap_m": 3.769728732309794e-07,
+        "foot_drift_m": 2.725324207271916e-07,
+        "max_world_rotation_step_degrees": 73.18671322092639,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          16
+        ],
+        "max_non_strike_step_degrees": 33.12069719113196
+      },
+      {
+        "clip": "spear_thrust",
+        "joint_gap_m": 3.1336755819340186e-07,
+        "foot_drift_m": 3.7260352820306977e-07,
+        "max_world_rotation_step_degrees": 31.687255635305135,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightArm",
+          14
+        ],
+        "max_non_strike_step_degrees": 8.41718020857063
+      },
+      {
+        "clip": "spear_flash_finisher",
+        "joint_gap_m": 3.7371922147227685e-07,
+        "foot_drift_m": 3.805635210610072e-07,
+        "max_world_rotation_step_degrees": 43.101574078096135,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightArm",
+          24
+        ],
+        "max_non_strike_step_degrees": 8.965411318717226
+      }
+    ],
+    "passed": true
+  },
+  {
+    "asset": "sword-combat",
+    "clips": [
+      {
+        "clip": "sword_idle",
+        "joint_gap_m": 3.631728174374682e-07,
+        "foot_drift_m": 0.0,
+        "max_world_rotation_step_degrees": 0.055952909680744456,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightForeArm",
+          16
+        ],
+        "max_non_strike_step_degrees": 0.055952909680744456
+      },
+      {
+        "clip": "sword_diagonal",
+        "joint_gap_m": 3.4142849556772706e-07,
+        "foot_drift_m": 4.636751974374536e-07,
+        "max_world_rotation_step_degrees": 67.4771190370918,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          14
+        ],
+        "max_non_strike_step_degrees": 19.547851140414753
+      },
+      {
+        "clip": "sword_sweep",
+        "joint_gap_m": 3.6181372609550593e-07,
+        "foot_drift_m": 2.325249691952353e-07,
+        "max_world_rotation_step_degrees": 73.18669273035889,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          16
+        ],
+        "max_non_strike_step_degrees": 18.90959557568645
+      },
+      {
+        "clip": "sword_thrust",
+        "joint_gap_m": 3.631728174374682e-07,
+        "foot_drift_m": 5.020718451986148e-07,
+        "max_world_rotation_step_degrees": 37.83716479417379,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightArm",
+          14
+        ],
+        "max_non_strike_step_degrees": 10.767808594450734
+      },
+      {
+        "clip": "sword_crescent_finisher",
+        "joint_gap_m": 3.207213170831037e-07,
+        "foot_drift_m": 3.779288188508868e-07,
+        "max_world_rotation_step_degrees": 68.23556373309752,
+        "max_step_bone_and_frame": [
+          "mixamorig:RightHand",
+          25
+        ],
+        "max_non_strike_step_degrees": 15.335287573579784
+      }
+    ],
+    "passed": true
+  }
+]
