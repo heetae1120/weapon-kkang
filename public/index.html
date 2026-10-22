@@ -220,6 +220,14 @@ button{font:inherit}
 /* 도감 */
 .codex-h{display:flex;flex-wrap:wrap;gap:10px 20px}
 .cx-note{color:var(--muted);font-size:13px;margin:0;max-width:80ch}
+.seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);padding:3px;gap:3px;align-self:flex-start}
+.seg button{font:inherit;font-family:var(--display);font-size:16px;color:var(--muted);background:transparent;border:0;padding:8px 18px;cursor:pointer}
+.seg button.on{background:var(--ember);color:var(--ink)}
+.cxa-h{display:flex;flex-direction:column;gap:8px}
+.cxa-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.cxa{background:var(--panel);border:1px solid var(--line);padding:8px;display:flex;flex-direction:column;gap:4px}
+.cxa canvas{width:100%;height:170px;display:block;background:radial-gradient(ellipse at 50% 60%,#241c30,#0f0c14 70%)}
+.cxa b{font-size:14px}.cxa span{font-size:12px;color:var(--muted)}
 .cx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:10px}
 .cx{background:var(--panel);border:1px solid var(--line);padding:8px;display:flex;flex-direction:column;gap:4px;min-width:0}
 .cx canvas{width:100%;height:190px;display:block}
@@ -354,7 +362,7 @@ button{font:inherit}
     <button class="tab" data-tab="shop" role="tab" aria-selected="false" type="button">상점</button>
     <button class="tab" data-tab="inv" role="tab" aria-selected="false" type="button">보관함<span class="cnt" id="invCnt"></span></button>
     <button class="tab" data-tab="rank" role="tab" aria-selected="false" type="button">랭킹</button>
-    <button class="tab" data-tab="codex" role="tab" aria-selected="false" type="button">무기 도감</button>
+    <button class="tab" data-tab="codex" role="tab" aria-selected="false" type="button">도감</button>
   </nav>
 
   <section id="forge">
@@ -478,9 +486,17 @@ button{font:inherit}
 
   <section id="codex" hidden>
     <div style="display:flex;flex-direction:column;gap:14px">
-      <div class="codex-h"><div class="chips" id="cxType"></div><div class="chips" id="cxEl"></div></div>
-      <p class="cx-note" id="cxNote"></p>
-      <div class="cx-grid" id="cxGrid"></div>
+      <div class="seg" id="cxSeg" role="tablist"><button type="button" data-k="w">무기</button><button type="button" data-k="a">오오라</button></div>
+      <div id="cxW" style="display:flex;flex-direction:column;gap:14px">
+        <div class="codex-h"><div class="chips" id="cxType"></div><div class="chips" id="cxEl"></div></div>
+        <p class="cx-note" id="cxNote"></p>
+        <div class="cx-grid" id="cxGrid"></div>
+      </div>
+      <div id="cxA" hidden style="display:flex;flex-direction:column;gap:14px">
+        <div class="cxa-h"><span class="sl">몸에서 피어오르는 오오라</span><div class="chips" id="cxAB"></div><span class="sl">바닥에 펼쳐지는 오오라</span><div class="chips" id="cxAG2"></div></div>
+        <p class="cx-note" id="cxAN"></p>
+        <div class="cxa-grid" id="cxAGrid"></div>
+      </div>
     </div>
   </section>
 </div>
@@ -579,6 +595,7 @@ const isHidden=w=>!!w&&(w.type==='saber'||w.type==='shinai'||w.type==='scythe');
 const HID_TYPES=['saber','shinai','scythe'];
 const CHARS=[{id:'paladin',name:'팔라딘',d:'묵직한 중갑 기사'},{id:'guard',name:'성 경비병',d:'붉은 망토의 경비대장'},{id:'orc',name:'오크 전사',d:'거구의 야만 전사'},{id:'erika',name:'에리카',d:'날렵한 레인저'},{id:'ninja',name:'닌자',d:'그림자 속 암살자'},{id:'kachujin',name:'카추진',d:'동방의 여검사'},{id:'smith',name:'대장장이',d:'모루를 떠난 장인'}];
 const CHAR_IDS=CHARS.map(c=>c.id);
+const MAP_LIST=['dungeon','swamp','castle','dragon'],MAP_NAME={dungeon:'지하 투기장',swamp:'안개 늪지대',castle:'달빛 성꼭대기',dragon:'용의 둥지'};
 const tname=t=>t?(ALLT.find(x=>x.id===t)||{name:'?'}).name:'미정';
 const ARCH_N={sword:{fire:'카타나',ice:'레이피어',thunder:'쌍검',dark:'대검',holy:'성검'},dagger:{fire:'쿠나이',ice:'스틸레토',thunder:'쌍단검',dark:'크리스',holy:'성단검'},spear:{fire:'언월도',ice:'삼지창',thunder:'방천화극',dark:'랜스',holy:'성창'},axe:{fire:'쌍날도끼',ice:'수염도끼',thunder:'전투망치',dark:'처형도끼',holy:'성부'}};
 const aname=w=>w&&w.type&&ARCH_N[w.type]&&ARCH_N[w.type][w.el]||tname(w&&w.type);
@@ -667,10 +684,39 @@ const BOX_W=[[1,35],[2,25],[3,15],[4,10],[5,7],[6,4],[7,2.5],[8,1.5]];
 const HID_P=.09;// 광선검·죽도·낫 각 3%
 /* 오오라: 상점에서 뽑아 장착하는 외형 아이템 (승패에는 영향 없음) */
 const AURAS=[{id:'flame',n:'화염',c:'#ff5a1f',l:'#ffc06a',fx:'fire',w:1},{id:'frost',n:'서리',c:'#4fb8ff',l:'#e6f8ff',fx:'ice',w:1},{id:'storm',n:'뇌광',c:'#ffd84a',l:'#fffbe0',fx:'thunder',w:1},{id:'shadow',n:'암영',c:'#8b4dff',l:'#e2ccff',fx:'dark',w:1},
-  {id:'holy',n:'성광',c:'#ffd98a',l:'#ffffff',fx:'holy',w:1},{id:'sakura',n:'벚꽃',c:'#ff7fbf',l:'#ffe1f0',fx:'petal',w:1},{id:'galaxy',n:'은하',c:'#5a6dff',l:'#d8dcff',fx:'star',w:1},{id:'rainbow',n:'무지개',c:'#ff5fd2',l:'#ffffff',fx:'rainbow',w:.4}];
+  {id:'holy',n:'성광',c:'#ffd98a',l:'#ffffff',fx:'holy',w:1},{id:'sakura',n:'벚꽃',c:'#ff7fbf',l:'#ffe1f0',fx:'petal',w:1},{id:'galaxy',n:'은하',c:'#5a6dff',l:'#d8dcff',fx:'star',w:1},{id:'rainbow',n:'무지개',c:'#ff5fd2',l:'#ffffff',fx:'rainbow',w:.4},
+  // 바닥형: 발밑에 문양이 펼쳐짐
+  {id:'arcane',n:'비전 룬진',c:'#a46bff',l:'#efe2ff',fx:'arcane',w:1,gr:1},{id:'sanctum',n:'성역 문장',c:'#ffcf4a',l:'#fffbe8',fx:'holy',w:1,gr:1},{id:'inferno',n:'화염 고리',c:'#ff5a1f',l:'#ffd08a',fx:'fire',w:1,gr:1},
+  {id:'rime',n:'서리 결정',c:'#5fd4ff',l:'#effcff',fx:'ice',w:1,gr:1},{id:'void',n:'공허 웅덩이',c:'#7a3cff',l:'#d6c2ff',fx:'dark',w:1,gr:1},{id:'grove',n:'숲의 고리',c:'#5ee37a',l:'#e6ffd8',fx:'leaf',w:1,gr:1}];
+/* 바닥 문양 그리기 (흰 선, 2D·3D 공용) — 크기 S 정사각 캔버스 */
+function drawSigil(c,id,S,t=0){const R=S/2;c.save();c.translate(R,R);c.strokeStyle='#fff';c.fillStyle='#fff';c.lineCap='round';c.lineJoin='round';c.shadowColor='#fff';c.shadowBlur=S*.012;
+  const ring=(r,w)=>{c.lineWidth=S*w;c.beginPath();c.arc(0,0,R*r,0,7);c.stroke()},glyph=(x,y,s,k)=>{c.save();c.translate(x,y);c.lineWidth=S*.006;c.beginPath();const h=hash(k*3.7);c.moveTo(-s*.4,-s*.5);c.lineTo(s*.2*(h-.5)*3,0);c.lineTo(-s*.3,s*.5);if(h>.4){c.moveTo(s*.4,-s*.5);c.lineTo(s*.35,s*.5)}if(h>.7){c.moveTo(-s*.4,0);c.lineTo(s*.4,0)}c.stroke();c.restore()};
+  if(id==='arcane'){ring(.62,.012);ring(.52,.007);ring(.3,.01);
+    for(let k=0;k<4;k++){c.save();c.rotate(k*Math.PI/2);c.lineWidth=S*.012;c.beginPath();c.moveTo(-R*.07,-R*.3);c.lineTo(-R*.07,-R*.86);c.lineTo(-R*.15,-R*.86);c.lineTo(0,-R*.98);c.lineTo(R*.15,-R*.86);c.lineTo(R*.07,-R*.86);c.lineTo(R*.07,-R*.3);c.stroke();
+      c.beginPath();c.arc(0,-R*.57,R*.09,0,7);c.stroke();for(let j=0;j<3;j++)glyph(0,-R*(.38+j*.14)+(j?R*.04:0),R*.06,k*7+j);c.restore()}
+    c.save();c.rotate(Math.PI/4);for(let k=0;k<4;k++){c.rotate(Math.PI/2);c.beginPath();c.arc(0,-R*.41,R*.08,0,7);c.stroke()}c.restore();
+    for(let k=0;k<24;k++){c.save();c.rotate(k/24*Math.PI*2+.13);glyph(0,-R*.57,R*.045,k);c.restore()}}
+  else if(id==='sanctum'){ring(.72,.012);ring(.64,.006);ring(.22,.01);c.lineWidth=S*.01;
+    for(let k=0;k<8;k++){c.save();c.rotate(k*Math.PI/4);c.beginPath();c.moveTo(0,-R*.22);c.lineTo(R*.09,-R*.5);c.lineTo(0,-R*.92);c.lineTo(-R*.09,-R*.5);c.closePath();c.stroke();c.restore()}
+    for(let k=0;k<32;k++){c.save();c.rotate(k/32*Math.PI*2);c.lineWidth=S*.004;c.beginPath();c.moveTo(0,-R*.74);c.lineTo(0,-R*(k%2?.8:.86));c.stroke();c.restore()}
+    c.lineWidth=S*.012;c.beginPath();c.moveTo(0,-R*.15);c.lineTo(0,R*.15);c.moveTo(-R*.1,-R*.04);c.lineTo(R*.1,-R*.04);c.stroke()}
+  else if(id==='inferno'){ring(.55,.012);ring(.42,.008);c.lineWidth=S*.009;
+    for(let k=0;k<14;k++){c.save();c.rotate(k/14*Math.PI*2);const L=R*(.82+.12*hash(k));c.beginPath();c.moveTo(-R*.07,-R*.56);c.quadraticCurveTo(-R*.09,-R*.7,0,-L);c.quadraticCurveTo(R*.02,-R*.72,R*.07,-R*.56);c.stroke();c.beginPath();c.moveTo(-R*.025,-R*.58);c.quadraticCurveTo(-R*.03,-R*.66,0,-L*.84);c.stroke();c.restore()}
+    for(let k=0;k<12;k++){c.save();c.rotate(k/12*Math.PI*2);glyph(0,-R*.485,R*.05,k+40);c.restore()}}
+  else if(id==='rime'){ring(.7,.008);c.lineWidth=S*.011;
+    for(let k=0;k<6;k++){c.save();c.rotate(k*Math.PI/3);c.beginPath();c.moveTo(0,0);c.lineTo(0,-R*.9);for(const d of[.32,.55,.72]){c.moveTo(0,-R*d);c.lineTo(-R*.14*(1.1-d),-R*(d+.12));c.moveTo(0,-R*d);c.lineTo(R*.14*(1.1-d),-R*(d+.12))}c.stroke();c.restore()}
+    c.beginPath();for(let k=0;k<=6;k++){const a=k*Math.PI/3-Math.PI/2;c.lineTo(Math.cos(a)*R*.36,Math.sin(a)*R*.36)}c.stroke();c.beginPath();for(let k=0;k<=6;k++){const a=k*Math.PI/3;c.lineTo(Math.cos(a)*R*.62,Math.sin(a)*R*.62)}c.stroke()}
+  else if(id==='void'){for(let k=0;k<5;k++){c.lineWidth=S*(.004+k*.002);c.setLineDash([S*.03,S*.02+k*S*.006]);c.beginPath();c.arc(0,0,R*(.25+k*.14),k,k+6.2);c.stroke()}c.setLineDash([]);c.lineWidth=S*.008;
+    for(let k=0;k<6;k++){c.save();c.rotate(k*Math.PI/3);c.beginPath();for(let i=0;i<=30;i++){const u=i/30,a=u*2.4,r=R*(.08+u*.8);c.lineTo(Math.cos(a)*r,Math.sin(a)*r)}c.stroke();c.restore()}}
+  else if(id==='grove'){ring(.66,.01);ring(.3,.008);c.lineWidth=S*.008;
+    for(let k=0;k<18;k++){c.save();c.rotate(k/18*Math.PI*2);c.beginPath();c.ellipse(0,-R*.78,R*.04,R*.1,0,0,7);c.stroke();c.beginPath();c.moveTo(0,-R*.7);c.lineTo(0,-R*.86);c.stroke();c.restore()}
+    for(let k=0;k<3;k++){c.save();c.rotate(k*Math.PI*2/3);c.beginPath();for(let i=0;i<=24;i++){const u=i/24,a=u*3.2,r=R*(.02+u*.26);c.lineTo(Math.cos(a)*r,Math.sin(a)*r)}c.stroke();c.restore()}
+    c.beginPath();for(let i=0;i<=120;i++){const a=i/120*Math.PI*2,r=R*(.48+.04*Math.sin(a*9));c.lineTo(Math.cos(a)*r,Math.sin(a)*r)}c.stroke()}
+  c.restore()}
+const SIGIL_C={};function sigilCanvas(id,S=512){const k=id+S;if(SIGIL_C[k])return SIGIL_C[k];const cv=document.createElement('canvas');cv.width=cv.height=S;drawSigil(cv.getContext('2d'),id,S);return SIGIL_C[k]=cv}
 const AGR=[null,{n:'일반',p:60,c:'#9aa3ad'},{n:'희귀',p:28,c:'#4fb8ff'},{n:'영웅',p:10,c:'#c77dff'},{n:'전설',p:2,c:'#ffae3d'}];
 const AURA_BY=Object.fromEntries(AURAS.map(a=>[a.id,a]));
-function auraObj(key){if(!key)return null;const[k,g]=String(key).split(':'),A=AURA_BY[k],gg=+g;if(!A||!(gg>=1&&gg<=4))return null;return{fx:A.fx,c:A.c,l:A.l,g:gg,id:k,key:k+':'+gg}}
+function auraObj(key){if(!key)return null;const[k,g]=String(key).split(':'),A=AURA_BY[k],gg=+g;if(!A||!(gg>=1&&gg<=4))return null;return{fx:A.fx,c:A.c,l:A.l,g:gg,id:k,key:k+':'+gg,gr:!!A.gr}}
 function auraName(key){const o=auraObj(key);return o?`${AGR[o.g].n} ${AURA_BY[o.id].n} 오오라`:'오오라 없음'}
 function rollAura(){const r=Math.random()*100,g=r<2?4:r<12?3:r<40?2:1,tw=AURAS.reduce((a,x)=>a+x.w,0);let q=Math.random()*tw,k=AURAS[0];for(const A of AURAS){if(q<A.w){k=A;break}q-=A.w}return k.id+':'+g}
 const auraRank=key=>{const o=auraObj(key);return o?o.g*10+(o.id==='rainbow'?5:0):0};
@@ -1186,7 +1232,7 @@ function drawAura(c,el,lv,time,top,bot){
   c.restore();c.globalAlpha=WA;
 }
 /* 2D 오오라 (상점·보관함 카드용): 중심 cx,cy, 반지름 R */
-function drawAuraFx(c,key,time,cx,cy,R,o={}){const A=auraObj(key);if(!A)return;const g=A.g,col=t=>A.fx==='rainbow'?hsl2hex((t*90)%360,100,62):A.c;
+function drawAuraFx(c,key,time,cx,cy,R,o={}){const A=auraObj(key);if(!A)return;if(A.gr)return drawGroundFx(c,A,time,cx,cy,R);const g=A.g,col=t=>A.fx==='rainbow'?hsl2hex((t*90)%360,100,62):A.c;
   c.save();c.globalCompositeOperation='lighter';
   let gr=c.createRadialGradient(cx,cy,0,cx,cy,R*(.7+g*.12));gr.addColorStop(0,rgba(col(time),.18+g*.08));gr.addColorStop(.55,rgba(col(time+1),.06+g*.03));gr.addColorStop(1,rgba(A.c,0));c.fillStyle=gr;c.fillRect(cx-R*1.3,cy-R*1.3,R*2.6,R*2.6);
   if(g>=3){c.save();c.translate(cx,cy);c.rotate(time*.25);for(let i=0;i<12;i++){c.rotate(Math.PI/6);const L=R*(1+.12*Math.sin(time*2+i));gr=c.createLinearGradient(0,0,L,0);gr.addColorStop(0,rgba(col(time+i*.3),.35));gr.addColorStop(1,rgba(A.c,0));c.fillStyle=gr;c.beginPath();c.moveTo(0,0);c.lineTo(L,-L*.07);c.lineTo(L,L*.07);c.closePath();c.fill()}c.restore()}
@@ -1201,8 +1247,17 @@ function drawAuraFx(c,key,time,cx,cy,R,o={}){const A=auraObj(key);if(!A)return;c
     else{const sz=R*(.015+ph*.022);c.fillStyle=k%2?'#ffffff':cc;c.beginPath();c.moveTo(x,y-sz*2);c.lineTo(x+sz*.5,y-sz*.5);c.lineTo(x+sz*2,y);c.lineTo(x+sz*.5,y+sz*.5);c.lineTo(x,y+sz*2);c.lineTo(x-sz*.5,y+sz*.5);c.lineTo(x-sz*2,y);c.lineTo(x-sz*.5,y-sz*.5);c.closePath();c.fill()}}
   if(g>=4){c.globalAlpha=.9;c.save();c.translate(cx,cy-R*.05);for(const sd of[-1,1])for(let k=0;k<5;k++){c.save();c.scale(sd,1);c.rotate(-1.05+k*.32+Math.sin(time*2)*.05);const L=R*(.9-k*.08);gr=c.createLinearGradient(0,0,L,0);gr.addColorStop(0,rgba(A.l,.85));gr.addColorStop(.5,rgba(col(time+k),.45));gr.addColorStop(1,rgba(A.c,0));c.fillStyle=gr;c.beginPath();c.moveTo(R*.12,0);c.quadraticCurveTo(L*.55,-L*.13,L,0);c.quadraticCurveTo(L*.55,L*.05,R*.12,0);c.fill();c.restore()}c.restore()}
   c.restore();c.globalAlpha=1}
+function drawGroundFx(c,A,time,cx,cy,R){const g=A.g,y0=cy+R*.42,sc=.36;c.save();c.globalCompositeOperation='lighter';
+  let gr=c.createRadialGradient(cx,y0,0,cx,y0,R*1.1);gr.addColorStop(0,rgba(A.c,.22+g*.05));gr.addColorStop(1,rgba(A.c,0));c.fillStyle=gr;c.save();c.translate(cx,y0);c.scale(1,sc);c.beginPath();c.arc(0,0,R*1.1,0,7);c.fill();c.restore();
+  const tint=(cv)=>{const k='t'+A.id+A.c;if(!tint[k]){const t2=document.createElement('canvas');t2.width=t2.height=cv.width;const x=t2.getContext('2d');x.drawImage(cv,0,0);x.globalCompositeOperation='source-in';x.fillStyle=A.l;x.fillRect(0,0,cv.width,cv.height);tint[k]=t2}return tint[k]};
+  const img=tint(sigilCanvas(A.id,256)),sz=R*(2.1+g*.12);
+  const layer=(rot,s,a)=>{c.save();c.translate(cx,y0);c.scale(1,sc);c.rotate(rot);c.globalAlpha=a;c.shadowColor=A.c;c.shadowBlur=R*.12;c.drawImage(img,-sz*s/2,-sz*s/2,sz*s,sz*s);c.restore()};
+  layer(time*.35,1,.95);if(g>=2)layer(-time*.6,.62,.6);
+  if(g>=3)for(let k=0;k<14;k++){const p=fr(time*.4+hash(k)),a=k/14*Math.PI*2+time*.35,x=cx+Math.cos(a)*sz*.4,y=y0+Math.sin(a)*sz*.4*sc-p*R*.9;c.globalAlpha=Math.sin(p*Math.PI)*.9;c.fillStyle=k%2?'#fff':A.l;c.beginPath();c.arc(x,y,R*.018,0,7);c.fill()}
+  if(g>=4)for(let k=0;k<4;k++){const a=k*Math.PI/2+time*.35,x=cx+Math.cos(a)*sz*.47,y=y0+Math.sin(a)*sz*.47*sc;gr=c.createLinearGradient(x,y,x,y-R*1.3);gr.addColorStop(0,rgba(A.l,.8));gr.addColorStop(1,rgba(A.c,0));c.globalAlpha=.8;c.fillStyle=gr;c.fillRect(x-R*.04,y-R*1.3,R*.08,R*1.3)}
+  c.restore();c.globalAlpha=1}
 function drawAuraCard(cv,key,time=1.6){const{w,h,d}=fitCanvas(cv);if(w<2)return;const c=cv.getContext('2d');c.setTransform(d,0,0,d,0,0);c.clearRect(0,0,w,h);const R=Math.min(w,h)*.42;
-  drawAuraFx(c,key,time,w/2,h*.5,R);const A=auraObj(key);if(!A)return;c.save();c.globalCompositeOperation='lighter';const gr=c.createRadialGradient(w/2,h*.48,0,w/2,h*.48,R*.32);gr.addColorStop(0,'rgba(255,255,255,.95)');gr.addColorStop(.35,rgba(A.l,.7));gr.addColorStop(1,rgba(A.c,0));c.fillStyle=gr;c.beginPath();c.arc(w/2,h*.48,R*.32,0,7);c.fill();c.restore()}
+  drawAuraFx(c,key,time,w/2,h*.5,R);const A=auraObj(key);if(!A||A.gr)return;c.save();c.globalCompositeOperation='lighter';const gr=c.createRadialGradient(w/2,h*.48,0,w/2,h*.48,R*.32);gr.addColorStop(0,'rgba(255,255,255,.95)');gr.addColorStop(.35,rgba(A.l,.7));gr.addColorStop(1,rgba(A.c,0));c.fillStyle=gr;c.beginPath();c.arc(w/2,h*.48,R*.32,0,7);c.fill();c.restore()}
 function drawHalo(c,E,G,time){const y=G.top+(G.bot-G.top)*.16;c.save();c.translate(0,y);c.shadowColor=E.c;c.shadowBlur=18;c.strokeStyle=E.l;c.lineWidth=2.5;c.globalAlpha=WA*.9;c.beginPath();c.arc(0,0,34,0,7);c.stroke();c.rotate(time*.6);c.fillStyle=E.c;for(let j=0;j<12;j++){c.rotate(Math.PI/6);c.beginPath();c.moveTo(38,0);c.lineTo(48,-2.5);c.lineTo(48,2.5);c.closePath();c.fill()}c.restore();c.globalAlpha=WA}
 function drawShards(c,E,lv,time,G){const n=lv-14,cy=G.top+(G.bot-G.top)*.32;c.save();c.shadowColor=E.c;c.shadowBlur=12;for(let k=0;k<n;k++){const a=time*1.1+k*Math.PI*2/n,x=Math.cos(a)*46,y=cy+Math.sin(a)*15+Math.sin(time*2+k)*4,s=4.5+(Math.sin(a)+1)*1.5;c.globalAlpha=WA*(.6+.4*(Math.sin(a)+1)/2);c.fillStyle=k%2?E.l:E.c;c.beginPath();c.moveTo(x,y-s*1.8);c.lineTo(x+s*.8,y);c.lineTo(x,y+s*1.8);c.lineTo(x-s*.8,y);c.closePath();c.fill()}c.restore();c.globalAlpha=WA}
 function drawBloom(c,E,lv,time,G){const H=G.bot-G.top,cy=G.top+H*.42,r=H*(.32+lv*.014),a=Math.min(.6,.1+lv*.024)*(.85+.15*Math.sin(time*2.4))*(E===ELS.holy?.45:1);c.save();c.globalCompositeOperation='lighter';const g=c.createRadialGradient(0,cy,0,0,cy,r);g.addColorStop(0,rgba(E.c,a));g.addColorStop(.5,rgba(E.c,a*.35));g.addColorStop(1,rgba(E.c,0));c.fillStyle=g;c.fillRect(-r,cy-r,r*2,r*2);c.restore()}
@@ -1698,7 +1753,7 @@ function startDuel(i){const rv=S.rivals[i];if(rv)startDuelRv(rv)}
 function startDuelRv(rv,pvp){
   unlockAudio();const now=performance.now(),W=curW();
   D={rv,pid:W.id,pw:{...W},ow:{type:rv.type,el:rv.el,lv:rv.lv},ps:0,os:0,round:0,phase:'intro',ph0:now,parts:[],texts:[],shake:0,inv:0,flash:0,slash:null,q:null,clash:null,adv:advW(W,rv),vsHit:0,cardShown:false};
-  D.pvp=pvp||null;D.id=now;D.pch=S.char||'paladin';D.och=rv.ch||'guard';D.pa=auraObj(S.aura);D.oa=auraObj(rv.au);D.d3=!!(F3&&F3.active);if(D.d3)F3.preloadDuel([D.pch,D.och]);if(D.d3){F3.resetDuel();const f=$('#f3d');f.style.height='100%';$('#dstage').prepend(f)}
+  D.pvp=pvp||null;D.map=pvp?MAP_LIST[(pvp.seed>>>0)%MAP_LIST.length]:pick(MAP_LIST);D.id=now;D.pch=S.char||'paladin';D.och=rv.ch||'guard';D.pa=auraObj(S.aura);D.oa=auraObj(rv.au);D.d3=!!(F3&&F3.active);if(D.d3)F3.preloadDuel([D.pch,D.och]);if(D.d3){F3.resetDuel();const f=$('#f3d');f.style.height='100%';$('#dstage').prepend(f)}
   $('#duel').hidden=false;document.body.classList.add('lock');$('#rcard').hidden=true;
   $('#qarea').innerHTML='';$('#seq').innerHTML='';$('#qmsg').textContent='결투 준비';
   $('#tFill').style.width='100%';$('#tFill').classList.remove('urgent');$('#tVal').textContent='';
@@ -1711,7 +1766,7 @@ function hud(){
   $('#dPW').textContent=`+${D.pw.lv} ${wname(D.pw)}`;$('#dON').textContent=D.rv.name;$('#dOW').textContent=`+${D.ow.lv} ${wname(D.ow)}`;
   $('#dPP').innerHTML=[0,1].map(k=>`<i class="${k<D.ps?'on':''}"></i>`).join('');
   $('#dOP').innerHTML=[0,1].map(k=>`<i class="${k<D.os?'on':''}"></i>`).join('');
-  $('#dRound').textContent=D.round?`${D.round}라운드`:'결투';
+  $('#dRound').textContent=D.round?`${D.round}라운드`:(MAP_NAME[D.map]||'결투');
   $('#aiLbl').textContent=D.rv.name.split(' ').pop();
 }
 function dsz(){return{w:dcv.clientWidth,h:dcv.clientHeight}}
@@ -2121,7 +2176,19 @@ function sellIds(ids){
 }
 
 /* ---------- 도감 ---------- */
-function renderCodex(){
+const GRADE_TXT=['','은은한 입자','+ 발밑 고리','+ 고리·등 뒤 광선','+ 빛날개·빛기둥'],GRADE_TXT_G=['','바닥 문양','+ 안쪽 역회전 고리','+ 솟아오르는 빛알','+ 네 갈래 빛기둥'];
+function renderCodex(){const sub=S.codex.sub==='a'?'a':'w';document.querySelectorAll('#cxSeg button').forEach(b=>{b.classList.toggle('on',b.dataset.k===sub);b.onclick=()=>{S.codex.sub=b.dataset.k;save();renderCodex()}});
+  $('#cxW').hidden=sub!=='w';$('#cxA').hidden=sub!=='a';if(sub==='a')return renderAuraCodex();renderWeaponCodex()}
+function renderAuraCodex(){const cur=AURA_BY[S.codex.aura]?S.codex.aura:'flame';
+  const mk=(host,list)=>{host.innerHTML='';list.forEach(A=>{const b=document.createElement('button');b.type='button';b.className='chip'+(A.id===cur?' on':'');b.style.setProperty('--c',A.c);b.innerHTML=`<i class="dot"></i>${A.n}`;b.onclick=()=>{S.codex.aura=A.id;save();renderAuraCodex()};host.appendChild(b)})};
+  mk($('#cxAB'),AURAS.filter(a=>!a.gr));mk($('#cxAG2'),AURAS.filter(a=>a.gr));
+  const A=AURA_BY[cur];$('#cxAN').textContent=`${A.n} 오오라 · ${A.gr?'발밑에 문양이 펼쳐지는 바닥형':'몸과 무기에서 기운이 피어오르는 형태'}. 상점의 오오라 뽑기에서 얻고, 보관함에서 장착해요. 등급은 일반 60% · 희귀 28% · 영웅 10% · 전설 2%.`;
+  const g=$('#cxAGrid');g.innerHTML='';
+  for(let gr=1;gr<=4;gr++){const key=cur+':'+gr,own=(S.auras||{})[key]||0,el=document.createElement('div');el.className='cxa';
+    el.innerHTML=`<canvas data-key="${key}"></canvas><b style="color:${AGR[gr].c}">${AGR[gr].n}</b><span>${(A.gr?GRADE_TXT_G:GRADE_TXT)[gr]}</span><span>${own?'보유 '+own+'개':'미보유'}</span>`;g.appendChild(el)}
+  drawCodexAuras(performance.now())}
+let cxAT=0;function drawCodexAuras(now){if(tab!=='codex'||S.codex.sub!=='a')return;if(now-cxAT<40)return;cxAT=now;document.querySelectorAll('#cxAGrid canvas').forEach(cv=>drawAuraCard(cv,cv.dataset.key,now/1000))}
+function renderWeaponCodex(){
   const hidSel=isHidden({type:S.codex.type});
   chips($('#cxType'),TYPES.concat(HTYPES.map(x=>({...x,h:1}))),S.codex.type,id=>{S.codex.type=id;save();renderCodex()},'type');
   const eh=$('#cxEl');eh.hidden=hidSel;if(!hidSel)chips(eh,EL_IDS.map(id=>({id})),S.codex.el,id=>{S.codex.el=id;save();renderCodex()},'el');
@@ -2198,14 +2265,14 @@ function bind(){
 let last=performance.now();
 function loop(now){
   const dt=Math.min(.05,Math.max(0,(now-last)/1000));last=now;
-  pumpThumbs();try{if(B)drawBoxOv(now,dt);else if(D)duelTick(now,dt);else if(tab==='forge')drawForge(now,dt);else if(tab==='shop')drawShopAnim(now)}catch(e){console.error(e)}
+  pumpThumbs();try{if(B)drawBoxOv(now,dt);else if(D)duelTick(now,dt);else if(tab==='forge')drawForge(now,dt);else if(tab==='shop')drawShopAnim(now);else if(tab==='codex')drawCodexAuras(now)}catch(e){console.error(e)}
   requestAnimationFrame(loop);
 }
 if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname))window.__dbg={curW:()=>curW(),FX,renderForge:()=>renderForge(),F3:()=>F3,S,startDuel:i=>startDuel(i),startQTE:()=>startQTE(),endRound:w=>endRound(w),get D(){return D}};if(window.__dbg)window.__D=()=>D;
 function start(data){
   if(data&&data.S&&Array.isArray(data.S.inv))Object.assign(S,data.S);else load();
   curW();bind();
-  try{if(window.Forge3D&&!/[?&]2d\b/.test(location.search)&&Forge3D.init($('#f3d'),{ELS,METALS,FORMS,formOf,SABER_C,SHINAI_P,SCYTHE_C,FX,curW,isHidden,CLASH,curAura:()=>auraObj(S.aura),getDuel:()=>D,onLost:()=>{F3=null;$('#f3d').hidden=true}}))F3=Forge3D}catch(e){F3=null}
+  try{if(window.Forge3D&&!/[?&]2d\b/.test(location.search)&&Forge3D.init($('#f3d'),{ELS,METALS,FORMS,formOf,SABER_C,SHINAI_P,SCYTHE_C,FX,curW,isHidden,CLASH,curAura:()=>auraObj(S.aura),sigil:id=>sigilCanvas(id,512),getDuel:()=>D,onLost:()=>{F3=null;$('#f3d').hidden=true}}))F3=Forge3D}catch(e){F3=null}
   if(F3)setTimeout(()=>{try{F3.preloadDuel([S.char||'paladin','guard'])}catch(e){}},2500);
   if(!F3)$('#f3d').hidden=true;
   renderHeader();renderForge();ensureRivals();boot();

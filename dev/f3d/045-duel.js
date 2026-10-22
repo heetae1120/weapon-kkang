@@ -157,13 +157,14 @@ const AURA_B=['Hips','Spine1','Spine2','Head','LeftArm','RightArm','LeftForeArm'
 function auraCol(E,wd,t){if(wd&&H.isHidden&&H.isHidden(wd)){const h=lin(hsv((t*90+Math.random()*120)%360));return{c:h,l:V.mix(h,[1,1,1],.5),d:V.sc(h,.3)}}return E}
 // 장착한 오오라가 있을 때만 몸 전체를 감싸는 기운 (등급이 높을수록 진하고, 발밑 고리·등 뒤 광선이 붙음)
 function bodyAura(a,K,W,Root,AU,dt,t){a._auraDec=null;if(!AU||a.hidden)return;const g=AU.g,inten=a.aura*(.35+g*.3);if(inten<=.05)return;
+  if(AU.gr){a._auraDec={gr:1,AU,inten,dt};return}
   const pos=n=>{const i=K.idx[n];return i==null?[a.x,1,0]:M4.pt(Root,M4.pos(W[i]))};
   a.auraAcc+=dt*(18+g*22)*inten;
   while(a.auraAcc>1){a.auraAcc--;const b=AURA_B[Math.floor(Math.random()*AURA_B.length)],p=V.add(pos(b),[rnd(-.16,.16),rnd(-.1,.1),rnd(-.16,.16)]);auraEmit(AU,p,1.7,t)}
   const E=auraE(AU,t),ch=pos('Spine1'),pul=.85+.15*Math.sin(t*6+a.sg),k=Math.min(1.5,inten);
   if(g>=2)pushSpr(ch,null,1.1*k,0,V.sc(E.c,.3*k*pul),1);if(g>=3)pushSpr(pos('Hips'),[0,.9,0],.55*k,3,V.sc(E.c,.28*k),1);
   a._auraDec={E,inten,ch,g}}
-function drawAuraDecals(a,t,eye){const A=a._auraDec;if(!A||a.hidden)return;const{E,inten,ch,g}=A,k=Math.min(1.6,inten);
+function drawAuraDecals(a,t,eye){const A=a._auraDec;if(!A||a.hidden)return;if(A.gr){groundAuraDraw(A.AU,a.x,0,.7+A.AU.g*.07,t,Math.min(1.4,.6+A.inten*.4),A.dt);return}const{E,inten,ch,g}=A,k=Math.min(1.6,inten);
   if(g>=2)drawDecal(M4.chain(M4.tr(a.x,.01,0),M4.rx(-PI/2),M4.rz(t*a.sg*.9),M4.sc(.5+g*.08)),TEX.ring,V.sc(E.c,1.4*k),Math.min(1,.2+g*.2),0);
   if(g>=3){const fw=V.norm(V.sub(eye,ch)),rt=V.norm(V.cross([0,1,0],fw)),up=V.cross(fw,rt),s=(.75+g*.12)*(.92+.08*Math.sin(t*2.4));
     drawDecal(M4.basis(V.sc(rt,s),V.sc(up,s),fw,V.madd(ch,fw,-.35)),TEX.halo,V.sc(E.c,.5*k),Math.min(1,g*.25),0)}}
@@ -207,11 +208,12 @@ function duelFrame(now,dt){
   cam.V=M4.look(eye,V.add(tgt,jit),[Math.sin(rl),Math.cos(rl),0]);cam.P=M4.persp(fov,asp,.05,60);cam.VP=M4.mul(cam.P,cam.V);cam.eye=eye;
   const EP=EW(DQ.pw),EO=EW(DQ.ow);
   const lights=[[[-3,2.6,1.4],V.sc(EP.c,2.2),.05],[[3,2.6,1.4],V.sc(EO.c,2.2),.05],[[0,4,3],[1.1,1.05,1],.02],[[-4.5,1.8,-2.5],V.sc([3,1.3,.4],.85+.15*Math.sin(t*9)),.25],[[4.5,1.8,-2.5],V.sc([3,1.3,.4],.85+.15*Math.sin(t*8+1)),.25],[[0,1.3,.6],[0,0,0],1]];
+  const mapId=MAP_IDS.includes(DQ.map)?DQ.map:'dungeon',MP=mapId!=='dungeon'?buildMap(mapId):null;if(MP)lights.splice(0,lights.length,...MP.lights(t));const CL=lights[lights.length-1];
   if(DQ.phase==='clash'&&DQ.clash&&DS.C){const c=(now-DQ.clash.t0)/1000,T=Object.assign({},CLASH_T,H.CLASH||{});
-    if(c>T.imp&&c<T.brk+.2){lights[5][0]=V.add(DS.C,[0,0,.25]);lights[5][1]=V.sc([6,4.5,2.5],c<T.imp+.5?Math.max(.5,1.6-(c-T.imp)*2):.55+.35*Math.random())}}
-  beginScene(w,h,eye,lights,dist+3,[1.1,.9,.75]);
-  drawPBR(MS.floor,SC.floorM,M4.sc(1.3,1,1.3));drawPBR(MS.wall,SC.wallM,M4.chain(M4.tr(0,0,-4),M4.sc(1.4,1.1,1)));
-  for(const sx of[-3.6,3.6]){drawPBR(MS.box,SC.forgeM,M4.chain(M4.tr(sx,1.6,-2.6),M4.sc(.55,3.2,.55)));drawPBR(MS.box,SC.ironM,M4.chain(M4.tr(sx,1.85,-2.25),M4.sc(.1,.35,.1)))}
+    if(c>T.imp&&c<T.brk+.2){CL[0]=V.add(DS.C,[0,0,.25]);CL[1]=V.sc([6,4.5,2.5],c<T.imp+.5?Math.max(.5,1.6-(c-T.imp)*2):.55+.35*Math.random())}}
+  beginScene(w,h,eye,lights,dist+(MP?7:3),MP?MP.tint:[1.1,.9,.75]);
+  if(MP)drawMap(mapId,t);else{drawPBR(MS.floor,SC.floorM,M4.sc(1.3,1,1.3));drawPBR(MS.wall,SC.wallM,M4.chain(M4.tr(0,0,-4),M4.sc(1.4,1.1,1)));
+  for(const sx of[-3.6,3.6]){drawPBR(MS.box,SC.forgeM,M4.chain(M4.tr(sx,1.6,-2.6),M4.sc(.55,3.2,.55)));drawPBR(MS.box,SC.ironM,M4.chain(M4.tr(sx,1.85,-2.25),M4.sc(.1,.35,.1)))}}
   // 캐릭터 + 무기
   const actors=[[DS.p,'p',PW,DQ.pw,EP,DQ.pa||null],[DS.o,'o',OW,DQ.ow,EO,DQ.oa||null]];const wmats=[];
   for(const[a,side,R,wd,E,AU]of actors){const cfg=CFG[side],K=CH[cfg.ch],clips=ANIM[cfg.an];
@@ -244,13 +246,15 @@ function duelFrame(now,dt){
   gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);for(const a of[DS.p,DS.o])drawDecal(M4.chain(M4.tr(a.x,.004,0),M4.rx(-PI/2),M4.sc(.45,.3,1)),null,[0,0,0],.65,1);
   gl.blendFunc(gl.ONE,gl.ONE);
   drawDecal(M4.chain(M4.tr(-1.3,.006,.1),M4.rx(-PI/2),M4.sc(1.4,1,1)),null,V.sc(EP.c,.45),.6,2);drawDecal(M4.chain(M4.tr(1.3,.006,.1),M4.rx(-PI/2),M4.sc(1.4,1,1)),null,V.sc(EO.c,.45),.6,2);
-  drawDecal(M4.chain(M4.tr(0,.008,0),M4.rx(-PI/2),M4.rz(t*.2),M4.sc(1.6)),TEX.circle,[.5,.42,.35],.5,0);
+  if(MP)drawMapSky(mapId,t);
+  drawDecal(M4.chain(M4.tr(0,.008,0),M4.rx(-PI/2),M4.rz(t*.2),M4.sc(1.6)),TEX.circle,MP?MP.circle:[.5,.42,.35],.5,0);
   for(const a of[DS.p,DS.o])drawAuraDecals(a,t,eye);
   for(const[R,Mw,E,a,wd,AU]of wmats){const lv=wd&&wd.type?wd.lv:0,k=Math.min(1.6,a.aura);
     spawnAuraFor(R,Mw,frozen?0:dt,1,AU);weaponFX(R,Mw,E,t,eye,.8,AU);
-    if(AU&&R.type!=='blank'){const b0=M4.pt(Mw,[0,Math.max(R.bot*.2,0),0]),b1=M4.pt(Mw,[0,R.top,0]),Ea=auraE(AU,t);pushSpr(V.mix(b0,b1,.5),V.sub(b1,b0),.05+AU.g*.012,0,V.sc(Ea.c,(.1+AU.g*.1)*k),1)}
+    if(AU&&!AU.gr&&R.type!=='blank'){const b0=M4.pt(Mw,[0,Math.max(R.bot*.2,0),0]),b1=M4.pt(Mw,[0,R.top,0]),Ea=auraE(AU,t);pushSpr(V.mix(b0,b1,.5),V.sub(b1,b0),.05+AU.g*.012,0,V.sc(Ea.c,(.1+AU.g*.1)*k),1)}
     drawTrail(a,auraCol(E,wd,t))}
   drawCutLine();
+  if(MP&&MP.fx&&!(window.__F3X&&window.__F3X.nofx))MP.fx(frozen?0:dt,t);
   stepParts(frozen?0:dt);partsToSpr();
   if(DS.C){const p=project(DS.C);DS.cpx=p}
   endScene(w,h,{shake:DQ.shake||0,fz:0,t,inv:frozen&&DQ.phase==='clash'});

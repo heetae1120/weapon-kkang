@@ -33,7 +33,7 @@ function endScene(w,h,o){
   gl.uniform1f(cu.uBloom,.16);gl.uniform1f(cu.uInv,(o&&o.inv)?1:0);gl.uniform1f(cu.uExp,1.05);gl.uniform1f(cu.uCA,Math.min(.012,(o.shake||0)*.0006));gl.uniform1f(cu.uFz,o.fz?.6+.4*Math.sin(o.t*14):0);gl.uniform1f(cu.uTime,o.t%10);gl.uniform1f(cu.uVig,.75);
   gl.drawArrays(gl.TRIANGLES,0,3);gl.activeTexture(gl.TEXTURE0)}
 function weaponFX(R,Mw,E,t,eye,pv,AU){if(!R||R.type==='blank')return;const lv=R.lv,cent=M4.pt(Mw,[0,R.ringY,0]),sc=V.len(M4.dir(Mw,[1,0,0]));
-  if(AU&&AU.g>=2){const r=(.2+AU.g*.03)*sc;drawDecal(M4.chain(M4.tr(cent[0],cent[1],cent[2]),M4.rx(PI/2-.42),M4.rz(t*.7),M4.sc(r)),TEX.ring,V.sc(auraE(AU,t).c,1.8),pv,0)}
+  if(AU&&!AU.gr&&AU.g>=2){const r=(.2+AU.g*.03)*sc;drawDecal(M4.chain(M4.tr(cent[0],cent[1],cent[2]),M4.rx(PI/2-.42),M4.rz(t*.7),M4.sc(r)),TEX.ring,V.sc(auraE(AU,t).c,1.8),pv,0)}
   if(R.saber&&R.saber.BL>0){const s=R.saber,b0=M4.pt(Mw,[0,.01,0]),b1=M4.pt(Mw,[0,.01+s.BL,0]),dd=V.sub(b1,b0),bc=lin(R.lv===18?hsv(t*120%360):s.col);
     pushSpr(V.mix(b0,b1,.5),dd,.085*sc,0,V.sc(bc,2.2),1);pushSpr(V.mix(b0,b1,.5),dd,.032*sc,1,V.sc(V.mix(bc,[1,1,1],.7),4),1);
     if(s.dbl){const c0=M4.pt(Mw,[0,-s.HL,0]),c1=M4.pt(Mw,[0,-s.HL-s.BL,0]),d2=V.sub(c1,c0);pushSpr(V.mix(c0,c1,.5),d2,.085*sc,0,V.sc(bc,2.2),1);pushSpr(V.mix(c0,c1,.5),d2,.032*sc,1,V.sc(V.mix(bc,[1,1,1],.7),4),1)}}}
@@ -97,7 +97,8 @@ function frame(now,dt,st){
   sprN=0;
   const AU=H.curAura&&H.curAura();
   if(wVis&&Mw&&WPN&&!blank){const lv=WPN.lv,pv=.25+.75*pose.p,cent=M4.pt(Mw,[0,WPN.ringY,0]),sc=V.len(M4.dir(Mw,[1,0,0]));
-    if(AU){const E=auraE(AU,t);
+    if(AU&&AU.gr)groundAuraDraw(AU,FLX,.08,.75+AU.g*.08,t,.4+.6*pose.p,sdt);
+    else if(AU){const E=auraE(AU,t);
     if(AU.g>=2){const r=(.2+AU.g*.03)*sc;drawDecal(M4.chain(M4.tr(cent[0],cent[1],cent[2]),M4.rx(PI/2-.42),M4.rz(t*.7),M4.sc(r)),TEX.ring,V.sc(E.c,1.8),pv,0);
       if(AU.g>=3){const c2=M4.pt(Mw,[0,WPN.ringY*1.7+.05,0]);drawDecal(M4.chain(M4.tr(c2[0],c2[1],c2[2]),M4.rx(PI/2-.5),M4.rz(-t*1.1),M4.sc(r*.72)),TEX.ring,V.sc(E.l,1.6),pv,0)}}
     if(AU.g>=3&&pose.p>.05){const c=M4.pt(Mw,[0,WPN.mid,0]),fw=V.norm(V.sub(eye,c)),rt=V.norm(V.cross([0,1,0],fw)),upv=V.cross(fw,rt),s=(.26+lv*.012)*(.9+.1*Math.sin(t*2));
@@ -159,35 +160,60 @@ function thumb(wd,W,Hh,rot){W=Math.max(8,Math.min(512,W|0));Hh=Math.max(8,Math.m
   ox.drawImage(big,0,0,W,Hh);if(any){ox.globalCompositeOperation='lighter';ox.globalAlpha=.6;ox.filter='blur(1px)';ox.drawImage(gl2,0,0,W,Hh);ox.filter='none';ox.globalAlpha=1;ox.globalCompositeOperation='source-over'}
   if(TCACHE.size>400)TCACHE.delete(TCACHE.keys().next().value);TCACHE.set(key,out);return out}
 /* ---------------- 상점 보물상자 (사진 질감 나무·쇠) : 이미지로 구워서 사용 ---------------- */
-function chestGeo(open){const W=.9,Hb=.46,D=.56,R=D/2,o={wood:G(),iron:G(),gold:G(),dark:G(),glow:G()};
+function rRect(w,h,r,n=5){const o=[],c=[[w/2-r,h/2-r,0],[-w/2+r,h/2-r,PI/2],[-w/2+r,-h/2+r,PI],[w/2-r,-h/2+r,PI*1.5]];for(const[cx,cy,a0]of c)for(let i=0;i<=n;i++){const a=a0+i/n*PI/2;o.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r])}return o}
+// 두툼하게 모서리가 둥근 상자 (가운데 기준, w×h×d)
+function bbox(w,h,d,r){return extrude(rRect(w,h,Math.min(r,w*.45,h*.45)),{depth:d,bevel:Math.min(r*.8,d*.3)})}
+// 소용돌이 덩굴무늬 (판 위에 붙는 금장식): 중심 cx,cy, 크기 s, 방향 sd
+function scroll(cx,cy,z,s,sd,turn){const p=[];for(let i=0;i<=46;i++){const t=i/46,a=(turn||0)+t*3.6*PI,r=s*(1-t*.86);p.push([cx+sd*(Math.cos(a)*r+t*s*.4),cy+Math.sin(a)*r*.8,z])}return p}
+function chestGeo(open){const W=1.0,Hb=.5,D=.62,o={blue:G(),silver:G(),gold:G(),dark:G(),glow:G(),wood:G(),iron:G()};
   const add=(k,g,m)=>merge(o[k],g,m||null);
-  // 몸통: 판자 5장 + 안쪽 어둠
-  for(let i=0;i<5;i++)add('wood',box(W-.02,Hb/5-.006,D-.02),M4.tr(0,Hb/10+i*Hb/5,0));
-  add('dark',box(W-.06,.01,D-.06),M4.tr(0,Hb-.004,0));
-  // 쇠 띠·모서리 쇠
-  for(const x of[-W*.32,W*.32])add('iron',box(.07,Hb+.012,D+.014),M4.tr(x,Hb/2,0));
-  for(const sx of[-1,1])for(const sz of[-1,1]){add('iron',box(.09,Hb+.016,.03),M4.tr(sx*(W/2-.035),Hb/2,sz*(D/2-.004)));add('iron',box(.03,Hb+.016,.09),M4.tr(sx*(W/2-.004),Hb/2,sz*(D/2-.035)))}
-  add('iron',box(W+.012,.04,D+.012),M4.tr(0,.02,0));add('gold',box(W+.016,.022,D+.016),M4.tr(0,Hb-.01,0));
+  // 파란 에나멜 몸통
+  add('blue',bbox(W-.04,Hb-.02,D-.04,.03),M4.tr(0,Hb/2,0));
+  // 은색 틀: 아랫단·윗단, 네 모서리 기둥, 가운데 두 띠
+  add('silver',bbox(W+.04,.1,D+.04,.035),M4.tr(0,.05,0));add('silver',bbox(W+.03,.07,D+.03,.03),M4.tr(0,Hb-.03,0));
+  for(const sx of[-1,1])for(const sz of[-1,1])add('silver',bbox(.15,Hb+.02,.15,.04),M4.tr(sx*(W/2-.05),Hb/2,sz*(D/2-.05)));
+  for(const x of[-.2,.2]){add('silver',bbox(.15,Hb,.05,.02),M4.tr(x,Hb/2,D/2+.005));add('silver',bbox(.15,Hb,.05,.02),M4.tr(x,Hb/2,-D/2-.005))}
+  for(const sx of[-1,1])add('silver',bbox(.05,Hb,.15,.02),M4.tr(sx*(W/2+.005),Hb/2,0));
   // 리벳
-  for(const x of[-W*.32,W*.32])for(let j=0;j<4;j++)for(const sz of[-1,1])add('gold',sphere(.009,8,6),M4.tr(x+(j%2?.02:-.02),.06+j*.11,sz*(D/2+.008)));
-  // 뚜껑 (반원통) — 열리면 뒤로 젖힘
-  const lid=G();const prof=[];for(let i=0;i<=16;i++){const a=PI*i/16;prof.push([Math.cos(a)*R,Math.sin(a)*R*.85])}
-  for(let i=0;i<16;i++){const a=prof[i],b=prof[i+1];const seg=box(W-.02,.03,Math.hypot(b[0]-a[0],b[1]-a[1])+.004);const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2],ang=Math.atan2(b[1]-a[1],b[0]-a[0]);merge(lid,seg,M4.chain(M4.tr(0,mid[1],mid[0]),M4.rx(-ang)))}
-  const lidI=G(),lidG=G();for(const x of[-W*.32,W*.32])for(let i=0;i<16;i++){const a=prof[i],b=prof[i+1];const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2],ang=Math.atan2(b[1]-a[1],b[0]-a[0]);merge(lidI,box(.075,.04,Math.hypot(b[0]-a[0],b[1]-a[1])+.006),M4.chain(M4.tr(x,mid[1],mid[0]),M4.rx(-ang)))}
-  for(const sx of[-1,1]){const sideP=[];for(let i=0;i<=16;i++)sideP.push([prof[i][0],prof[i][1]]);merge(lidI,extrude(sideP.map(p=>[p[0],p[1]]),{depth:.03,bevel:.004}),M4.chain(M4.tr(sx*(W/2-.012),0,0),M4.ry(PI/2)))}
-  merge(lidG,box(W+.016,.022,.03),M4.tr(0,.0,R));merge(lidG,box(W+.016,.022,.03),M4.tr(0,0,-R));
-  const LM=open?M4.chain(M4.tr(0,Hb,-R),M4.rx(-1.9),M4.tr(0,0,R)):M4.tr(0,Hb,0);
-  add('wood',lid,LM);add('iron',lidI,LM);add('gold',lidG,LM);
-  // 자물쇠
-  const lockM=open?M4.chain(LM,M4.tr(0,0,R+.02)):M4.tr(0,Hb-.02,D/2+.02);
-  add('gold',box(.12,.15,.03),lockM);add('dark',box(.022,.05,.01),M4.chain(lockM,M4.tr(0,-.01,.018)));add('dark',sphere(.016,10,8),M4.chain(lockM,M4.tr(0,.022,.016)));
-  if(open){add('glow',box(W-.08,.02,D-.08),M4.tr(0,Hb-.03,0));for(let i=0;i<70;i++){const x=(Math.random()-.5)*(W-.15),z=(Math.random()-.5)*(D-.15);add('gold',lathe([[0,0],[.028,0],[.028,.008],[0,.008]],12),M4.chain(M4.tr(x,Hb-.02+Math.random()*.03,z),M4.rx(Math.random()-.5),M4.rz(Math.random()-.5)))}}
+  for(const x of[-.2,.2])for(let j=0;j<3;j++)for(const dx of[-.045,.045])add('silver',sphere(.016,10,8),M4.tr(x+dx,.13+j*.12,D/2+.034));
+  for(const sx of[-1,1])for(let j=0;j<4;j++)add('silver',sphere(.015,10,8),M4.tr(sx*(W/2-.05),.1+j*.1,D/2+.03));
+  // 앞판 방패 + 망치·모루 문양 (게임 고유 문장)
+  const sh=[];for(let i=0;i<=20;i++){const t=i/20,a=PI*t;sh.push([Math.cos(a)*.13,.06+Math.sin(a)*.03])}sh.push([-.13,-.04],[-.08,-.12],[0,-.16],[.08,-.12],[.13,-.04]);
+  add('silver',extrude(cleanPoly(sh.map(p=>[p[0]*1.18,p[1]*1.18])),{depth:.04,bevel:.012}),M4.tr(0,Hb*.45,D/2+.04));
+  add('blue',extrude(cleanPoly(sh),{depth:.03,bevel:.006}),M4.tr(0,Hb*.45,D/2+.06));
+  const anvil=[[-.075,-.035],[.075,-.035],[.05,-.015],[.03,-.015],[.035,.005],[.09,.012],[.1,.03],[-.06,.03],[-.065,.012],[-.035,.005],[-.03,-.015],[-.05,-.015]];
+  add('gold',extrude(cleanPoly(anvil),{depth:.016,bevel:.004}),M4.tr(0,Hb*.45-.03,D/2+.08));
+  const ham=[[-.012,-.01],[.012,-.01],[.012,.07],[.045,.07],[.045,.11],[-.045,.11],[-.045,.07],[-.012,.07]];
+  add('gold',extrude(cleanPoly(ham),{depth:.016,bevel:.004}),M4.chain(M4.tr(.01,Hb*.45-.0,D/2+.084),M4.rz(-.6)));
+  for(let i=0;i<5;i++){const a=-.9+i*.45;add('gold',sphere(.008,8,6),M4.tr(Math.cos(a+PI/2)*.11,Hb*.45+.02+Math.sin(a+PI/2)*.06,D/2+.08))}
+  // 금 덩굴무늬 (앞쪽 좌우 파란 판)
+  for(const sx of[-1,1]){add('gold',tube(scroll(sx*.36,Hb*.55,D/2+.015,.06,sx,0),u=>.008*(1-u*.6),6));add('gold',tube(scroll(sx*.33,Hb*.25,D/2+.015,.045,-sx,PI),u=>.007*(1-u*.6),6))}
+  // 옆 손잡이 금 구슬
+  for(const sx of[-1,1]){add('gold',sphere(.065,16,12),M4.tr(sx*(W/2+.11),Hb*.62,0));add('gold',tube([[sx*(W/2+.02),Hb*.78,-.06],[sx*(W/2+.09),Hb*.74,-.04],[sx*(W/2+.11),Hb*.65,0],[sx*(W/2+.09),Hb*.74,.04],[sx*(W/2+.02),Hb*.78,.06]],.016,8))}
+  // 발
+  for(const sx of[-1,1])for(const sz of[-1,1])add('gold',sphere(.045,12,8),M4.tr(sx*(W/2-.05),-.005,sz*(D/2-.05)));
+  // 뚜껑: 반원 단면을 x로 늘린 몸통 + 은색 띠 + 금 덩굴 + 둥근 자물쇠
+  const R=D/2+.01,prof=[];for(let i=0;i<=18;i++){const a=PI*i/18;prof.push([Math.cos(a)*R,Math.sin(a)*R*.62])}
+  const lidShape=(rr,ins)=>{const q=[];for(let i=0;i<=18;i++){const a=PI*i/18;q.push([Math.cos(a)*rr,Math.sin(a)*rr*.62])}for(let i=18;i>=0;i--){const a=PI*i/18;q.push([Math.cos(a)*(rr-ins),Math.max(0,Math.sin(a)*(rr-ins)*.62)])}return cleanPoly(q)};
+  const lidF=(rr,wid,ins)=>extrude(cleanPoly(prof.map((p,i)=>{const a=PI*i/18;return[Math.cos(a)*rr,Math.sin(a)*rr*.62]}).concat([[-rr,0],[rr,0]])),{depth:wid,bevel:.02});
+  const L=G();merge(L,lidF(R,W-.04),M4.ry(PI/2));
+  const LS=G();for(const x of[-.2,.2])merge(LS,lidF(R+.025,.15,0),M4.chain(M4.tr(x,0,0),M4.ry(PI/2)));for(const sx of[-1,1])merge(LS,lidF(R+.02,.1,0),M4.chain(M4.tr(sx*(W/2-.04),0,0),M4.ry(PI/2)));
+  const LG=G();for(const sx of[-1,1]){merge(LG,tube(scroll(0,0,0,.07,1,0),u=>.008*(1-u*.6),6),M4.chain(M4.tr(sx*.36,R*.62-.01,.02),M4.rx(-PI/2*0.85)))}
+  const lock=G();merge(lock,lathe([[0,0],[.085,0],[.09,.02],[.08,.035],[0,.035]],28),M4.rx(PI/2));merge(lock,lathe([[.05,0],[.06,.0],[.06,.05],[.05,.05]],24),M4.chain(M4.tr(0,0,.0),M4.rx(PI/2)));
+  const lockD=G();merge(lockD,box(.02,.045,.02),M4.tr(0,-.012,.04));merge(lockD,sphere(.016,10,8),M4.tr(0,.012,.04));
+  for(let i=0;i<8;i++){const a=i/8*TAU;merge(lock,sphere(.009,8,6),M4.tr(Math.cos(a)*.07,Math.sin(a)*.07,.035))}
+  const LM=open?M4.chain(M4.tr(0,Hb,-D/2),M4.rx(-1.95),M4.tr(0,0,D/2)):M4.tr(0,Hb,0);
+  add('blue',L,LM);add('silver',LS,LM);add('gold',LG,LM);
+  const lockM=M4.chain(LM,M4.tr(0,R*.3,R*.86),M4.rx(-.55));add('gold',lock,lockM);add('dark',lockD,lockM);
+  if(open){add('dark',box(W-.1,.02,D-.1),M4.tr(0,Hb-.03,0));add('glow',box(W-.14,.01,D-.14),M4.tr(0,Hb-.015,0));
+    for(let i=0;i<90;i++){const x=(Math.random()-.5)*(W-.18),z=(Math.random()-.5)*(D-.18),y=Hb-.01+Math.random()*.06*(1-Math.abs(x)*1.4);add('gold',lathe([[0,0],[.03,0],[.03,.009],[0,.009]],12),M4.chain(M4.tr(x,y,z),M4.rx(Math.random()-.5),M4.rz(Math.random()-.5)))}
+    for(let i=0;i<6;i++)add('glow',gemGeo(.03,.04),M4.chain(M4.tr((Math.random()-.5)*.6,Hb+.04,(Math.random()-.5)*.3),M4.rz(Math.random())))}
   return o}
 function renderChest(open,W,Hh,glowCol){const SS=2,w=W*SS,h=Hh*SS,keep={...cam};const parts=chestGeo(open);
-  const M={wood:mat({alb:PT.planks_d,nor:PT.planks_n,norS:1,rep:[1.2,1],col:[.5,.3,.17],rou:.6}),iron:mat({col:lin('#6a6c74'),met:1,rou:.38,rgh:PT.steel_r,nor:PT.steel_n,norS:.35,rep:[2,2]}),gold:mat({col:lin('#e8b850'),met:1,rou:.3,emi:V.sc(lin('#ffb040'),.06)}),dark:mat({col:lin('#0c0a0a'),rou:.9}),glow:mat({col:[0,0,0],emi:V.sc(lin(glowCol||'#ffd36b'),9)})};
+  const M={blue:mat({col:lin('#2f56d6'),met:.25,rou:.32,emi:V.sc(lin('#2a48c8'),.12)}),silver:mat({col:lin('#c9d0dc'),met:.85,rou:.42,emi:V.sc(lin('#9aa6bc'),.05)}),gold:mat({col:lin('#f0b830'),met:1,rou:.28,emi:V.sc(lin('#ffb020'),.1)}),dark:mat({col:lin('#120c08'),rou:.9}),glow:mat({col:[0,0,0],emi:V.sc(lin(glowCol||'#ffd36b'),3.5)}),wood:mat({}),iron:mat({})};
   const meshes=Object.entries(parts).filter(([k,g])=>g.p.length).map(([k,g])=>({m:mesh(g),mat:M[k]}));
   try{const T=thumbRT(w,h);gl.bindFramebuffer(gl.FRAMEBUFFER,T.f);gl.viewport(0,0,w,h);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.depthMask(true);gl.disable(gl.BLEND);gl.disable(gl.CULL_FACE);
-    const tgt=[0,open?.46:.38,0],eye=open?[1.5,1.45,2.45]:[1.45,1.2,2.25],asp=w/h;cam.V=M4.look(eye,tgt,[0,1,0]);cam.P=M4.persp(26*PI/180,asp,.3,10);cam.VP=M4.mul(cam.P,cam.V);cam.eye=eye;
+    const tgt=[0,open?.5:.42,0],eye=open?[1.05,1.55,2.75]:[.95,1.05,2.6],asp=w/h;cam.V=M4.look(eye,tgt,[0,1,0]);cam.P=M4.persp(26*PI/180,asp,.3,10);cam.VP=M4.mul(cam.P,cam.V);cam.eye=eye;
     const lights=[[[1.8,2.4,2.2],[4.2,3.8,3.2],.02],[[-2.2,1.2,1.4],[.9,1,1.4],.02],[[0,2,-2],[2,1.7,1.3],.02],...(open?[[[0,.75,.15],V.sc(lin(glowCol||'#ffd36b'),6),.25]]:[])];
     setProgCommon(P_PBR,eye,lights,999,[1.1,1,.9],0);for(const x of meshes)drawPBR(x.m,x.mat,M4.id());
     gl.readPixels(0,0,w,h,gl.RGBA,gl.FLOAT,T.buf);gl.bindFramebuffer(gl.FRAMEBUFFER,null)}finally{meshes.forEach(x=>freeMesh(x.m));Object.assign(cam,keep)}

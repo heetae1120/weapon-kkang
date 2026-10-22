@@ -115,7 +115,7 @@ function cleanWeapon(w) {
 }
 
 const CHAR_IDS = ['paladin', 'smith', 'guard', 'orc', 'erika', 'ninja', 'kachujin'];
-const AURA_RE = /^(flame|frost|storm|shadow|holy|sakura|galaxy|rainbow):[1-4]$/;
+const AURA_RE = /^(flame|frost|storm|shadow|holy|sakura|galaxy|rainbow|arcane|sanctum|inferno|rime|void|grove):[1-4]$/;
 const cleanAura = k => (typeof k === 'string' && AURA_RE.test(k) ? k : null);
 function cleanAuras(a) {
   const o = {};
@@ -134,7 +134,7 @@ function cleanState(st) {
   const log = Array.isArray(st.log) ? st.log.slice(0, 30).map(l => ({
     txt: String(l && l.txt || '').slice(0, 80), kind: String(l && l.kind || '').slice(0, 10), lab: String(l && l.lab || '').slice(0, 10)
   })) : [];
-  const codex = st.codex && typeof st.codex === 'object' ? { type: String(st.codex.type || 'sword').slice(0, 10), el: String(st.codex.el || 'fire').slice(0, 10) } : { type: 'sword', el: 'fire' };
+  const codex = st.codex && typeof st.codex === 'object' ? { type: String(st.codex.type || 'sword').slice(0, 10), el: String(st.codex.el || 'fire').slice(0, 10), sub: st.codex.sub === 'a' ? 'a' : 'w', aura: String(st.codex.aura || 'flame').slice(0, 10) } : { type: 'sword', el: 'fire' };
   return {
     inv, cur, log, codex,
     char: CHAR_IDS.includes(st.char) ? st.char : 'paladin',

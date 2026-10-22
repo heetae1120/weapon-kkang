@@ -245,7 +245,7 @@ precision highp float;in vec2 vU;out vec4 o;uniform sampler2D uT;uniform vec4 uC
 void main(){vec2 q=vU*2.-1.;float r=length(q);
   if(uMode==1){float a=(1.-smoothstep(.0,1.,r));o=vec4(0.,0.,0.,a*a*uCol.a);return;}
   if(uMode==2){float a=exp(-r*r*3.5)*(1.-smoothstep(.9,1.,r));o=vec4(uCol.rgb*a*uCol.a,0.);return;}
-  vec4 t=texture(uT,vU);o=vec4(uCol.rgb*t.r*t.a*uCol.a,0.);}`;
+  vec4 t=texture(uT,vU);if(uMode==3){o=vec4(t.rgb*uCol.rgb*uCol.a,0.);return;}o=vec4(uCol.rgb*t.r*t.a*uCol.a,0.);}`;
 
 /* ---------------- 렌더러 ---------------- */
 let P_SKIN=null,SMITH=null,P_PBR,P_DOWN,P_UP,P_COMP,P_SPR,P_DEC,emptyVAO,quadM,sprVAO,sprBuf,sprData;
@@ -1002,9 +1002,20 @@ function auraEmit(AU,pw,k,t){const E=auraE(AU,t),fx=AU.fx;
   else if(fx==='dark')emit({p:pw,v:[rnd(-.08,.08),rnd(.3,.8),rnd(-.08,.08)],st:.12,life:rnd(.5,.9),s0:.05*k,s1:.11*k,c0:V.sc(E.c,1.6),c1:V.sc(E.d,.5),sh:3,a0:.75,a1:0,fadeIn:.15});
   else if(fx==='petal'){const q={p:pw,v:[rnd(-.25,.25),rnd(-.05,.25),rnd(-.25,.25)],g:.25,drag:.6,life:rnd(1.1,1.9),s0:.022*k,s1:.016*k,c0:V.sc(E.l,2.2),c1:V.sc(E.c,1.4),sh:0,a0:.95,a1:0,fadeIn:.15};q.swirl=rnd(-2.5,2.5);q.cx=pw[0];q.cz=pw[2];emit(q)}
   else if(fx==='star'){emit({p:pw,v:[rnd(-.05,.05),rnd(.02,.16),rnd(-.05,.05)],life:rnd(.8,1.6),s0:.006*k,s1:.022*k,c0:V.sc(E.l,6),sh:1,a0:1,a1:0,fadeIn:.4});if(Math.random()<.25)emit({p:pw,v:[0,rnd(.05,.15),0],life:rnd(.8,1.3),s0:.08*k,s1:.16*k,c0:V.sc(E.c,.45),sh:0,a0:.6,a1:0,fadeIn:.3})}
+  else if(fx==='leaf'){const q={p:pw,v:[rnd(-.2,.2),rnd(.05,.35),rnd(-.2,.2)],g:.18,drag:.6,life:rnd(1,1.7),s0:.02*k,s1:.014*k,c0:V.sc(E.l,2),c1:V.sc(E.c,1.5),sh:0,a0:.95,a1:0,fadeIn:.15};q.swirl=rnd(-2,2);q.cx=pw[0];q.cz=pw[2];emit(q)}
+  else if(fx==='arcane'){emit({p:pw,v:[rnd(-.05,.05),rnd(.35,.8),rnd(-.05,.05)],st:.05,life:rnd(.5,.9),s0:.014*k,s1:.004,c0:V.sc(E.l,6),sh:1,a0:1,a1:0});if(Math.random()<.3)emit({p:pw,v:[0,rnd(.3,.6),0],life:rnd(.5,.8),s0:.06*k,s1:.1*k,c0:V.sc(E.c,.8),sh:0,a0:.5,a1:0})}
   else emit({p:pw,v:[rnd(-.06,.06),rnd(.3,.7),rnd(-.06,.06)],life:rnd(.6,1.1),s0:.018*k,s1:.006,c0:V.sc(E.l,5),sh:1,a0:1,a1:0,fadeIn:.15})}
+/* 바닥형 오오라: 문양 텍스처 + 등급별 고리·솟는 빛알·빛기둥 */
+const TEXG={};function sigilTex(id){if(!TEXG[id]&&H.sigil)TEXG[id]=texFrom(H.sigil(id),{clamp:1});return TEXG[id]}
+function groundAuraDraw(AU,cx,cz,R,t,k,dt){const E=auraE(AU,t),tx=sigilTex(AU.id);if(!tx)return;const g=AU.g;
+  drawDecal(M4.chain(M4.tr(cx,.012,cz),M4.rx(-PI/2),M4.sc(R*1.25)),null,V.sc(E.c,.35*k),.8,2);
+  drawDecal(M4.chain(M4.tr(cx,.014,cz),M4.rx(-PI/2),M4.rz(t*.35),M4.sc(R)),tx,V.sc(E.l,(1.2+g*.25)*k),1,0);
+  drawDecal(M4.chain(M4.tr(cx,.015,cz),M4.rx(-PI/2),M4.rz(t*.35),M4.sc(R*1.02)),tx,V.sc(E.c,1.4*k),.7,0);
+  if(g>=2)drawDecal(M4.chain(M4.tr(cx,.016,cz),M4.rx(-PI/2),M4.rz(-t*.6),M4.sc(R*.6)),tx,V.sc(E.c,1.2*k),.8,0);
+  if(g>=3&&dt>0){groundAuraDraw.acc=(groundAuraDraw.acc||0)+dt*(14+g*10)*k;while(groundAuraDraw.acc>1){groundAuraDraw.acc--;const a=Math.random()*TAU,r=R*rnd(.3,.95);auraEmit(AU,[cx+Math.cos(a)*r,.03,cz+Math.sin(a)*r],1.3,t)}}
+  if(g>=4)for(let i=0;i<4;i++){const a=i*PI/2+t*.35,p=[cx+Math.cos(a)*R*.86,.45,cz+Math.sin(a)*R*.86],f=.7+.3*Math.sin(t*3+i);pushSpr(p,[0,.9,0],.07*k,0,V.sc(E.c,.6*k*f),1);pushSpr(p,[0,.9,0],.018*k,1,V.sc(E.l,1.4*k*f),1)}}
 const AURA_RATE=[0,12,24,42,70];
-function spawnAura(dt,Mw,p,AU){AU=AU||(H.curAura&&H.curAura());if(!WPN||!AU||WPN.type==='blank')return;
+function spawnAura(dt,Mw,p,AU){AU=AU||(H.curAura&&H.curAura());if(!WPN||!AU||AU.gr||WPN.type==='blank')return;
   const A=WPN.aura||{y0:WPN.bot*.3,y1:WPN.top*.9,w:.03},t=performance.now()/1000;auraAcc+=AURA_RATE[AU.g]*(1+p*.8)*dt;
   while(auraAcc>1){auraAcc--;const y=rnd(A.y0,A.y1),x=A.axe?rnd(.03,A.w*1.1):rnd(-A.w,A.w)*1.4,pw=M4.pt(Mw,[x,A.axe?rnd(-A.w,A.w):y,rnd(-.015,.015)]);auraEmit(AU,pw,1,t)}
   if(AU.fx==='thunder'&&AU.g>=3){arcT-=dt;if(arcT<=0){arcT=rnd(.05,.14);const E=auraE(AU,t),n=6,y0=rnd(A.y0,A.y1*.7),y1=Math.min(A.y1,y0+rnd(.15,.4));let prev=null;
@@ -1181,13 +1192,14 @@ const AURA_B=['Hips','Spine1','Spine2','Head','LeftArm','RightArm','LeftForeArm'
 function auraCol(E,wd,t){if(wd&&H.isHidden&&H.isHidden(wd)){const h=lin(hsv((t*90+Math.random()*120)%360));return{c:h,l:V.mix(h,[1,1,1],.5),d:V.sc(h,.3)}}return E}
 // 장착한 오오라가 있을 때만 몸 전체를 감싸는 기운 (등급이 높을수록 진하고, 발밑 고리·등 뒤 광선이 붙음)
 function bodyAura(a,K,W,Root,AU,dt,t){a._auraDec=null;if(!AU||a.hidden)return;const g=AU.g,inten=a.aura*(.35+g*.3);if(inten<=.05)return;
+  if(AU.gr){a._auraDec={gr:1,AU,inten,dt};return}
   const pos=n=>{const i=K.idx[n];return i==null?[a.x,1,0]:M4.pt(Root,M4.pos(W[i]))};
   a.auraAcc+=dt*(18+g*22)*inten;
   while(a.auraAcc>1){a.auraAcc--;const b=AURA_B[Math.floor(Math.random()*AURA_B.length)],p=V.add(pos(b),[rnd(-.16,.16),rnd(-.1,.1),rnd(-.16,.16)]);auraEmit(AU,p,1.7,t)}
   const E=auraE(AU,t),ch=pos('Spine1'),pul=.85+.15*Math.sin(t*6+a.sg),k=Math.min(1.5,inten);
   if(g>=2)pushSpr(ch,null,1.1*k,0,V.sc(E.c,.3*k*pul),1);if(g>=3)pushSpr(pos('Hips'),[0,.9,0],.55*k,3,V.sc(E.c,.28*k),1);
   a._auraDec={E,inten,ch,g}}
-function drawAuraDecals(a,t,eye){const A=a._auraDec;if(!A||a.hidden)return;const{E,inten,ch,g}=A,k=Math.min(1.6,inten);
+function drawAuraDecals(a,t,eye){const A=a._auraDec;if(!A||a.hidden)return;if(A.gr){groundAuraDraw(A.AU,a.x,0,.7+A.AU.g*.07,t,Math.min(1.4,.6+A.inten*.4),A.dt);return}const{E,inten,ch,g}=A,k=Math.min(1.6,inten);
   if(g>=2)drawDecal(M4.chain(M4.tr(a.x,.01,0),M4.rx(-PI/2),M4.rz(t*a.sg*.9),M4.sc(.5+g*.08)),TEX.ring,V.sc(E.c,1.4*k),Math.min(1,.2+g*.2),0);
   if(g>=3){const fw=V.norm(V.sub(eye,ch)),rt=V.norm(V.cross([0,1,0],fw)),up=V.cross(fw,rt),s=(.75+g*.12)*(.92+.08*Math.sin(t*2.4));
     drawDecal(M4.basis(V.sc(rt,s),V.sc(up,s),fw,V.madd(ch,fw,-.35)),TEX.halo,V.sc(E.c,.5*k),Math.min(1,g*.25),0)}}
@@ -1231,11 +1243,12 @@ function duelFrame(now,dt){
   cam.V=M4.look(eye,V.add(tgt,jit),[Math.sin(rl),Math.cos(rl),0]);cam.P=M4.persp(fov,asp,.05,60);cam.VP=M4.mul(cam.P,cam.V);cam.eye=eye;
   const EP=EW(DQ.pw),EO=EW(DQ.ow);
   const lights=[[[-3,2.6,1.4],V.sc(EP.c,2.2),.05],[[3,2.6,1.4],V.sc(EO.c,2.2),.05],[[0,4,3],[1.1,1.05,1],.02],[[-4.5,1.8,-2.5],V.sc([3,1.3,.4],.85+.15*Math.sin(t*9)),.25],[[4.5,1.8,-2.5],V.sc([3,1.3,.4],.85+.15*Math.sin(t*8+1)),.25],[[0,1.3,.6],[0,0,0],1]];
+  const mapId=MAP_IDS.includes(DQ.map)?DQ.map:'dungeon',MP=mapId!=='dungeon'?buildMap(mapId):null;if(MP)lights.splice(0,lights.length,...MP.lights(t));const CL=lights[lights.length-1];
   if(DQ.phase==='clash'&&DQ.clash&&DS.C){const c=(now-DQ.clash.t0)/1000,T=Object.assign({},CLASH_T,H.CLASH||{});
-    if(c>T.imp&&c<T.brk+.2){lights[5][0]=V.add(DS.C,[0,0,.25]);lights[5][1]=V.sc([6,4.5,2.5],c<T.imp+.5?Math.max(.5,1.6-(c-T.imp)*2):.55+.35*Math.random())}}
-  beginScene(w,h,eye,lights,dist+3,[1.1,.9,.75]);
-  drawPBR(MS.floor,SC.floorM,M4.sc(1.3,1,1.3));drawPBR(MS.wall,SC.wallM,M4.chain(M4.tr(0,0,-4),M4.sc(1.4,1.1,1)));
-  for(const sx of[-3.6,3.6]){drawPBR(MS.box,SC.forgeM,M4.chain(M4.tr(sx,1.6,-2.6),M4.sc(.55,3.2,.55)));drawPBR(MS.box,SC.ironM,M4.chain(M4.tr(sx,1.85,-2.25),M4.sc(.1,.35,.1)))}
+    if(c>T.imp&&c<T.brk+.2){CL[0]=V.add(DS.C,[0,0,.25]);CL[1]=V.sc([6,4.5,2.5],c<T.imp+.5?Math.max(.5,1.6-(c-T.imp)*2):.55+.35*Math.random())}}
+  beginScene(w,h,eye,lights,dist+(MP?7:3),MP?MP.tint:[1.1,.9,.75]);
+  if(MP)drawMap(mapId,t);else{drawPBR(MS.floor,SC.floorM,M4.sc(1.3,1,1.3));drawPBR(MS.wall,SC.wallM,M4.chain(M4.tr(0,0,-4),M4.sc(1.4,1.1,1)));
+  for(const sx of[-3.6,3.6]){drawPBR(MS.box,SC.forgeM,M4.chain(M4.tr(sx,1.6,-2.6),M4.sc(.55,3.2,.55)));drawPBR(MS.box,SC.ironM,M4.chain(M4.tr(sx,1.85,-2.25),M4.sc(.1,.35,.1)))}}
   // 캐릭터 + 무기
   const actors=[[DS.p,'p',PW,DQ.pw,EP,DQ.pa||null],[DS.o,'o',OW,DQ.ow,EO,DQ.oa||null]];const wmats=[];
   for(const[a,side,R,wd,E,AU]of actors){const cfg=CFG[side],K=CH[cfg.ch],clips=ANIM[cfg.an];
@@ -1268,13 +1281,15 @@ function duelFrame(now,dt){
   gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);for(const a of[DS.p,DS.o])drawDecal(M4.chain(M4.tr(a.x,.004,0),M4.rx(-PI/2),M4.sc(.45,.3,1)),null,[0,0,0],.65,1);
   gl.blendFunc(gl.ONE,gl.ONE);
   drawDecal(M4.chain(M4.tr(-1.3,.006,.1),M4.rx(-PI/2),M4.sc(1.4,1,1)),null,V.sc(EP.c,.45),.6,2);drawDecal(M4.chain(M4.tr(1.3,.006,.1),M4.rx(-PI/2),M4.sc(1.4,1,1)),null,V.sc(EO.c,.45),.6,2);
-  drawDecal(M4.chain(M4.tr(0,.008,0),M4.rx(-PI/2),M4.rz(t*.2),M4.sc(1.6)),TEX.circle,[.5,.42,.35],.5,0);
+  if(MP)drawMapSky(mapId,t);
+  drawDecal(M4.chain(M4.tr(0,.008,0),M4.rx(-PI/2),M4.rz(t*.2),M4.sc(1.6)),TEX.circle,MP?MP.circle:[.5,.42,.35],.5,0);
   for(const a of[DS.p,DS.o])drawAuraDecals(a,t,eye);
   for(const[R,Mw,E,a,wd,AU]of wmats){const lv=wd&&wd.type?wd.lv:0,k=Math.min(1.6,a.aura);
     spawnAuraFor(R,Mw,frozen?0:dt,1,AU);weaponFX(R,Mw,E,t,eye,.8,AU);
-    if(AU&&R.type!=='blank'){const b0=M4.pt(Mw,[0,Math.max(R.bot*.2,0),0]),b1=M4.pt(Mw,[0,R.top,0]),Ea=auraE(AU,t);pushSpr(V.mix(b0,b1,.5),V.sub(b1,b0),.05+AU.g*.012,0,V.sc(Ea.c,(.1+AU.g*.1)*k),1)}
+    if(AU&&!AU.gr&&R.type!=='blank'){const b0=M4.pt(Mw,[0,Math.max(R.bot*.2,0),0]),b1=M4.pt(Mw,[0,R.top,0]),Ea=auraE(AU,t);pushSpr(V.mix(b0,b1,.5),V.sub(b1,b0),.05+AU.g*.012,0,V.sc(Ea.c,(.1+AU.g*.1)*k),1)}
     drawTrail(a,auraCol(E,wd,t))}
   drawCutLine();
+  if(MP&&MP.fx&&!(window.__F3X&&window.__F3X.nofx))MP.fx(frozen?0:dt,t);
   stepParts(frozen?0:dt);partsToSpr();
   if(DS.C){const p=project(DS.C);DS.cpx=p}
   endScene(w,h,{shake:DQ.shake||0,fz:0,t,inv:frozen&&DQ.phase==='clash'});
@@ -1286,6 +1301,97 @@ function EW(wd){if(!wd||!wd.type)return{c:[3,1.2,.3],l:[4,2.6,1.2],d:[.5,.2,.05]
   const E=H.ELS[wd.el];return{c:lin(E.c),l:lin(E.l),d:lin(E.d)}}
 function duelPt(){return DS.cpx}
 function duelActorPt(side){const a=side==='p'?DS.p:DS.o;if(!a||!cam.VP)return null;return project([a.x,1.15,0])}
+/* ---------------- 결투 맵: 지하 투기장(기존) · 늪지대 · 성꼭대기 · 용의 둥지 ---------------- */
+const MAP_IDS=['dungeon','swamp','castle','dragon'];
+const MAPS={};
+function plane2(w,h){const g=G();quad(g,[-w/2,0,h/2],[w/2,0,h/2],[w/2,0,-h/2],[-w/2,0,-h/2],[0,0],[w/4,0],[w/4,h/4],[0,h/4],[0,1,0]);return g}
+function skyQuad(){const g=G();quad(g,[-1,-1,0],[1,-1,0],[1,1,0],[-1,1,0],[0,1],[1,1],[1,0],[0,0],[0,0,1]);return g}
+// 배경 하늘·먼 풍경 (2D로 그려 텍스처로)
+function paintSky(kind){const[c,x]=cvs(1024,512),r=rng(kind.length*97+3);
+  const grad=(stops)=>{const g=x.createLinearGradient(0,0,0,512);stops.forEach(([o,col])=>g.addColorStop(o,col));x.fillStyle=g;x.fillRect(0,0,1024,512)};
+  const glow=(cx,cy,R,col,a)=>{const g=x.createRadialGradient(cx,cy,0,cx,cy,R);g.addColorStop(0,col.replace('A',a));g.addColorStop(1,col.replace('A',0));x.fillStyle=g;x.fillRect(cx-R,cy-R,R*2,R*2)};
+  if(kind==='swamp'){grad([[0,'#05100e'],[.45,'#0d2620'],[.7,'#1d3b2c'],[1,'#0a1410']]);glow(760,150,170,'rgba(190,230,200,A)',.35);x.fillStyle='rgba(220,240,225,.85)';x.beginPath();x.arc(760,150,34,0,7);x.fill();
+    for(let k=0;k<7;k++){x.fillStyle=`rgba(${20+k*4},${40+k*5},${34+k*4},${.5+k*.06})`;x.beginPath();x.moveTo(0,512);for(let i=0;i<=40;i++){const px=i/40*1024;x.lineTo(px,330+k*14+Math.sin(i*.7+k)*10+r()*12)}x.lineTo(1024,512);x.fill()}
+    for(let k=0;k<5;k++){const bx=r()*1024;x.strokeStyle='rgba(6,14,10,.9)';x.lineWidth=6+r()*6;x.beginPath();x.moveTo(bx,512);x.lineTo(bx+(r()-.5)*20,250+r()*60);x.stroke();for(let j=0;j<4;j++){x.lineWidth=2+r()*2;x.beginPath();const y=280+r()*80;x.moveTo(bx,y);x.lineTo(bx+(r()-.5)*120,y-30-r()*40);x.stroke()}}
+    glow(512,420,520,'rgba(120,170,140,A)',.18)}
+  else if(kind==='castle'){grad([[0,'#02040c'],[.5,'#0a1430'],[.78,'#1e2c55'],[1,'#2a2f4a']]);
+    for(let k=0;k<420;k++){const a=r();x.fillStyle=`rgba(255,255,255,${a*a*.9})`;x.fillRect(r()*1024,r()*330,a>.92?2:1,a>.92?2:1)}
+    glow(260,120,200,'rgba(170,190,255,A)',.45);x.fillStyle='#eef2ff';x.beginPath();x.arc(260,120,52,0,7);x.fill();x.fillStyle='rgba(150,160,200,.35)';for(let k=0;k<6;k++){x.beginPath();x.arc(240+r()*40,100+r()*40,6+r()*10,0,7);x.fill()}
+    for(let k=0;k<3;k++){x.fillStyle=`rgba(${14+k*8},${18+k*9},${40+k*12},1)`;x.beginPath();x.moveTo(0,512);let y=360+k*30;for(let i=0;i<=24;i++){const px=i/24*1024;y=Math.max(250+k*40,Math.min(460,y+(r()-.5)*70));x.lineTo(px,y-(i%3===1?40:0))}x.lineTo(1024,512);x.fill()}
+    for(let k=0;k<5;k++){x.fillStyle='rgba(120,140,190,.08)';x.beginPath();x.ellipse(r()*1024,180+r()*120,160+r()*120,18+r()*14,0,0,7);x.fill()}}
+  else if(kind==='dragon'){grad([[0,'#050101'],[.45,'#1a0604'],[.75,'#4a1206'],[1,'#7a2a08']]);
+    for(let k=0;k<5;k++){x.fillStyle=`rgba(${10+k*6},${4+k*2},${3+k*2},1)`;x.beginPath();x.moveTo(0,512);for(let i=0;i<=30;i++){const px=i/30*1024;x.lineTo(px,280+k*35+(i%2?-60:20)*r())}x.lineTo(1024,512);x.fill()}
+    for(let k=0;k<26;k++){const sx=r()*1024;x.fillStyle='rgba(8,3,2,1)';x.beginPath();x.moveTo(sx-20-r()*20,0);x.lineTo(sx+r()*10,60+r()*120);x.lineTo(sx+20+r()*20,0);x.fill()}
+    glow(512,470,560,'rgba(255,90,20,A)',.32);
+    // 어둠 속의 두 눈
+    for(const ex of[470,560]){glow(ex,170,46,'rgba(255,170,40,A)',.7);x.fillStyle='#ffe08a';x.beginPath();x.ellipse(ex,170,14,6,ex<512?.15:-.15,0,7);x.fill();x.fillStyle='#200800';x.fillRect(ex-1.5,164,3,12)}}
+  return texFrom(c,{srgb:1,clamp:1})}
+function lavaTex(){const[c,x]=cvs(512,512),r=rng(51);x.fillStyle='#000';x.fillRect(0,0,512,512);x.strokeStyle='#fff';x.shadowColor='#fff';x.shadowBlur=8;x.lineCap='round';
+  for(let k=0;k<26;k++){let px=256+(r()-.5)*80,py=256+(r()-.5)*80,a=r()*TAU;x.lineWidth=2+r()*5;x.beginPath();x.moveTo(px,py);for(let s=0;s<9;s++){a+=(r()-.5)*1.1;px+=Math.cos(a)*28;py+=Math.sin(a)*28;x.lineTo(px,py)}x.stroke()}
+  return texFrom(c,{clamp:1})}
+function buildMap(id){if(MAPS[id])return MAPS[id];const parts=[],M={};
+  const put=(g,mt,T)=>parts.push({m:mesh(g),mat:mt,M:T||M4.id()});
+  const stone=(col,rep)=>mat({col,alb:PT.wall_d,nor:PT.wall_n,rgh:PT.wall_r,rep:rep||[2,1],rou:.95});
+  const ground=(col,rep)=>mat({col,alb:PT.floor_d,nor:PT.floor_n,rgh:PT.floor_r,rep:rep||[5,3.3],rou:.85});
+  const bark=mat({col:[.38,.36,.3],alb:PT.bark_d,nor:PT.bark_n,rep:[2,3],rou:.9});
+  if(id==='swamp'){
+    M.sky=paintSky('swamp');
+    put(plane2(40,12),mat({col:lin('#0a1a13'),met:0,rou:.92,emi:lin('#03100a')}),M4.tr(0,-.06,-3));
+    put(lathe([[0,0],[3.1,0],[3.25,-.05],[3.0,-.12],[0,-.12]],40),ground([.4,.48,.3],[6,6]),M4.sc(1,1,.62));
+    for(let i=0;i<9;i++){const a=i/9*TAU,R=2.8+Math.random()*.4;put(sphere(1,12,8),mat({col:lin('#31502a'),rou:.95}),M4.chain(M4.tr(Math.cos(a)*R,.0,Math.sin(a)*R*.6),M4.sc(.35+Math.random()*.25,.06,.25)))}
+    const tree=(x,z,h,s)=>{put(lathe([[.28*s,0],[.22*s,.3],[.13*s,h*.7],[.07*s,h],[0,h+.05]],12),bark,M4.tr(x,-.05,z));
+      for(let k=0;k<5;k++){const y=h*(.45+k*.1),a=k*2.1+x,p=[];for(let i=0;i<=8;i++){const u=i/8;p.push([x+Math.cos(a)*u*1.1*s,y+u*(.5+Math.sin(k)*.3)*s-u*u*.3,z+Math.sin(a)*u*.6*s])}put(tube(p,u=>.06*s*(1-u*.8),6),bark);
+        for(let j=0;j<3;j++){const q=p[3+j*2],m=[];for(let i=0;i<=6;i++)m.push([q[0]+Math.sin(i)*.02,q[1]-i/6*(.5+j*.2),q[2]]);put(tube(m,u=>.018*(1-u*.7),4),mat({col:lin('#55704a'),rou:.95,emi:lin('#0a140a')}))}}};
+    tree(-3.4,-2.2,3.2,1);tree(3.6,-2.7,3.6,1.1);tree(-1.4,-5.2,2.8,.9);tree(2.0,-5.8,3.3,1);tree(-5.6,-4.5,3.8,1.2);tree(5.8,-4.8,3,1);
+    for(let k=0;k<26;k++){const a=Math.random()*TAU,R=3.1+Math.random()*.6,x=Math.cos(a)*R,z=Math.sin(a)*R*.62;if(z>1.2)continue;for(let j=0;j<4;j++){const h=.4+Math.random()*.5;put(tube([[x+j*.04,-.05,z],[x+j*.04+.05,h*.6,z],[x+j*.04+.1,h,z+.03]],.008,4),mat({col:lin('#58703a'),rou:.9}))}}
+    for(let k=0;k<10;k++){const x=(Math.random()-.5)*9,z=-2.6-Math.random()*3;put(lathe([[0,0],[.25,0],[.25,.01],[0,.01]],14),mat({col:lin('#2e5a2a'),rou:.7}),M4.tr(x,-.04,z))}
+    M.mush=[];for(let k=0;k<7;k++){const a=Math.random()*TAU,R=2.4+Math.random()*.6,x=Math.cos(a)*R,z=Math.min(.6,Math.sin(a)*R*.6);M.mush.push([x,.1,z]);put(lathe([[0,0],[.03,0],[.025,.12],[.09,.13],[.07,.17],[0,.19]],10),mat({col:lin('#1a3a40'),rou:.4,emi:lin('#2affc8')}),M4.tr(x,0,z))}
+    M.lights=t=>[[[ -4,5,-6],[.6,.85,.8],.004],[[4,3,3],[.45,.7,.55],.02],[[0,1.2,2],[.3,.5,.4],.04],[[M.mush[0][0],.4,M.mush[0][2]],[.2,1.2,.9],1.2],[[M.mush[1][0],.4,M.mush[1][2]],[.2,1.2,.9],1.2],[[0,1.3,.6],[0,0,0],1]];
+    M.tint=[.75,1,.85];M.circle=[.3,.6,.45];
+    M.fx=(dt,t)=>{M.acc=(M.acc||0)+dt*6;while(M.acc>1){M.acc--;emit({p:[rnd(-4,4),rnd(.2,1.8),rnd(-3,1)],v:[rnd(-.15,.15),rnd(-.05,.1),rnd(-.1,.1)],life:rnd(2,4),s0:.014,s1:.01,c0:[3,4,1],sh:1,a0:1,a1:0,fadeIn:.3})}
+      M.acc2=(M.acc2||0)+dt*2;while(M.acc2>1){M.acc2--;emit({p:[rnd(-6,6),.15,rnd(-6,-2.5)],v:[rnd(.05,.15),0,0],life:rnd(4,6),s0:.8,s1:1.4,c0:[.05,.09,.07],sh:0,a0:.45,a1:0,fadeIn:.4})}}}
+  else if(id==='castle'){
+    M.sky=paintSky('castle');
+    const wallS=stone([.62,.6,.66],[3,1]);
+    put(box(12,.3,6),ground([.6,.6,.64],[6,3]),M4.tr(0,-.15,-.5));
+    put(box(12,.9,.5),wallS,M4.tr(0,.45,-3.1));for(let i=-9;i<=9;i++)put(box(.42,.5,.5),wallS,M4.tr(i*.62,1.15,-3.1));
+    for(const sx of[-1,1]){put(box(.5,.9,4),wallS,M4.tr(sx*5.6,.45,-1.2));for(let i=0;i<5;i++)put(box(.5,.5,.42),wallS,M4.tr(sx*5.6,1.15,-2.8+i*.8))}
+    for(const sx of[-1,1]){const tx=sx*4.3,tz=-4.2;put(lathe([[1,0],[1,5.2],[1.12,5.25],[1.12,5.7],[0,5.7]],24),stone([.58,.56,.62],[4,3]),M4.tr(tx,0,tz));
+      for(let i=0;i<10;i++){const a=i/10*TAU;put(box(.28,.4,.28),stone([.58,.56,.62]),M4.chain(M4.tr(tx+Math.cos(a)*1.02,5.9,tz+Math.sin(a)*1.02)))}
+      put(lathe([[1.25,0],[.02,2.2],[0,2.2]],20),mat({col:lin('#2a3a6a'),rou:.55,met:.2}),M4.tr(tx,6.1,tz));put(lathe([[.03,0],[.03,1]],6),SC.ironM,M4.tr(tx,8.2,tz));
+      put(box(.7,.42,.02),mat({col:lin(sx<0?'#a8202a':'#1f3f9a'),rou:.8,emi:lin(sx<0?'#300406':'#060c30')}),M4.tr(tx+.38,8.9,tz))}
+    // 깃발 (벽에 걸린 휘장)
+    for(const bx of[-2.4,2.4]){put(box(.9,1.8,.04),mat({col:lin(bx<0?'#9a1c26':'#1d3a90'),rou:.85,emi:lin(bx<0?'#200306':'#040a24')}),M4.tr(bx,.3,-2.8));put(box(1,.06,.06),SC.gold,M4.tr(bx,1.2,-2.79));
+      put(extrude([[0,.3],[.22,0],[0,-.3],[-.22,0]],{depth:.02,bevel:.005}),SC.gold,M4.tr(bx,.45,-2.76))}
+    M.braz=[];for(const bx of[-3.6,3.6]){M.braz.push([bx,1.05,-2.3]);put(lathe([[0,0],[.08,0],[.06,.7],[.25,.85],[.3,1.0],[.28,1.02],[0,.92]],16),SC.ironM,M4.tr(bx,0,-2.3))}
+    M.lights=t=>[[[-6,8,-8],[.7,.8,1.3],.0015],[[M.braz[0][0],1.4,M.braz[0][2]],V.sc([3,1.4,.45],.9+.1*Math.sin(t*9)),.4],[[M.braz[1][0],1.4,M.braz[1][2]],V.sc([3,1.4,.45],.9+.1*Math.sin(t*8+1)),.4],[[0,4,4],[.6,.65,.85],.015],[[3,2,2],[.3,.35,.55],.03],[[0,1.3,.6],[0,0,0],1]];
+    M.tint=[.85,.9,1.15];M.circle=[.45,.5,.7];
+    M.fx=(dt,t)=>{for(const b of M.braz){M['f'+b[0]]=(M['f'+b[0]]||0)+dt*40;while(M['f'+b[0]]>1){M['f'+b[0]]--;emit({p:[b[0]+rnd(-.15,.15),b[1],b[2]+rnd(-.12,.12)],v:[rnd(-.05,.05),rnd(.6,1.2),rnd(-.05,.05)],life:rnd(.3,.6),s0:.1,s1:.18,c0:[4,1.6,.4],c1:[1,.2,.05],sh:3,a0:.9,a1:0})}}
+      M.acc=(M.acc||0)+dt*3;while(M.acc>1){M.acc--;emit({p:[rnd(-6,6),rnd(2,4),rnd(-3,1)],v:[rnd(.2,.5),rnd(-.05,.05),0],life:rnd(3,5),s0:.01,s1:.01,c0:[1.5,1.6,2],sh:1,a0:.5,a1:0,fadeIn:.3})}}}
+  else if(id==='dragon'){
+    M.sky=paintSky('dragon');M.lava=lavaTex();
+    const rock=stone([.32,.22,.2],[2,2]);
+    put(lathe([[0,0],[4.2,0],[4.4,-.1],[0,-.1]],40),ground([.36,.26,.24],[7,7]),M4.sc(1.2,1,.62));
+    put(plane2(40,30),mat({col:lin('#1a100c'),alb:PT.floor_d,nor:PT.floor_n,rep:[8,6],rou:.95}),M4.tr(0,-.03,-3));put(plane2(40,2.2),mat({col:[0,0,0],rou:1,emi:V.sc(lin('#ff5a14'),.8)}),M4.tr(0,-.02,-5.4));
+    for(let k=0;k<22;k++){const x=(Math.random()-.5)*14,z=-3.2-Math.random()*4,h=1+Math.random()*3.2,r=.2+Math.random()*.45;if(Math.abs(x)<1.2&&z>-4)continue;put(lathe([[r,0],[r*.7,h*.4],[r*.3,h*.85],[0,h]],9),rock,M4.tr(x,-.2,z))}
+    for(const sx of[-1,1])for(let k=0;k<4;k++){const x=sx*(4.6+k*.5),z=-1.5+k*.6,h=1.5+Math.random()*2;put(lathe([[.4,0],[.28,h*.5],[0,h]],9),rock,M4.tr(x,0,z))}
+    const boneM=mat({col:lin('#8a7c66'),rou:.75});
+    for(let i=0;i<7;i++){const x=-4.4+i*.42,p=[];for(let j=0;j<=12;j++){const a=j/12*PI;p.push([x,Math.sin(a)*1.6,-2.6+Math.cos(a)*1.1])}put(tube(p,u=>.06*(1-Math.abs(u-.5)*.6),6),boneM)}
+    put(tube([[-4.6,.1,-2.6],[-1.6,.15,-2.6]],.09,8),boneM);put(sphere(.55,16,12),boneM,M4.chain(M4.tr(-5.1,.4,-2.2),M4.sc(1.3,.8,1)));
+    for(const sx of[-1,1])put(tube([[-5.3,.6,-2.2+sx*.3],[-5.7,1.2,-2.2+sx*.5],[-5.5,1.7,-2.2+sx*.7]],u=>.08*(1-u*.8),6),boneM);
+    const twig=mat({col:lin('#3a2416'),alb:PT.bark_d,rep:[1,2],rou:.9});
+    for(let k=0;k<40;k++){const a=Math.random()*TAU,p=[];for(let i=0;i<=4;i++)p.push([3.6+Math.cos(a+i*.25)*(.9+Math.random()*.15),.1+i*.05+Math.random()*.1,-2.4+Math.sin(a+i*.25)*(.6+Math.random()*.1)]);put(tube(p,.03,4),twig)}
+    M.eggs=[[3.4,.42,-2.4],[3.85,.4,-2.25],[3.65,.38,-2.7]];for(const e of M.eggs)put(sphere(.26,16,12),mat({col:lin('#5a1612'),met:.3,rou:.3,emT:TEX.crack,emTCol:[3,.9,.2]}),M4.chain(M4.tr(e[0],e[1],e[2]),M4.sc(1,1.35,1)));
+    put(lathe([[0,0],[1.4,0],[1.0,.35],[.4,.6],[0,.68]],24),mat({col:lin('#e8b040'),met:1,rou:.3,emi:lin('#301800')}),M4.chain(M4.tr(-2.8,-.05,-3.6),M4.sc(1,1,.6)));
+    M.lights=t=>[[[0,-.2,-5],V.sc([6,2,.5],.85+.15*Math.sin(t*1.7)),.03],[[3.6,.9,-2.4],[2.4,.7,.15],.6],[[-3,3,3],[.55,.35,.3],.02],[[3,2.5,2],[.6,.3,.2],.03],[[0,1.3,.6],[0,0,0],1]];
+    M.tint=[1.25,.8,.6];M.circle=[.7,.35,.2];
+    M.fx=(dt,t)=>{M.acc=(M.acc||0)+dt*18;while(M.acc>1){M.acc--;emit({p:[rnd(-6,6),rnd(-.1,.3),rnd(-6,1)],v:[rnd(-.1,.1),rnd(.3,.9),rnd(-.05,.05)],life:rnd(1.5,3),s0:.016,s1:.006,c0:[5,1.6,.3],sh:1,a0:1,a1:0})}
+      M.acc2=(M.acc2||0)+dt*1.5;while(M.acc2>1){M.acc2--;emit({p:[rnd(-5,5),.2,rnd(-5,-2)],v:[rnd(-.05,.05),rnd(.2,.4),0],life:rnd(4,6),s0:.6,s1:1.8,c0:[.08,.04,.03],sh:0,a0:.5,a1:0,fadeIn:.3})}}}
+  M.parts=parts;MAPS[id]=M;return M}
+// 맵 그리기 (불투명 지형). 기존 지하 투기장은 duelFrame이 그대로 그림
+function drawMap(id,t){const M=buildMap(id),X=window.__F3X;M.parts.forEach((p,i)=>{if(X&&X.keep&&(i<X.keep[0]||i>=X.keep[1]))return;drawPBR(p.m,p.mat,p.M)})}
+function drawMapSky(id,t){const M=MAPS[id];if(!M||!M.sky||(window.__F3X&&window.__F3X.nosky))return;drawDecal(M4.chain(M4.tr(0,3,-10),M4.sc(16,8,1)),M.sky,[1,1,1],1,3);
+  if(M.lava){drawDecal(M4.chain(M4.tr(0,.004,-.6),M4.rx(-PI/2),M4.rz(.3),M4.sc(3.2,1.6,1)),M.lava,V.sc([2.2,.6,.1],.3+.1*Math.sin(t*2)),1,0)}}
 
 /* ---------------- 프레임 ---------------- */
 let FIXQ=0,FIXP=null;
@@ -1321,7 +1427,7 @@ function endScene(w,h,o){
   gl.uniform1f(cu.uBloom,.16);gl.uniform1f(cu.uInv,(o&&o.inv)?1:0);gl.uniform1f(cu.uExp,1.05);gl.uniform1f(cu.uCA,Math.min(.012,(o.shake||0)*.0006));gl.uniform1f(cu.uFz,o.fz?.6+.4*Math.sin(o.t*14):0);gl.uniform1f(cu.uTime,o.t%10);gl.uniform1f(cu.uVig,.75);
   gl.drawArrays(gl.TRIANGLES,0,3);gl.activeTexture(gl.TEXTURE0)}
 function weaponFX(R,Mw,E,t,eye,pv,AU){if(!R||R.type==='blank')return;const lv=R.lv,cent=M4.pt(Mw,[0,R.ringY,0]),sc=V.len(M4.dir(Mw,[1,0,0]));
-  if(AU&&AU.g>=2){const r=(.2+AU.g*.03)*sc;drawDecal(M4.chain(M4.tr(cent[0],cent[1],cent[2]),M4.rx(PI/2-.42),M4.rz(t*.7),M4.sc(r)),TEX.ring,V.sc(auraE(AU,t).c,1.8),pv,0)}
+  if(AU&&!AU.gr&&AU.g>=2){const r=(.2+AU.g*.03)*sc;drawDecal(M4.chain(M4.tr(cent[0],cent[1],cent[2]),M4.rx(PI/2-.42),M4.rz(t*.7),M4.sc(r)),TEX.ring,V.sc(auraE(AU,t).c,1.8),pv,0)}
   if(R.saber&&R.saber.BL>0){const s=R.saber,b0=M4.pt(Mw,[0,.01,0]),b1=M4.pt(Mw,[0,.01+s.BL,0]),dd=V.sub(b1,b0),bc=lin(R.lv===18?hsv(t*120%360):s.col);
     pushSpr(V.mix(b0,b1,.5),dd,.085*sc,0,V.sc(bc,2.2),1);pushSpr(V.mix(b0,b1,.5),dd,.032*sc,1,V.sc(V.mix(bc,[1,1,1],.7),4),1);
     if(s.dbl){const c0=M4.pt(Mw,[0,-s.HL,0]),c1=M4.pt(Mw,[0,-s.HL-s.BL,0]),d2=V.sub(c1,c0);pushSpr(V.mix(c0,c1,.5),d2,.085*sc,0,V.sc(bc,2.2),1);pushSpr(V.mix(c0,c1,.5),d2,.032*sc,1,V.sc(V.mix(bc,[1,1,1],.7),4),1)}}}
@@ -1385,7 +1491,8 @@ function frame(now,dt,st){
   sprN=0;
   const AU=H.curAura&&H.curAura();
   if(wVis&&Mw&&WPN&&!blank){const lv=WPN.lv,pv=.25+.75*pose.p,cent=M4.pt(Mw,[0,WPN.ringY,0]),sc=V.len(M4.dir(Mw,[1,0,0]));
-    if(AU){const E=auraE(AU,t);
+    if(AU&&AU.gr)groundAuraDraw(AU,FLX,.08,.75+AU.g*.08,t,.4+.6*pose.p,sdt);
+    else if(AU){const E=auraE(AU,t);
     if(AU.g>=2){const r=(.2+AU.g*.03)*sc;drawDecal(M4.chain(M4.tr(cent[0],cent[1],cent[2]),M4.rx(PI/2-.42),M4.rz(t*.7),M4.sc(r)),TEX.ring,V.sc(E.c,1.8),pv,0);
       if(AU.g>=3){const c2=M4.pt(Mw,[0,WPN.ringY*1.7+.05,0]);drawDecal(M4.chain(M4.tr(c2[0],c2[1],c2[2]),M4.rx(PI/2-.5),M4.rz(-t*1.1),M4.sc(r*.72)),TEX.ring,V.sc(E.l,1.6),pv,0)}}
     if(AU.g>=3&&pose.p>.05){const c=M4.pt(Mw,[0,WPN.mid,0]),fw=V.norm(V.sub(eye,c)),rt=V.norm(V.cross([0,1,0],fw)),upv=V.cross(fw,rt),s=(.26+lv*.012)*(.9+.1*Math.sin(t*2));
@@ -1447,35 +1554,60 @@ function thumb(wd,W,Hh,rot){W=Math.max(8,Math.min(512,W|0));Hh=Math.max(8,Math.m
   ox.drawImage(big,0,0,W,Hh);if(any){ox.globalCompositeOperation='lighter';ox.globalAlpha=.6;ox.filter='blur(1px)';ox.drawImage(gl2,0,0,W,Hh);ox.filter='none';ox.globalAlpha=1;ox.globalCompositeOperation='source-over'}
   if(TCACHE.size>400)TCACHE.delete(TCACHE.keys().next().value);TCACHE.set(key,out);return out}
 /* ---------------- 상점 보물상자 (사진 질감 나무·쇠) : 이미지로 구워서 사용 ---------------- */
-function chestGeo(open){const W=.9,Hb=.46,D=.56,R=D/2,o={wood:G(),iron:G(),gold:G(),dark:G(),glow:G()};
+function rRect(w,h,r,n=5){const o=[],c=[[w/2-r,h/2-r,0],[-w/2+r,h/2-r,PI/2],[-w/2+r,-h/2+r,PI],[w/2-r,-h/2+r,PI*1.5]];for(const[cx,cy,a0]of c)for(let i=0;i<=n;i++){const a=a0+i/n*PI/2;o.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r])}return o}
+// 두툼하게 모서리가 둥근 상자 (가운데 기준, w×h×d)
+function bbox(w,h,d,r){return extrude(rRect(w,h,Math.min(r,w*.45,h*.45)),{depth:d,bevel:Math.min(r*.8,d*.3)})}
+// 소용돌이 덩굴무늬 (판 위에 붙는 금장식): 중심 cx,cy, 크기 s, 방향 sd
+function scroll(cx,cy,z,s,sd,turn){const p=[];for(let i=0;i<=46;i++){const t=i/46,a=(turn||0)+t*3.6*PI,r=s*(1-t*.86);p.push([cx+sd*(Math.cos(a)*r+t*s*.4),cy+Math.sin(a)*r*.8,z])}return p}
+function chestGeo(open){const W=1.0,Hb=.5,D=.62,o={blue:G(),silver:G(),gold:G(),dark:G(),glow:G(),wood:G(),iron:G()};
   const add=(k,g,m)=>merge(o[k],g,m||null);
-  // 몸통: 판자 5장 + 안쪽 어둠
-  for(let i=0;i<5;i++)add('wood',box(W-.02,Hb/5-.006,D-.02),M4.tr(0,Hb/10+i*Hb/5,0));
-  add('dark',box(W-.06,.01,D-.06),M4.tr(0,Hb-.004,0));
-  // 쇠 띠·모서리 쇠
-  for(const x of[-W*.32,W*.32])add('iron',box(.07,Hb+.012,D+.014),M4.tr(x,Hb/2,0));
-  for(const sx of[-1,1])for(const sz of[-1,1]){add('iron',box(.09,Hb+.016,.03),M4.tr(sx*(W/2-.035),Hb/2,sz*(D/2-.004)));add('iron',box(.03,Hb+.016,.09),M4.tr(sx*(W/2-.004),Hb/2,sz*(D/2-.035)))}
-  add('iron',box(W+.012,.04,D+.012),M4.tr(0,.02,0));add('gold',box(W+.016,.022,D+.016),M4.tr(0,Hb-.01,0));
+  // 파란 에나멜 몸통
+  add('blue',bbox(W-.04,Hb-.02,D-.04,.03),M4.tr(0,Hb/2,0));
+  // 은색 틀: 아랫단·윗단, 네 모서리 기둥, 가운데 두 띠
+  add('silver',bbox(W+.04,.1,D+.04,.035),M4.tr(0,.05,0));add('silver',bbox(W+.03,.07,D+.03,.03),M4.tr(0,Hb-.03,0));
+  for(const sx of[-1,1])for(const sz of[-1,1])add('silver',bbox(.15,Hb+.02,.15,.04),M4.tr(sx*(W/2-.05),Hb/2,sz*(D/2-.05)));
+  for(const x of[-.2,.2]){add('silver',bbox(.15,Hb,.05,.02),M4.tr(x,Hb/2,D/2+.005));add('silver',bbox(.15,Hb,.05,.02),M4.tr(x,Hb/2,-D/2-.005))}
+  for(const sx of[-1,1])add('silver',bbox(.05,Hb,.15,.02),M4.tr(sx*(W/2+.005),Hb/2,0));
   // 리벳
-  for(const x of[-W*.32,W*.32])for(let j=0;j<4;j++)for(const sz of[-1,1])add('gold',sphere(.009,8,6),M4.tr(x+(j%2?.02:-.02),.06+j*.11,sz*(D/2+.008)));
-  // 뚜껑 (반원통) — 열리면 뒤로 젖힘
-  const lid=G();const prof=[];for(let i=0;i<=16;i++){const a=PI*i/16;prof.push([Math.cos(a)*R,Math.sin(a)*R*.85])}
-  for(let i=0;i<16;i++){const a=prof[i],b=prof[i+1];const seg=box(W-.02,.03,Math.hypot(b[0]-a[0],b[1]-a[1])+.004);const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2],ang=Math.atan2(b[1]-a[1],b[0]-a[0]);merge(lid,seg,M4.chain(M4.tr(0,mid[1],mid[0]),M4.rx(-ang)))}
-  const lidI=G(),lidG=G();for(const x of[-W*.32,W*.32])for(let i=0;i<16;i++){const a=prof[i],b=prof[i+1];const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2],ang=Math.atan2(b[1]-a[1],b[0]-a[0]);merge(lidI,box(.075,.04,Math.hypot(b[0]-a[0],b[1]-a[1])+.006),M4.chain(M4.tr(x,mid[1],mid[0]),M4.rx(-ang)))}
-  for(const sx of[-1,1]){const sideP=[];for(let i=0;i<=16;i++)sideP.push([prof[i][0],prof[i][1]]);merge(lidI,extrude(sideP.map(p=>[p[0],p[1]]),{depth:.03,bevel:.004}),M4.chain(M4.tr(sx*(W/2-.012),0,0),M4.ry(PI/2)))}
-  merge(lidG,box(W+.016,.022,.03),M4.tr(0,.0,R));merge(lidG,box(W+.016,.022,.03),M4.tr(0,0,-R));
-  const LM=open?M4.chain(M4.tr(0,Hb,-R),M4.rx(-1.9),M4.tr(0,0,R)):M4.tr(0,Hb,0);
-  add('wood',lid,LM);add('iron',lidI,LM);add('gold',lidG,LM);
-  // 자물쇠
-  const lockM=open?M4.chain(LM,M4.tr(0,0,R+.02)):M4.tr(0,Hb-.02,D/2+.02);
-  add('gold',box(.12,.15,.03),lockM);add('dark',box(.022,.05,.01),M4.chain(lockM,M4.tr(0,-.01,.018)));add('dark',sphere(.016,10,8),M4.chain(lockM,M4.tr(0,.022,.016)));
-  if(open){add('glow',box(W-.08,.02,D-.08),M4.tr(0,Hb-.03,0));for(let i=0;i<70;i++){const x=(Math.random()-.5)*(W-.15),z=(Math.random()-.5)*(D-.15);add('gold',lathe([[0,0],[.028,0],[.028,.008],[0,.008]],12),M4.chain(M4.tr(x,Hb-.02+Math.random()*.03,z),M4.rx(Math.random()-.5),M4.rz(Math.random()-.5)))}}
+  for(const x of[-.2,.2])for(let j=0;j<3;j++)for(const dx of[-.045,.045])add('silver',sphere(.016,10,8),M4.tr(x+dx,.13+j*.12,D/2+.034));
+  for(const sx of[-1,1])for(let j=0;j<4;j++)add('silver',sphere(.015,10,8),M4.tr(sx*(W/2-.05),.1+j*.1,D/2+.03));
+  // 앞판 방패 + 망치·모루 문양 (게임 고유 문장)
+  const sh=[];for(let i=0;i<=20;i++){const t=i/20,a=PI*t;sh.push([Math.cos(a)*.13,.06+Math.sin(a)*.03])}sh.push([-.13,-.04],[-.08,-.12],[0,-.16],[.08,-.12],[.13,-.04]);
+  add('silver',extrude(cleanPoly(sh.map(p=>[p[0]*1.18,p[1]*1.18])),{depth:.04,bevel:.012}),M4.tr(0,Hb*.45,D/2+.04));
+  add('blue',extrude(cleanPoly(sh),{depth:.03,bevel:.006}),M4.tr(0,Hb*.45,D/2+.06));
+  const anvil=[[-.075,-.035],[.075,-.035],[.05,-.015],[.03,-.015],[.035,.005],[.09,.012],[.1,.03],[-.06,.03],[-.065,.012],[-.035,.005],[-.03,-.015],[-.05,-.015]];
+  add('gold',extrude(cleanPoly(anvil),{depth:.016,bevel:.004}),M4.tr(0,Hb*.45-.03,D/2+.08));
+  const ham=[[-.012,-.01],[.012,-.01],[.012,.07],[.045,.07],[.045,.11],[-.045,.11],[-.045,.07],[-.012,.07]];
+  add('gold',extrude(cleanPoly(ham),{depth:.016,bevel:.004}),M4.chain(M4.tr(.01,Hb*.45-.0,D/2+.084),M4.rz(-.6)));
+  for(let i=0;i<5;i++){const a=-.9+i*.45;add('gold',sphere(.008,8,6),M4.tr(Math.cos(a+PI/2)*.11,Hb*.45+.02+Math.sin(a+PI/2)*.06,D/2+.08))}
+  // 금 덩굴무늬 (앞쪽 좌우 파란 판)
+  for(const sx of[-1,1]){add('gold',tube(scroll(sx*.36,Hb*.55,D/2+.015,.06,sx,0),u=>.008*(1-u*.6),6));add('gold',tube(scroll(sx*.33,Hb*.25,D/2+.015,.045,-sx,PI),u=>.007*(1-u*.6),6))}
+  // 옆 손잡이 금 구슬
+  for(const sx of[-1,1]){add('gold',sphere(.065,16,12),M4.tr(sx*(W/2+.11),Hb*.62,0));add('gold',tube([[sx*(W/2+.02),Hb*.78,-.06],[sx*(W/2+.09),Hb*.74,-.04],[sx*(W/2+.11),Hb*.65,0],[sx*(W/2+.09),Hb*.74,.04],[sx*(W/2+.02),Hb*.78,.06]],.016,8))}
+  // 발
+  for(const sx of[-1,1])for(const sz of[-1,1])add('gold',sphere(.045,12,8),M4.tr(sx*(W/2-.05),-.005,sz*(D/2-.05)));
+  // 뚜껑: 반원 단면을 x로 늘린 몸통 + 은색 띠 + 금 덩굴 + 둥근 자물쇠
+  const R=D/2+.01,prof=[];for(let i=0;i<=18;i++){const a=PI*i/18;prof.push([Math.cos(a)*R,Math.sin(a)*R*.62])}
+  const lidShape=(rr,ins)=>{const q=[];for(let i=0;i<=18;i++){const a=PI*i/18;q.push([Math.cos(a)*rr,Math.sin(a)*rr*.62])}for(let i=18;i>=0;i--){const a=PI*i/18;q.push([Math.cos(a)*(rr-ins),Math.max(0,Math.sin(a)*(rr-ins)*.62)])}return cleanPoly(q)};
+  const lidF=(rr,wid,ins)=>extrude(cleanPoly(prof.map((p,i)=>{const a=PI*i/18;return[Math.cos(a)*rr,Math.sin(a)*rr*.62]}).concat([[-rr,0],[rr,0]])),{depth:wid,bevel:.02});
+  const L=G();merge(L,lidF(R,W-.04),M4.ry(PI/2));
+  const LS=G();for(const x of[-.2,.2])merge(LS,lidF(R+.025,.15,0),M4.chain(M4.tr(x,0,0),M4.ry(PI/2)));for(const sx of[-1,1])merge(LS,lidF(R+.02,.1,0),M4.chain(M4.tr(sx*(W/2-.04),0,0),M4.ry(PI/2)));
+  const LG=G();for(const sx of[-1,1]){merge(LG,tube(scroll(0,0,0,.07,1,0),u=>.008*(1-u*.6),6),M4.chain(M4.tr(sx*.36,R*.62-.01,.02),M4.rx(-PI/2*0.85)))}
+  const lock=G();merge(lock,lathe([[0,0],[.085,0],[.09,.02],[.08,.035],[0,.035]],28),M4.rx(PI/2));merge(lock,lathe([[.05,0],[.06,.0],[.06,.05],[.05,.05]],24),M4.chain(M4.tr(0,0,.0),M4.rx(PI/2)));
+  const lockD=G();merge(lockD,box(.02,.045,.02),M4.tr(0,-.012,.04));merge(lockD,sphere(.016,10,8),M4.tr(0,.012,.04));
+  for(let i=0;i<8;i++){const a=i/8*TAU;merge(lock,sphere(.009,8,6),M4.tr(Math.cos(a)*.07,Math.sin(a)*.07,.035))}
+  const LM=open?M4.chain(M4.tr(0,Hb,-D/2),M4.rx(-1.95),M4.tr(0,0,D/2)):M4.tr(0,Hb,0);
+  add('blue',L,LM);add('silver',LS,LM);add('gold',LG,LM);
+  const lockM=M4.chain(LM,M4.tr(0,R*.3,R*.86),M4.rx(-.55));add('gold',lock,lockM);add('dark',lockD,lockM);
+  if(open){add('dark',box(W-.1,.02,D-.1),M4.tr(0,Hb-.03,0));add('glow',box(W-.14,.01,D-.14),M4.tr(0,Hb-.015,0));
+    for(let i=0;i<90;i++){const x=(Math.random()-.5)*(W-.18),z=(Math.random()-.5)*(D-.18),y=Hb-.01+Math.random()*.06*(1-Math.abs(x)*1.4);add('gold',lathe([[0,0],[.03,0],[.03,.009],[0,.009]],12),M4.chain(M4.tr(x,y,z),M4.rx(Math.random()-.5),M4.rz(Math.random()-.5)))}
+    for(let i=0;i<6;i++)add('glow',gemGeo(.03,.04),M4.chain(M4.tr((Math.random()-.5)*.6,Hb+.04,(Math.random()-.5)*.3),M4.rz(Math.random())))}
   return o}
 function renderChest(open,W,Hh,glowCol){const SS=2,w=W*SS,h=Hh*SS,keep={...cam};const parts=chestGeo(open);
-  const M={wood:mat({alb:PT.planks_d,nor:PT.planks_n,norS:1,rep:[1.2,1],col:[.5,.3,.17],rou:.6}),iron:mat({col:lin('#6a6c74'),met:1,rou:.38,rgh:PT.steel_r,nor:PT.steel_n,norS:.35,rep:[2,2]}),gold:mat({col:lin('#e8b850'),met:1,rou:.3,emi:V.sc(lin('#ffb040'),.06)}),dark:mat({col:lin('#0c0a0a'),rou:.9}),glow:mat({col:[0,0,0],emi:V.sc(lin(glowCol||'#ffd36b'),9)})};
+  const M={blue:mat({col:lin('#2f56d6'),met:.25,rou:.32,emi:V.sc(lin('#2a48c8'),.12)}),silver:mat({col:lin('#c9d0dc'),met:.85,rou:.42,emi:V.sc(lin('#9aa6bc'),.05)}),gold:mat({col:lin('#f0b830'),met:1,rou:.28,emi:V.sc(lin('#ffb020'),.1)}),dark:mat({col:lin('#120c08'),rou:.9}),glow:mat({col:[0,0,0],emi:V.sc(lin(glowCol||'#ffd36b'),3.5)}),wood:mat({}),iron:mat({})};
   const meshes=Object.entries(parts).filter(([k,g])=>g.p.length).map(([k,g])=>({m:mesh(g),mat:M[k]}));
   try{const T=thumbRT(w,h);gl.bindFramebuffer(gl.FRAMEBUFFER,T.f);gl.viewport(0,0,w,h);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.depthMask(true);gl.disable(gl.BLEND);gl.disable(gl.CULL_FACE);
-    const tgt=[0,open?.46:.38,0],eye=open?[1.5,1.45,2.45]:[1.45,1.2,2.25],asp=w/h;cam.V=M4.look(eye,tgt,[0,1,0]);cam.P=M4.persp(26*PI/180,asp,.3,10);cam.VP=M4.mul(cam.P,cam.V);cam.eye=eye;
+    const tgt=[0,open?.5:.42,0],eye=open?[1.05,1.55,2.75]:[.95,1.05,2.6],asp=w/h;cam.V=M4.look(eye,tgt,[0,1,0]);cam.P=M4.persp(26*PI/180,asp,.3,10);cam.VP=M4.mul(cam.P,cam.V);cam.eye=eye;
     const lights=[[[1.8,2.4,2.2],[4.2,3.8,3.2],.02],[[-2.2,1.2,1.4],[.9,1,1.4],.02],[[0,2,-2],[2,1.7,1.3],.02],...(open?[[[0,.75,.15],V.sc(lin(glowCol||'#ffd36b'),6),.25]]:[])];
     setProgCommon(P_PBR,eye,lights,999,[1.1,1,.9],0);for(const x of meshes)drawPBR(x.m,x.mat,M4.id());
     gl.readPixels(0,0,w,h,gl.RGBA,gl.FLOAT,T.buf);gl.bindFramebuffer(gl.FRAMEBUFFER,null)}finally{meshes.forEach(x=>freeMesh(x.m));Object.assign(cam,keep)}

@@ -245,4 +245,4 @@ precision highp float;in vec2 vU;out vec4 o;uniform sampler2D uT;uniform vec4 uC
 void main(){vec2 q=vU*2.-1.;float r=length(q);
   if(uMode==1){float a=(1.-smoothstep(.0,1.,r));o=vec4(0.,0.,0.,a*a*uCol.a);return;}
   if(uMode==2){float a=exp(-r*r*3.5)*(1.-smoothstep(.9,1.,r));o=vec4(uCol.rgb*a*uCol.a,0.);return;}
-  vec4 t=texture(uT,vU);o=vec4(uCol.rgb*t.r*t.a*uCol.a,0.);}`;
+  vec4 t=texture(uT,vU);if(uMode==3){o=vec4(t.rgb*uCol.rgb*uCol.a,0.);return;}o=vec4(uCol.rgb*t.r*t.a*uCol.a,0.);}`;

@@ -212,9 +212,20 @@ function auraEmit(AU,pw,k,t){const E=auraE(AU,t),fx=AU.fx;
   else if(fx==='dark')emit({p:pw,v:[rnd(-.08,.08),rnd(.3,.8),rnd(-.08,.08)],st:.12,life:rnd(.5,.9),s0:.05*k,s1:.11*k,c0:V.sc(E.c,1.6),c1:V.sc(E.d,.5),sh:3,a0:.75,a1:0,fadeIn:.15});
   else if(fx==='petal'){const q={p:pw,v:[rnd(-.25,.25),rnd(-.05,.25),rnd(-.25,.25)],g:.25,drag:.6,life:rnd(1.1,1.9),s0:.022*k,s1:.016*k,c0:V.sc(E.l,2.2),c1:V.sc(E.c,1.4),sh:0,a0:.95,a1:0,fadeIn:.15};q.swirl=rnd(-2.5,2.5);q.cx=pw[0];q.cz=pw[2];emit(q)}
   else if(fx==='star'){emit({p:pw,v:[rnd(-.05,.05),rnd(.02,.16),rnd(-.05,.05)],life:rnd(.8,1.6),s0:.006*k,s1:.022*k,c0:V.sc(E.l,6),sh:1,a0:1,a1:0,fadeIn:.4});if(Math.random()<.25)emit({p:pw,v:[0,rnd(.05,.15),0],life:rnd(.8,1.3),s0:.08*k,s1:.16*k,c0:V.sc(E.c,.45),sh:0,a0:.6,a1:0,fadeIn:.3})}
+  else if(fx==='leaf'){const q={p:pw,v:[rnd(-.2,.2),rnd(.05,.35),rnd(-.2,.2)],g:.18,drag:.6,life:rnd(1,1.7),s0:.02*k,s1:.014*k,c0:V.sc(E.l,2),c1:V.sc(E.c,1.5),sh:0,a0:.95,a1:0,fadeIn:.15};q.swirl=rnd(-2,2);q.cx=pw[0];q.cz=pw[2];emit(q)}
+  else if(fx==='arcane'){emit({p:pw,v:[rnd(-.05,.05),rnd(.35,.8),rnd(-.05,.05)],st:.05,life:rnd(.5,.9),s0:.014*k,s1:.004,c0:V.sc(E.l,6),sh:1,a0:1,a1:0});if(Math.random()<.3)emit({p:pw,v:[0,rnd(.3,.6),0],life:rnd(.5,.8),s0:.06*k,s1:.1*k,c0:V.sc(E.c,.8),sh:0,a0:.5,a1:0})}
   else emit({p:pw,v:[rnd(-.06,.06),rnd(.3,.7),rnd(-.06,.06)],life:rnd(.6,1.1),s0:.018*k,s1:.006,c0:V.sc(E.l,5),sh:1,a0:1,a1:0,fadeIn:.15})}
+/* 바닥형 오오라: 문양 텍스처 + 등급별 고리·솟는 빛알·빛기둥 */
+const TEXG={};function sigilTex(id){if(!TEXG[id]&&H.sigil)TEXG[id]=texFrom(H.sigil(id),{clamp:1});return TEXG[id]}
+function groundAuraDraw(AU,cx,cz,R,t,k,dt){const E=auraE(AU,t),tx=sigilTex(AU.id);if(!tx)return;const g=AU.g;
+  drawDecal(M4.chain(M4.tr(cx,.012,cz),M4.rx(-PI/2),M4.sc(R*1.25)),null,V.sc(E.c,.35*k),.8,2);
+  drawDecal(M4.chain(M4.tr(cx,.014,cz),M4.rx(-PI/2),M4.rz(t*.35),M4.sc(R)),tx,V.sc(E.l,(1.2+g*.25)*k),1,0);
+  drawDecal(M4.chain(M4.tr(cx,.015,cz),M4.rx(-PI/2),M4.rz(t*.35),M4.sc(R*1.02)),tx,V.sc(E.c,1.4*k),.7,0);
+  if(g>=2)drawDecal(M4.chain(M4.tr(cx,.016,cz),M4.rx(-PI/2),M4.rz(-t*.6),M4.sc(R*.6)),tx,V.sc(E.c,1.2*k),.8,0);
+  if(g>=3&&dt>0){groundAuraDraw.acc=(groundAuraDraw.acc||0)+dt*(14+g*10)*k;while(groundAuraDraw.acc>1){groundAuraDraw.acc--;const a=Math.random()*TAU,r=R*rnd(.3,.95);auraEmit(AU,[cx+Math.cos(a)*r,.03,cz+Math.sin(a)*r],1.3,t)}}
+  if(g>=4)for(let i=0;i<4;i++){const a=i*PI/2+t*.35,p=[cx+Math.cos(a)*R*.86,.45,cz+Math.sin(a)*R*.86],f=.7+.3*Math.sin(t*3+i);pushSpr(p,[0,.9,0],.07*k,0,V.sc(E.c,.6*k*f),1);pushSpr(p,[0,.9,0],.018*k,1,V.sc(E.l,1.4*k*f),1)}}
 const AURA_RATE=[0,12,24,42,70];
-function spawnAura(dt,Mw,p,AU){AU=AU||(H.curAura&&H.curAura());if(!WPN||!AU||WPN.type==='blank')return;
+function spawnAura(dt,Mw,p,AU){AU=AU||(H.curAura&&H.curAura());if(!WPN||!AU||AU.gr||WPN.type==='blank')return;
   const A=WPN.aura||{y0:WPN.bot*.3,y1:WPN.top*.9,w:.03},t=performance.now()/1000;auraAcc+=AURA_RATE[AU.g]*(1+p*.8)*dt;
   while(auraAcc>1){auraAcc--;const y=rnd(A.y0,A.y1),x=A.axe?rnd(.03,A.w*1.1):rnd(-A.w,A.w)*1.4,pw=M4.pt(Mw,[x,A.axe?rnd(-A.w,A.w):y,rnd(-.015,.015)]);auraEmit(AU,pw,1,t)}
   if(AU.fx==='thunder'&&AU.g>=3){arcT-=dt;if(arcT<=0){arcT=rnd(.05,.14);const E=auraE(AU,t),n=6,y0=rnd(A.y0,A.y1*.7),y1=Math.min(A.y1,y0+rnd(.15,.4));let prev=null;
