@@ -134,7 +134,7 @@
       "frames": 61,
       "impact_frame": 25,
       "loop": false,
-      "reference": "ONE PIECE / Ittoryu Iai Shishi Sonson (short-blade adaptation)",
+      "reference": "Original low quick-draw finisher with compressed anticipation and burst release",
       "duration_seconds": 2.0,
       "impact_seconds": 0.8,
       "events": [
@@ -155,9 +155,12 @@
             0,
             1
           ],
-          "runtime_only": true
+          "runtime_only": true,
+          "forward_m": 1.1,
+          "duration_frames": 7
         }
-      ]
+      ],
+      "runtime_forward_m": 1.1
     }
   ],
   "attack_pool": [
@@ -181,7 +184,7 @@
   "random_selection": {
     "avoid_immediate_repeat": true,
     "select_once_per_attack": true,
-    "game_integration_owner": "Claude"
+    "game_integration_owner": "Codex"
   },
   "grip": {
     "right_bone": "mixamorig:RightHand",
@@ -241,7 +244,6 @@
   ],
   "known_issues": [
     "Training mannequin has sculpted mitten hands; no individual finger animation.",
-    "Dash, slash trails, energy waves, lightning and hitstop are runtime effects; GLB contains skeletal motion only.",
-    "Retarget and game playback are Claude integration work; proportions differing from this rig require grip correction."
+    "Horizontal travel is runtime-authored and declared in the flash_dash event; skeletal clips remain in-place."
   ]
 }

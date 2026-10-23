@@ -223,12 +223,20 @@ function bodyAura(a,K,W,Root,AU,dt,t){a._auraDec=null;if(!AU||a.hidden)return;co
   a.auraAcc+=dt*(18+g*22)*inten;
   while(a.auraAcc>1){a.auraAcc--;const b=AURA_B[Math.floor(Math.random()*AURA_B.length)],p=V.add(pos(b),[rnd(-.16,.16),rnd(-.1,.1),rnd(-.16,.16)]);auraEmit(AU,p,1.7,t)}
   const E=auraE(AU,t),ch=pos('Spine1'),pul=.85+.15*Math.sin(t*6+a.sg),k=Math.min(1.5,inten);
+  // 등급별 나선: 몸 표면을 따라 발끝에서 어깨까지 감아 올라간다.
+  const coils=3+g*2;
+  for(let i=0;i<coils;i++){const u=(i/coils+t*(.16+.035*g)*a.sg)%1,ang=u*TAU*(1.5+g*.35)+a.sg;
+    const rad=.20+.025*g+.025*Math.sin(u*PI),p=[a.x+Math.cos(ang)*rad,.12+u*1.34,Math.sin(ang)*rad];
+    pushSpr(p,[-Math.sin(ang)*a.sg,.4,Math.cos(ang)*a.sg],.035+.008*g,i%3===0?1:0,V.sc(E.c,.45*k*(.7+u*.5)),.75)}
   if(g>=2)pushSpr(ch,null,1.1*k,0,V.sc(E.c,.3*k*pul),1);if(g>=3)pushSpr(pos('Hips'),[0,.9,0],.55*k,3,V.sc(E.c,.28*k),1);
   a._auraDec={E,inten,ch,g}}
 function drawAuraDecals(a,t,eye){const A=a._auraDec;if(!A||a.hidden)return;if(A.gr){groundAuraDraw(A.AU,a.x,0,.7+A.AU.g*.07,t,Math.min(1.4,.6+A.inten*.4),A.dt);return}const{E,inten,ch,g}=A,k=Math.min(1.6,inten);
-  if(g>=2)drawDecal(M4.chain(M4.tr(a.x,.01,0),M4.rx(-PI/2),M4.rz(t*a.sg*.9),M4.sc(.5+g*.08)),TEX.ring,V.sc(E.c,1.4*k),Math.min(1,.2+g*.2),0);
+  // 1등급부터 바닥 문양을 보이고, 등급마다 고리 수와 반대 회전을 추가한다.
+  drawDecal(M4.chain(M4.tr(a.x,.01,0),M4.rx(-PI/2),M4.rz(t*a.sg*(.55+g*.12)),M4.sc(.42+g*.09)),TEX.ring,V.sc(E.c,(.75+g*.22)*k),Math.min(1,.14+g*.18),0);
+  if(g>=2)drawDecal(M4.chain(M4.tr(a.x,.014,0),M4.rx(-PI/2),M4.rz(-t*a.sg*.8),M4.sc(.28+g*.055)),TEX.circle,V.sc(E.l,.55*k),Math.min(.8,.12+g*.12),0);
   if(g>=3){const fw=V.norm(V.sub(eye,ch)),rt=V.norm(V.cross([0,1,0],fw)),up=V.cross(fw,rt),s=(.75+g*.12)*(.92+.08*Math.sin(t*2.4));
-    drawDecal(M4.basis(V.sc(rt,s),V.sc(up,s),fw,V.madd(ch,fw,-.35)),TEX.halo,V.sc(E.c,.5*k),Math.min(1,g*.25),0)}}
+    drawDecal(M4.basis(V.sc(rt,s),V.sc(up,s),fw,V.madd(ch,fw,-.35)),TEX.halo,V.sc(E.c,.5*k),Math.min(1,g*.25),0);
+    if(g>=4)drawDecal(M4.basis(V.sc(rt,s*.72),V.sc(up,s*.72),fw,V.madd(ch,fw,-.37)),TEX.circle,V.sc(E.l,.32*k),.55,0)}}
 /* 잔상 */
 function ghostSnap(a,strong){const g=a._last;if(!g)return;DS.ghosts.push({...g,t0:DS.clock,life:strong?260:340,k:strong?1:.7});if(DS.ghosts.length>14)DS.ghosts.shift()}
 /* ---- Codex 납품 오오라 메시 (몸형 8종) ----
@@ -243,9 +251,11 @@ function drawAuraMesh(a,AU,t){
   const K=packReady(nm);if(!K){loadPack(nm);return}
   const g=AU.g,inten=a.aura*(.32+g*.24);if(inten<=.06)return;
   const E=auraE(AU,t),k=Math.min(1.2,inten)*(.26+g*.1),pul=.9+.1*Math.sin(t*5+a.sg);
-  const M=M4.chain(M4.tr(a.x,.02,0),M4.ry(t*.55*a.sg),M4.sc(1.2));
+  const M=M4.chain(M4.tr(a.x,.02,0),M4.ry(t*(.42+.08*g)*a.sg),M4.sc(1.02+g*.045));
   gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE);gl.depthMask(false);
   drawPack(K,M,t,{col:V.sc(E.c,.14*k),emi:V.sc(E.c,.62*k*pul)});
+  if(g>=2)drawPack(K,M4.chain(M4.tr(a.x,.08,0),M4.ry(-t*.7*a.sg),M4.sc(.72+g*.035)),t*1.15,{col:V.sc(E.c,.055*k),emi:V.sc(E.l,.22*k)});
+  if(g>=4)drawPack(K,M4.chain(M4.tr(a.x,.0,0),M4.ry(t*1.05*a.sg),M4.sc(1.22)),t*.8,{col:V.sc(E.c,.035*k),emi:V.sc(E.c,.18*k*pul)});
   gl.depthMask(true);gl.disable(gl.BLEND)}
 function drawGhosts(){if(!DS.ghosts.length)return;const u=P_SKIN.u;gl.useProgram(P_SKIN.p);gl.enable(gl.BLEND);gl.depthMask(false);gl.blendFunc(gl.CONSTANT_ALPHA,gl.ONE);
   for(let i=DS.ghosts.length-1;i>=0;i--){const g=DS.ghosts[i],age=(DS.clock-g.t0)/g.life;if(age>=1){DS.ghosts.splice(i,1);continue}

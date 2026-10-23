@@ -135,10 +135,10 @@ def clips(kind):
     if kind in ['sword','saber']:
         d=clip('crescent_finisher',67,p(-.08,1.56,.04,-55,-5,yaw=-12,drop=.10),p(-.07,1.19,.35,85,0,yaw=5,drop=.15,lean=10),p(-.07,1.04,.27,120,0,yaw=10,drop=.12,lean=8),'BLEACH / Getsuga Tensho: overhead cut and projected crescent')
     elif kind in ['dagger','shinai']:
-        d=clip('flash_finisher',61,p(-.26,1.08,.08,78,-85,yaw=-32,drop=.22,lean=15),p(-.06,1.26,.34,60,80,yaw=22,drop=.14,lean=12),p(.14,1.30,.17,45,105,yaw=32,drop=.10,lean=6), 'Demon Slayer / Thunderclap and Flash' if kind=='shinai' else 'ONE PIECE / Ittoryu Iai Shishi Sonson (short-blade adaptation)')
+        d=clip('flash_finisher',61,p(-.26,1.08,.08,78,-85,yaw=-32,drop=.22,lean=15),p(-.06,1.26,.34,60,80,yaw=22,drop=.14,lean=12),p(.14,1.30,.17,45,105,yaw=32,drop=.10,lean=6),'Original low quick-draw finisher with compressed anticipation and burst release')
     elif kind=='spear':
         a=clip('rising',39,p(-.15,1.04,.19,115,-20,yaw=-20,drop=.12),p(-.06,1.30,.32,40,12,yaw=15),p(-.04,1.43,.18,-15,25,yaw=20))
-        d=clip('flash_finisher',65,p(-.15,1.20,.05,90,-5,yaw=-35,drop=.20,lean=12),p(-.03,1.29,.37,88,0,yaw=0,drop=.12,lean=12),p(-.02,1.32,.35,80,0,yaw=8,drop=.10,lean=7),'Thunderclap and Flash timing adapted to a two-handed spear lunge')
+        d=clip('flash_finisher',65,p(-.15,1.20,.05,90,-5,yaw=-35,drop=.20,lean=12),p(-.03,1.29,.37,88,0,yaw=0,drop=.12,lean=12),p(-.02,1.32,.35,80,0,yaw=8,drop=.10,lean=7),'Original two-handed spear burst lunge')
     else:
         c=clip('rising',43,p(-.13,1.04,.20,120,-30,yaw=-25,drop=.12),p(-.06,1.29,.32,35,20,yaw=15),p(.04,1.46,.13,-30,40,yaw=30))
         d=clip('crescent_finisher',73,p(-.08,1.55,.02,-65,-15,yaw=-30,drop=.12),p(-.08,1.15,.31,95,15,yaw=15,drop=.18,lean=12),p(.04,1.04,.24,125,45,yaw=30,drop=.15,lean=8),'Getsuga Tensho overhead crescent adapted to '+kind)
@@ -260,13 +260,18 @@ def main(kind):
     bpy.context.view_layer.objects.active=rig
     # Action mode exports every rig action separately. Only the chosen asset is selected.
     bpy.ops.export_scene.gltf(filepath=str(folder/(name+'.glb')),export_format='GLB',use_selection=True,export_yup=True,export_animations=True,export_animation_mode='ACTIONS',export_frame_range=False,export_force_sampling=True,export_anim_slide_to_zero=True,export_def_bones=True,export_skins=True)
-    spec=dict(asset=name,type='character_animation_pack',units='meters',up_axis='+Y',front_axis='+Z',origin='feet_center',height_m=1.7,bind_pose='T-pose, palms down, thumbs forward; closed sculpted training mittens',polygon_metric='triangles',polygon_count=triangles(body)+triangles(weapon),character_polygon_count=triangles(body),demo_weapon_polygon_count=triangles(weapon),material_count=2,textures={'basecolor':[1024,1024],'normal':[1024,1024],'roughness_metallic_packed':[1024,1024]},textures_embedded=True,bones=[PREFIX+n for n in defs],max_weights_per_vertex=1,fps=30,root_motion=False,weapon_type=kind,two_handed=kind in TWO,animations=[{k:v for k,v in c.items() if k!='keys'} for c in cc],attack_pool=[dict(clip=c['name'],weight=10 if 'finisher' in c['name'] else 30) for c in cc[1:]],random_selection={'avoid_immediate_repeat':True,'select_once_per_attack':True,'game_integration_owner':'Claude'},grip={'right_bone':PREFIX+'RightHand','left_bone':PREFIX+'LeftHand' if kind in TWO else None,'left_distance_along_blade_m':LEFT_GRIP.get(kind),'socket_matrix_blender_column_major':[offset[r][c] for c in range(4) for r in range(4)],'demo_weapon':'separate rigid-skinned mesh; remove both demo meshes when retargeting'},qa=checks,known_issues=['Training mannequin has sculpted mitten hands; no individual finger animation.','Dash, slash trails, energy waves, lightning and hitstop are runtime effects; GLB contains skeletal motion only.','Retarget and game playback are Claude integration work; proportions differing from this rig require grip correction.'])
+    spec=dict(asset=name,type='character_animation_pack',units='meters',up_axis='+Y',front_axis='+Z',origin='feet_center',height_m=1.7,bind_pose='T-pose, palms down, thumbs forward; closed sculpted training mittens',polygon_metric='triangles',polygon_count=triangles(body)+triangles(weapon),character_polygon_count=triangles(body),demo_weapon_polygon_count=triangles(weapon),material_count=2,textures={'basecolor':[1024,1024],'normal':[1024,1024],'roughness_metallic_packed':[1024,1024]},textures_embedded=True,bones=[PREFIX+n for n in defs],max_weights_per_vertex=1,fps=30,root_motion=False,weapon_type=kind,two_handed=kind in TWO,animations=[{k:v for k,v in c.items() if k!='keys'} for c in cc],attack_pool=[dict(clip=c['name'],weight=10 if 'finisher' in c['name'] else 30) for c in cc[1:]],random_selection={'avoid_immediate_repeat':True,'select_once_per_attack':True,'game_integration_owner':'Codex'},grip={'right_bone':PREFIX+'RightHand','left_bone':PREFIX+'LeftHand' if kind in TWO else None,'left_distance_along_blade_m':LEFT_GRIP.get(kind),'socket_matrix_blender_column_major':[offset[r][c] for c in range(4) for r in range(4)],'demo_weapon':'separate rigid-skinned mesh; remove both demo meshes when retargeting'},qa=checks,known_issues=['Training mannequin has sculpted mitten hands; no individual finger animation.','Horizontal travel is runtime-authored and declared in the flash_dash event; skeletal clips remain in-place.'])
     spec['textures']['emissive']=[1024,1024]
     for c in spec['animations']:
         c['duration_seconds']=(c['frames']-1)/30
         if c['impact_frame']:
             c['impact_seconds']=(c['impact_frame']-1)/30;c['events']=[dict(frame=c['impact_frame'],type='impact',direction=[0,0,1])]
-            if 'finisher' in c['name']:c['events'].append(dict(frame=c['impact_frame'],type='crescent_wave' if 'crescent' in c['name'] else 'flash_dash',direction=[0,0,1],runtime_only=True))
+            if 'finisher' in c['name']:
+                e=dict(frame=c['impact_frame'],type='crescent_wave' if 'crescent' in c['name'] else 'flash_dash',direction=[0,0,1],runtime_only=True)
+                if kind in ['dagger','spear','shinai']:
+                    e['forward_m']=1.1;e['duration_frames']=7
+                    c['runtime_forward_m']=1.1
+                c['events'].append(e)
     (folder/'spec.json').write_text(json.dumps(spec,ensure_ascii=False,indent=2),encoding='utf-8')
     cam=stage();rig.animation_data.action=bpy.data.actions[cc[0]['name']];scene.frame_set(1)
     render(cam,folder/'preview_front.png');render(cam,folder/'preview_34.png',.64)

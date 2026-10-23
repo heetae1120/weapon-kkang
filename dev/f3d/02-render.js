@@ -86,10 +86,9 @@ function loadPack(name){if(PACK[name])return PACK[name]==='loading'?null:PACK[na
     .catch(()=>{delete PACK[name]});return null}
 function packTexReady(){const T=PACKT;return !!(T.ready&&T.alb&&T.alb.ready&&T.nor&&T.nor.ready&&T.orm&&T.orm.ready&&T.emi&&T.emi.ready)}
 function packReady(name){return PACK[name]&&PACK[name]!=='loading'?PACK[name]:null}
-/* 팩 전체 미리 받기 (무기 7종×4단계 + 쇳덩이). 도착하면 캐시를 비워 다시 그리게 한다. */
-const PACK_ALL=[];
-for(const t of['sword','dagger','spear','axe','saber','shinai','scythe'])for(let i=1;i<=4;i++)PACK_ALL.push(t+'-t'+i);
-PACK_ALL.push('iron-ingot-0','weapon-chest','aura-orb');
+/* 시작 화면에 필요한 소품만 미리 받는다. 무기는 20단계 조립식 런타임 메쉬를 쓰고,
+   오오라는 장착한 종류만 지연 로드해 모바일의 초기 네트워크/VRAM 사용량을 줄인다. */
+const PACK_ALL=['iron-ingot-0','weapon-chest','aura-orb'];
 function preloadPacks(){for(const n of PACK_ALL)if(!PACK[n])loadPack(n)}
 /* 팩 에셋 그리기. M=월드 변환, t=시간(초), o={emi,col,rate} */
 function drawPack(K,M,t,o){o=o||{};const m=K.mat,c0=m.col,e0=m.emTCol;

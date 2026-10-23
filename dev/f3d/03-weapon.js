@@ -113,8 +113,9 @@ function wingMat(el,lv){const k=1+(lv-10)*.13,c=lin(H.ELS[el].c);
     ice:mat({col:lin('#d4f0ff'),met:.35,rou:.06,emi:V.sc(c,.8*k),emGrad:1}),thunder:mat({col:lin('#e8c860'),met:1,rou:.2,emi:V.sc(c,1.2*k),emGrad:1}),
     dark:mat({col:lin('#1a1322'),met:.9,rou:.16,emi:V.sc(c,1.4*k),emGrad:1})}[el]}
 /* ---- Codex 에셋 팩 무기 ----
-   28개 메쉬(7종×4단계)를 쓰고, 속성은 팔레트 색조와 발광으로 표현한다.
-   팩이 아직 안 받아졌거나 꺼져 있으면 null을 돌려주고 기존 절차 생성으로 넘어간다. */
+   기존 28개 메쉬는 구형 클라이언트와 소품 폴백을 위해 남긴다.
+   실제 무기는 아래의 속성별 조형 + 단계 부품 조합을 사용한다. 통짜 GLB 140개를
+   추가하지 않고도 (속성 원형 × 강화 표식 × 등급 실루엣) 조합으로 20단계를 만든다. */
 const PACK_TYPES={sword:1,dagger:1,spear:1,axe:1,saber:1,shinai:1,scythe:1};
 const packTier=lv=>lv<=5?1:lv<=10?2:lv<=15?3:4;
 function packWeaponName(type,lv){return PACK_TYPES[type]?type+'-t'+packTier(Math.max(1,lv)):null}
@@ -142,9 +143,34 @@ function buildPackWeapon(w){
     offH:{spear:.3,axe:.26,scythe:.32,shinai:.12,sword:0,dagger:0,saber:0}[type]||0};
   R.len=R.top-R.bot;R.mid=(R.top+R.bot)/2;
   return R}
+/* 강화 단계 식별 부품.
+   한 구간 안에서는 1~5개의 큰 룬 보석이 늘고, 5단계마다 실루엣 장식이 바뀐다.
+   따라서 +1~+20은 모두 서로 다른 조합이다. 메쉬는 무기와 함께 한 번만 생성되고
+   공용 런타임 재질을 쓰므로 GLB/텍스처 중복이 없다. */
+function addLevelParts(wb,R,type,el,lv){
+  if(lv<1||type==='blank')return;
+  const rank=Math.floor((lv-1)/5),marks=(lv-1)%5+1;
+  const polearm=type==='spear'||type==='axe'||type==='scythe',short=type==='dagger';
+  const y=polearm?Math.max(R.gripY||-.55,-.72):(short ? .025 : .045),rr=polearm ? .027 : (short ? .052 : .072),gs=short ? .008 : .010;
+  // 정면과 3/4 미리보기에서 개수가 읽히도록 반원에 배치한다.
+  for(let i=0;i<marks;i++){
+    const a=marks===1?0:lerp(-1.05,1.05,i/(marks-1));
+    wb.add('gem',gemGeo(gs,gs*1.05),M4.chain(M4.tr(Math.sin(a)*rr,y+Math.cos(a)*rr,gs*.75),M4.rx(PI/2)))}
+  // +6/+11/+16에서 외곽 실루엣 자체가 바뀌는 분리 장식.
+  if(rank>=1)for(const sd of[-1,1]){
+    const o=[[0,-.009],[rr*.55,-.004],[rr*(1.15+rank*.18),.018+rank*.006],[rr*.62,.012],[0,.009]];
+    wb.add('trim',extrude(o,{depth:.012+rank*.003,bevel:.002}),M4.chain(M4.tr(0,y,0),M4.sc(sd,1,1)))}
+  if(rank>=2){
+    const p=[];for(let i=0;i<=36;i++){const a=i/36*TAU;p.push([Math.cos(a)*rr*(1.35+rank*.12),y+Math.sin(a)*rr*(.72+rank*.06),0])}
+    wb.add(rank===3?'glow':'trim',tube(p,.003+rank*.0006,6))}
+  if(rank>=3)for(const sd of[-1,1]){
+    const h=.055+(marks-1)*.004;
+    wb.add('trim',lathe([[.010,0],[.014,.014],[0,h]],6,{flat:1}),M4.chain(M4.tr(sd*rr*1.42,y+.004,0),M4.rz(-sd*.28)))}
+  R.levelParts={rank:rank+1,marks}}
 /* 무기 생성 */
 function buildWeapon(w){
-  if(H.usePack&&H.usePack()&&w&&w.type&&w.type!=='blank'){const P=buildPackWeapon(w);if(P)return P}
+  // 무기는 속성별 조형과 20단계 부품이 필요한 새 경로를 우선한다.
+  // iron-ingot/상자/오오라는 계속 팩 로더를 쓰며, 로딩 실패 시 기존 절차 모델로 복귀한다.
   if(H.usePack&&H.usePack()&&w&&(!w.type||w.type==='blank')){const K=packReady('iron-ingot-0');
     if(K){const B=K.bounds,top=B[1][1],bot=B[0][1];
       const R={type:'blank',lv:0,el:w&&w.el||'fire',hidden:false,pack:'iron-ingot-0',
@@ -248,6 +274,7 @@ function buildWeapon0(w){
     wb.add('trim',lathe([[0,-SL-.09],[.016,-SL-.02],[.02,-SL+.01],[0,-SL+.01]],12));
     R.mats=P;Object.assign(R,{top:.08,bot:-SL-.09,hitY:-.02,wingY:-.05,ringY:-.25,aura:{y0:-.05,y1:.1,w:R0,axe:1},bladeW:.03,scyEl:'dark'});
   }
+  addLevelParts(wb,R,type,el,lv);
   let xr=0;for(const g of Object.values(wb.B))for(let i=0;i<g.p.length;i+=3)xr=Math.max(xr,Math.abs(g.p[i]),Math.abs(g.p[i+2]));R.xr=xr;
   R.batches=Object.entries(wb.B).map(([k,g])=>({m:mesh(g),mat:R.mats[k]||mat({})}));
   if(!R.hidden&&type!=='blank'&&lv>=10&&!R.arch){R.wings={m:mesh(wingGeo(el,lv)),mat:wingMat(el,lv)}}

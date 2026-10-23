@@ -158,7 +158,16 @@ def convert(folder, wtype, outdir):
         if A.get('impact_frame'):
             m['imp'] = round((A['impact_frame'] - 1) / FPS, 4)   # Blender 1-based -> 초
         ev = [e for e in A.get('events', []) if e.get('type') != 'impact']
-        if ev: m['fx'] = [{'t': round((e['frame'] - 1) / FPS, 4), 'type': e['type']} for e in ev]
+        if ev:
+            # 전투 판정은 그대로 두고, 연출 루트 이동량 같은 이벤트 메타데이터만 전달한다.
+            m['fx'] = []
+            for e in ev:
+                fx = {'t': round((e['frame'] - 1) / FPS, 4), 'type': e['type']}
+                if e.get('forward_m') is not None:
+                    fx['forward_m'] = round(float(e['forward_m']), 3)
+                if e.get('duration_frames') is not None:
+                    fx['dur'] = round(float(e['duration_frames']) / FPS, 4)
+                m['fx'].append(fx)
         meta_anims.append(m)
         print('  %-28s %3d프레임 %.2f초%s' % (name, F, (F - 1) / FPS, ' 타격 %.3fs' % m['imp'] if 'imp' in m else ''))
     pool = [{'clip': p['clip'], 'w': p['weight']} for p in spec['attack_pool']]

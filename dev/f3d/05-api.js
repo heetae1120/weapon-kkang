@@ -134,7 +134,7 @@ function thumbRT(w,h){if(TB&&TB.w===w&&TB.h===h)return TB;if(TB){gl.deleteFrameb
   const d=gl.createRenderbuffer();gl.bindRenderbuffer(gl.RENDERBUFFER,d);gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT24,w,h);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,d);
   TB={f,c,d,w,h,buf:new Float32Array(w*h*4)};return TB}
 function thumb(wd,W,Hh,rot){W=Math.max(8,Math.min(512,W|0));Hh=Math.max(8,Math.min(512,Hh|0));rot=rot||0;
-  const usingPack=H.usePack&&H.usePack(),pn=usingPack?(packWeaponName(wd.type,wd.lv|0)||(wd.type?null:'iron-ingot-0')):null;
+  const usingPack=H.usePack&&H.usePack(),pn=usingPack&&(!wd.type||wd.type==='blank')?'iron-ingot-0':null;
   const key=(pn&&packReady(pn)?pn:(wd.type||'blank')+'|'+(wd.lv|0))+'|'+(wd.el||'')+'|'+W+'x'+Hh+'|'+rot.toFixed(2);if(TCACHE.has(key))return TCACHE.get(key);
   const SS=2,w=W*SS,h=Hh*SS,R=buildWeapon(wd),keep={...cam};
   try{const T=thumbRT(w,h);gl.bindFramebuffer(gl.FRAMEBUFFER,T.f);gl.viewport(0,0,w,h);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);

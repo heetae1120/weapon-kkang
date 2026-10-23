@@ -335,10 +335,9 @@ function loadPack(name){if(PACK[name])return PACK[name]==='loading'?null:PACK[na
     .catch(()=>{delete PACK[name]});return null}
 function packTexReady(){const T=PACKT;return !!(T.ready&&T.alb&&T.alb.ready&&T.nor&&T.nor.ready&&T.orm&&T.orm.ready&&T.emi&&T.emi.ready)}
 function packReady(name){return PACK[name]&&PACK[name]!=='loading'?PACK[name]:null}
-/* 팩 전체 미리 받기 (무기 7종×4단계 + 쇳덩이). 도착하면 캐시를 비워 다시 그리게 한다. */
-const PACK_ALL=[];
-for(const t of['sword','dagger','spear','axe','saber','shinai','scythe'])for(let i=1;i<=4;i++)PACK_ALL.push(t+'-t'+i);
-PACK_ALL.push('iron-ingot-0','weapon-chest','aura-orb');
+/* 시작 화면에 필요한 소품만 미리 받는다. 무기는 20단계 조립식 런타임 메쉬를 쓰고,
+   오오라는 장착한 종류만 지연 로드해 모바일의 초기 네트워크/VRAM 사용량을 줄인다. */
+const PACK_ALL=['iron-ingot-0','weapon-chest','aura-orb'];
 function preloadPacks(){for(const n of PACK_ALL)if(!PACK[n])loadPack(n)}
 /* 팩 에셋 그리기. M=월드 변환, t=시간(초), o={emi,col,rate} */
 function drawPack(K,M,t,o){o=o||{};const m=K.mat,c0=m.col,e0=m.emTCol;
@@ -523,8 +522,9 @@ function wingMat(el,lv){const k=1+(lv-10)*.13,c=lin(H.ELS[el].c);
     ice:mat({col:lin('#d4f0ff'),met:.35,rou:.06,emi:V.sc(c,.8*k),emGrad:1}),thunder:mat({col:lin('#e8c860'),met:1,rou:.2,emi:V.sc(c,1.2*k),emGrad:1}),
     dark:mat({col:lin('#1a1322'),met:.9,rou:.16,emi:V.sc(c,1.4*k),emGrad:1})}[el]}
 /* ---- Codex 에셋 팩 무기 ----
-   28개 메쉬(7종×4단계)를 쓰고, 속성은 팔레트 색조와 발광으로 표현한다.
-   팩이 아직 안 받아졌거나 꺼져 있으면 null을 돌려주고 기존 절차 생성으로 넘어간다. */
+   기존 28개 메쉬는 구형 클라이언트와 소품 폴백을 위해 남긴다.
+   실제 무기는 아래의 속성별 조형 + 단계 부품 조합을 사용한다. 통짜 GLB 140개를
+   추가하지 않고도 (속성 원형 × 강화 표식 × 등급 실루엣) 조합으로 20단계를 만든다. */
 const PACK_TYPES={sword:1,dagger:1,spear:1,axe:1,saber:1,shinai:1,scythe:1};
 const packTier=lv=>lv<=5?1:lv<=10?2:lv<=15?3:4;
 function packWeaponName(type,lv){return PACK_TYPES[type]?type+'-t'+packTier(Math.max(1,lv)):null}
@@ -552,9 +552,34 @@ function buildPackWeapon(w){
     offH:{spear:.3,axe:.26,scythe:.32,shinai:.12,sword:0,dagger:0,saber:0}[type]||0};
   R.len=R.top-R.bot;R.mid=(R.top+R.bot)/2;
   return R}
+/* 강화 단계 식별 부품.
+   한 구간 안에서는 1~5개의 큰 룬 보석이 늘고, 5단계마다 실루엣 장식이 바뀐다.
+   따라서 +1~+20은 모두 서로 다른 조합이다. 메쉬는 무기와 함께 한 번만 생성되고
+   공용 런타임 재질을 쓰므로 GLB/텍스처 중복이 없다. */
+function addLevelParts(wb,R,type,el,lv){
+  if(lv<1||type==='blank')return;
+  const rank=Math.floor((lv-1)/5),marks=(lv-1)%5+1;
+  const polearm=type==='spear'||type==='axe'||type==='scythe',short=type==='dagger';
+  const y=polearm?Math.max(R.gripY||-.55,-.72):(short ? .025 : .045),rr=polearm ? .027 : (short ? .052 : .072),gs=short ? .008 : .010;
+  // 정면과 3/4 미리보기에서 개수가 읽히도록 반원에 배치한다.
+  for(let i=0;i<marks;i++){
+    const a=marks===1?0:lerp(-1.05,1.05,i/(marks-1));
+    wb.add('gem',gemGeo(gs,gs*1.05),M4.chain(M4.tr(Math.sin(a)*rr,y+Math.cos(a)*rr,gs*.75),M4.rx(PI/2)))}
+  // +6/+11/+16에서 외곽 실루엣 자체가 바뀌는 분리 장식.
+  if(rank>=1)for(const sd of[-1,1]){
+    const o=[[0,-.009],[rr*.55,-.004],[rr*(1.15+rank*.18),.018+rank*.006],[rr*.62,.012],[0,.009]];
+    wb.add('trim',extrude(o,{depth:.012+rank*.003,bevel:.002}),M4.chain(M4.tr(0,y,0),M4.sc(sd,1,1)))}
+  if(rank>=2){
+    const p=[];for(let i=0;i<=36;i++){const a=i/36*TAU;p.push([Math.cos(a)*rr*(1.35+rank*.12),y+Math.sin(a)*rr*(.72+rank*.06),0])}
+    wb.add(rank===3?'glow':'trim',tube(p,.003+rank*.0006,6))}
+  if(rank>=3)for(const sd of[-1,1]){
+    const h=.055+(marks-1)*.004;
+    wb.add('trim',lathe([[.010,0],[.014,.014],[0,h]],6,{flat:1}),M4.chain(M4.tr(sd*rr*1.42,y+.004,0),M4.rz(-sd*.28)))}
+  R.levelParts={rank:rank+1,marks}}
 /* 무기 생성 */
 function buildWeapon(w){
-  if(H.usePack&&H.usePack()&&w&&w.type&&w.type!=='blank'){const P=buildPackWeapon(w);if(P)return P}
+  // 무기는 속성별 조형과 20단계 부품이 필요한 새 경로를 우선한다.
+  // iron-ingot/상자/오오라는 계속 팩 로더를 쓰며, 로딩 실패 시 기존 절차 모델로 복귀한다.
   if(H.usePack&&H.usePack()&&w&&(!w.type||w.type==='blank')){const K=packReady('iron-ingot-0');
     if(K){const B=K.bounds,top=B[1][1],bot=B[0][1];
       const R={type:'blank',lv:0,el:w&&w.el||'fire',hidden:false,pack:'iron-ingot-0',
@@ -658,6 +683,7 @@ function buildWeapon0(w){
     wb.add('trim',lathe([[0,-SL-.09],[.016,-SL-.02],[.02,-SL+.01],[0,-SL+.01]],12));
     R.mats=P;Object.assign(R,{top:.08,bot:-SL-.09,hitY:-.02,wingY:-.05,ringY:-.25,aura:{y0:-.05,y1:.1,w:R0,axe:1},bladeW:.03,scyEl:'dark'});
   }
+  addLevelParts(wb,R,type,el,lv);
   let xr=0;for(const g of Object.values(wb.B))for(let i=0;i<g.p.length;i+=3)xr=Math.max(xr,Math.abs(g.p[i]),Math.abs(g.p[i+2]));R.xr=xr;
   R.batches=Object.entries(wb.B).map(([k,g])=>({m:mesh(g),mat:R.mats[k]||mat({})}));
   if(!R.hidden&&type!=='blank'&&lv>=10&&!R.arch){R.wings={m:mesh(wingGeo(el,lv)),mat:wingMat(el,lv)}}
@@ -1339,12 +1365,20 @@ function bodyAura(a,K,W,Root,AU,dt,t){a._auraDec=null;if(!AU||a.hidden)return;co
   a.auraAcc+=dt*(18+g*22)*inten;
   while(a.auraAcc>1){a.auraAcc--;const b=AURA_B[Math.floor(Math.random()*AURA_B.length)],p=V.add(pos(b),[rnd(-.16,.16),rnd(-.1,.1),rnd(-.16,.16)]);auraEmit(AU,p,1.7,t)}
   const E=auraE(AU,t),ch=pos('Spine1'),pul=.85+.15*Math.sin(t*6+a.sg),k=Math.min(1.5,inten);
+  // 등급별 나선: 몸 표면을 따라 발끝에서 어깨까지 감아 올라간다.
+  const coils=3+g*2;
+  for(let i=0;i<coils;i++){const u=(i/coils+t*(.16+.035*g)*a.sg)%1,ang=u*TAU*(1.5+g*.35)+a.sg;
+    const rad=.20+.025*g+.025*Math.sin(u*PI),p=[a.x+Math.cos(ang)*rad,.12+u*1.34,Math.sin(ang)*rad];
+    pushSpr(p,[-Math.sin(ang)*a.sg,.4,Math.cos(ang)*a.sg],.035+.008*g,i%3===0?1:0,V.sc(E.c,.45*k*(.7+u*.5)),.75)}
   if(g>=2)pushSpr(ch,null,1.1*k,0,V.sc(E.c,.3*k*pul),1);if(g>=3)pushSpr(pos('Hips'),[0,.9,0],.55*k,3,V.sc(E.c,.28*k),1);
   a._auraDec={E,inten,ch,g}}
 function drawAuraDecals(a,t,eye){const A=a._auraDec;if(!A||a.hidden)return;if(A.gr){groundAuraDraw(A.AU,a.x,0,.7+A.AU.g*.07,t,Math.min(1.4,.6+A.inten*.4),A.dt);return}const{E,inten,ch,g}=A,k=Math.min(1.6,inten);
-  if(g>=2)drawDecal(M4.chain(M4.tr(a.x,.01,0),M4.rx(-PI/2),M4.rz(t*a.sg*.9),M4.sc(.5+g*.08)),TEX.ring,V.sc(E.c,1.4*k),Math.min(1,.2+g*.2),0);
+  // 1등급부터 바닥 문양을 보이고, 등급마다 고리 수와 반대 회전을 추가한다.
+  drawDecal(M4.chain(M4.tr(a.x,.01,0),M4.rx(-PI/2),M4.rz(t*a.sg*(.55+g*.12)),M4.sc(.42+g*.09)),TEX.ring,V.sc(E.c,(.75+g*.22)*k),Math.min(1,.14+g*.18),0);
+  if(g>=2)drawDecal(M4.chain(M4.tr(a.x,.014,0),M4.rx(-PI/2),M4.rz(-t*a.sg*.8),M4.sc(.28+g*.055)),TEX.circle,V.sc(E.l,.55*k),Math.min(.8,.12+g*.12),0);
   if(g>=3){const fw=V.norm(V.sub(eye,ch)),rt=V.norm(V.cross([0,1,0],fw)),up=V.cross(fw,rt),s=(.75+g*.12)*(.92+.08*Math.sin(t*2.4));
-    drawDecal(M4.basis(V.sc(rt,s),V.sc(up,s),fw,V.madd(ch,fw,-.35)),TEX.halo,V.sc(E.c,.5*k),Math.min(1,g*.25),0)}}
+    drawDecal(M4.basis(V.sc(rt,s),V.sc(up,s),fw,V.madd(ch,fw,-.35)),TEX.halo,V.sc(E.c,.5*k),Math.min(1,g*.25),0);
+    if(g>=4)drawDecal(M4.basis(V.sc(rt,s*.72),V.sc(up,s*.72),fw,V.madd(ch,fw,-.37)),TEX.circle,V.sc(E.l,.32*k),.55,0)}}
 /* 잔상 */
 function ghostSnap(a,strong){const g=a._last;if(!g)return;DS.ghosts.push({...g,t0:DS.clock,life:strong?260:340,k:strong?1:.7});if(DS.ghosts.length>14)DS.ghosts.shift()}
 /* ---- Codex 납품 오오라 메시 (몸형 8종) ----
@@ -1359,9 +1393,11 @@ function drawAuraMesh(a,AU,t){
   const K=packReady(nm);if(!K){loadPack(nm);return}
   const g=AU.g,inten=a.aura*(.32+g*.24);if(inten<=.06)return;
   const E=auraE(AU,t),k=Math.min(1.2,inten)*(.26+g*.1),pul=.9+.1*Math.sin(t*5+a.sg);
-  const M=M4.chain(M4.tr(a.x,.02,0),M4.ry(t*.55*a.sg),M4.sc(1.2));
+  const M=M4.chain(M4.tr(a.x,.02,0),M4.ry(t*(.42+.08*g)*a.sg),M4.sc(1.02+g*.045));
   gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE);gl.depthMask(false);
   drawPack(K,M,t,{col:V.sc(E.c,.14*k),emi:V.sc(E.c,.62*k*pul)});
+  if(g>=2)drawPack(K,M4.chain(M4.tr(a.x,.08,0),M4.ry(-t*.7*a.sg),M4.sc(.72+g*.035)),t*1.15,{col:V.sc(E.c,.055*k),emi:V.sc(E.l,.22*k)});
+  if(g>=4)drawPack(K,M4.chain(M4.tr(a.x,.0,0),M4.ry(t*1.05*a.sg),M4.sc(1.22)),t*.8,{col:V.sc(E.c,.035*k),emi:V.sc(E.c,.18*k*pul)});
   gl.depthMask(true);gl.disable(gl.BLEND)}
 function drawGhosts(){if(!DS.ghosts.length)return;const u=P_SKIN.u;gl.useProgram(P_SKIN.p);gl.enable(gl.BLEND);gl.depthMask(false);gl.blendFunc(gl.CONSTANT_ALPHA,gl.ONE);
   for(let i=DS.ghosts.length-1;i>=0;i--){const g=DS.ghosts[i],age=(DS.clock-g.t0)/g.life;if(age>=1){DS.ghosts.splice(i,1);continue}
@@ -1692,7 +1728,7 @@ function thumbRT(w,h){if(TB&&TB.w===w&&TB.h===h)return TB;if(TB){gl.deleteFrameb
   const d=gl.createRenderbuffer();gl.bindRenderbuffer(gl.RENDERBUFFER,d);gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT24,w,h);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,d);
   TB={f,c,d,w,h,buf:new Float32Array(w*h*4)};return TB}
 function thumb(wd,W,Hh,rot){W=Math.max(8,Math.min(512,W|0));Hh=Math.max(8,Math.min(512,Hh|0));rot=rot||0;
-  const usingPack=H.usePack&&H.usePack(),pn=usingPack?(packWeaponName(wd.type,wd.lv|0)||(wd.type?null:'iron-ingot-0')):null;
+  const usingPack=H.usePack&&H.usePack(),pn=usingPack&&(!wd.type||wd.type==='blank')?'iron-ingot-0':null;
   const key=(pn&&packReady(pn)?pn:(wd.type||'blank')+'|'+(wd.lv|0))+'|'+(wd.el||'')+'|'+W+'x'+Hh+'|'+rot.toFixed(2);if(TCACHE.has(key))return TCACHE.get(key);
   const SS=2,w=W*SS,h=Hh*SS,R=buildWeapon(wd),keep={...cam};
   try{const T=thumbRT(w,h);gl.bindFramebuffer(gl.FRAMEBUFFER,T.f);gl.viewport(0,0,w,h);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);

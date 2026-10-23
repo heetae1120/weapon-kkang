@@ -34,8 +34,10 @@ createServer(async (req, res) => {
     res.writeHead(r.status, Object.fromEntries(r.headers)); res.end(Buffer.from(await r.arrayBuffer()));
     return;
   }
-  let p = normalize(decodeURIComponent(url.pathname)).replace(/^(\.\.[/\\])+/, '');
-  if (p.endsWith('/')) p += 'index.html';
+  // URL 경로의 선행 /를 먼저 제거해야 Windows에서 join()이 드라이브 루트로 새지 않는다.
+  let p = normalize(decodeURIComponent(url.pathname).replace(/^\/+/, '')).replace(/^(\.\.[/\\])+/, '');
+  if (!p || p === '.') p = 'index.html';
+  else if (p.endsWith('/') || p.endsWith('\\')) p += 'index.html';
   try { const f = await readFile(join(root, 'public', p)); res.writeHead(200, { 'content-type': types[extname(p)] || 'application/octet-stream', 'cache-control': 'no-store' }); res.end(f); }
   catch (e) { res.writeHead(404); res.end('not found'); }
 }).listen(Number(process.argv[2] || 8788), () => console.log('dev on', process.argv[2] || 8788));
